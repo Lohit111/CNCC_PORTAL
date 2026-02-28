@@ -1,23 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'presentation/providers/authenticated_user_provider.dart';
-import 'core/guards/role_guard.dart';
-import 'features/user/screens/user_home_screen.dart';
-import 'features/admin/screens/admin_home_screen.dart';
-import 'features/staff/screens/staff_home_screen.dart';
-import 'features/store/screens/store_home_screen.dart';
-import 'features/auth/screens/login_screen.dart';
+import 'package:ticket_management_app/presentation/providers/auth_provider.dart';
+import 'package:ticket_management_app/presentation/pages/login_page.dart';
+import 'package:ticket_management_app/presentation/pages/user/user_home_page.dart';
+import 'package:ticket_management_app/presentation/pages/admin/admin_home_page.dart';
+import 'package:ticket_management_app/presentation/pages/staff/staff_home_page.dart';
+import 'package:ticket_management_app/presentation/pages/store/store_home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -26,74 +20,107 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Ticket Management System',
+      title: 'Request Management System',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const AuthWrapper(),
+      home: const HomeBuilder(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class AuthWrapper extends ConsumerWidget {
-  const AuthWrapper({super.key});
+class HomeBuilder extends ConsumerWidget {
+  const HomeBuilder({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authenticatedUserProvider);
+    final authState = ref.watch(authProvider);
 
-    return authState.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (error, stack) => Scaffold(
+    if (authState.isLoading) {
+      return const Scaffold(
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('Error: ${error.toString()}'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  ref.read(authenticatedUserProvider.notifier).refresh();
-                },
-                child: const Text('Retry'),
-              ),
-            ],
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (authState.error != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Authentication Error',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  authState.error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    ref.read(authProvider.notifier).refresh();
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-      data: (userData) {
-        if (userData == null) {
-          return const LoginScreen();
-        }
+      );
+    }
 
-        // Role-based routing
-        return RoleGuard(
-          role: userData.role,
-          child: _getHomeScreen(userData.role),
-        );
-      },
-    );
-  }
+    final user = authState.user;
 
-  Widget _getHomeScreen(String role) {
-    switch (role) {
+    if (user == null) {
+      return const LoginPage();
+    }
+
+    // Navigate based on user role
+    switch (user.role) {
       case 'USER':
-        return const UserHomeScreen();
+        return const UserHomePage();
       case 'ADMIN':
-        return const AdminHomeScreen();
+        return const AdminHomePage();
       case 'STAFF':
-        return const StaffHomeScreen();
+        return const StaffHomePage();
       case 'STORE':
-        return const StoreHomeScreen();
+        return const StoreHomePage();
       default:
-        return const Scaffold(
-          body: Center(child: Text('Invalid role')),
+        return Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.warning,
+                  size: 64,
+                  color: Colors.orange,
+                ),
+                const SizedBox(height: 16),
+                Text('Unknown role: ${user.role}'),
+                const SizedBox(height: 8),
+                const Text('Please contact your administrator'),
+              ],
+            ),
+          ),
         );
     }
   }

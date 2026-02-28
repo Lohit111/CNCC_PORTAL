@@ -1,33 +1,74 @@
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import '../../data/repositories/auth_repository_impl.dart';
-import '../../domain/repositories/auth_repository.dart';
-import '../../domain/usecases/auth/login_with_google.dart';
-import '../../domain/usecases/auth/logout_user.dart';
-import '../../domain/usecases/auth/get_me.dart';
-import '../../core/network/api_service.dart';
+import 'package:ticket_management_app/core/network/network_client.dart';
+import 'package:ticket_management_app/core/utils/error_handler.dart';
+import 'package:ticket_management_app/domain/entities/user_entity.dart';
 
-// AuthRepository provider
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final firebaseAuth = FirebaseAuth.instance;
-  final googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
-  final apiService = ApiService();
-  return AuthRepositoryImpl(firebaseAuth, googleSignIn, apiService);
-});
+class AuthState {
+  final User? user;
+  final bool isLoading;
+  final String? error;
 
-// Use case providers
-final loginWithGoogleProvider = Provider((ref) {
-  final repository = ref.read(authRepositoryProvider);
-  return LoginWithGoogle(repository);
-});
+  AuthState({
+    this.user,
+    this.isLoading = false,
+    this.error,
+  });
 
-final logoutUserProvider = Provider((ref) {
-  final repository = ref.read(authRepositoryProvider);
-  return LogoutUser(repository);
-});
+  AuthState copyWith({
+    User? user,
+    bool? isLoading,
+    String? error,
+  }) {
+    return AuthState(
+      user: user ?? this.user,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+    );
+  }
+}
 
-final getMeProvider = Provider((ref) {
-  final repository = ref.read(authRepositoryProvider);
-  return GetMe(repository);
+class AuthNotifier extends StateNotifier<AuthState> {
+  final NetworkClient _networkClient = NetworkClient();
+  final fb.FirebaseAuth _firebaseAuth = fb.FirebaseAuth.instance;
+
+  AuthNotifier() : super(AuthState(isLoading: true)) {
+    _init();
+  }
+
+  void _init() {
+    _firebaseAuth.authStateChanges().listen((fbUser) {
+      if (fbUser == null) {
+        state = AuthState(user: null, isLoading: false);
+      } else {
+        _fetchUserProfile();
+      }
+    });
+  }
+
+  Future<void> _fetchUserProfile() async {
+    try {
+      state = state.copyWith(isLoading: true, error: null);
+      
+      final response = await _networkClient.get('/users/me');
+      final user = User.fromJson(response.data);
+      
+      state = AuthState(user: user, isLoading: false);
+    } catch (error) {
+      final appError = ErrorHandler.handle(error);
+      state = AuthState(
+        user: null,
+        isLoading: false,
+        error: appError.message,
+      );
+    }
+  }
+
+  Future<void> refresh() async {
+    await _fetchUserProfile();
+  }
+}
+
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+  return AuthNotifier();
 });
