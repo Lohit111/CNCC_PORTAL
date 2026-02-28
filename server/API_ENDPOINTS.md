@@ -9,7 +9,108 @@ Authorization: Bearer <firebase_token>
 
 ---
 
-## 1. Requests (`/api/v1/requests`)
+## 1. Users (`/api/v1/users`)
+
+Manages user profiles and information.
+
+### 1.1 Get Current User Profile
+**GET** `/api/v1/users/me`
+
+**Access:** USER, ADMIN, STAFF, STORE (all authenticated users)
+
+**Response:**
+```json
+{
+  "id": "firebase-uid",
+  "email": "user@example.com",
+  "role": "USER",
+  "is_active": true,
+  "created_at": "2024-01-01T00:00:00"
+}
+```
+
+**Effects:**
+- Returns current authenticated user's profile
+- Includes user's assigned role
+- No data modification
+- Useful for displaying user info in UI
+- Can be called on app startup to verify authentication
+
+**Use Cases:**
+- Display user profile in navigation bar
+- Check user's role to show/hide UI elements
+- Verify authentication status
+- Get user ID for creating requests
+
+---
+
+### 1.2 Get All Users
+**GET** `/api/v1/users/?skip=0&limit=100`
+
+**Access:** ADMIN only
+
+**Query Parameters:**
+- `skip` (optional, default: 0)
+- `limit` (optional, default: 100, max: 1000)
+
+**Response:**
+```json
+{
+  "items": [
+    {
+      "id": "firebase-uid",
+      "email": "user@example.com",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00"
+    }
+  ],
+  "total": 50
+}
+```
+
+**Effects:**
+- Reads all users from database
+- Returns paginated list
+- No data modification
+
+---
+
+### 1.3 Get User by ID
+**GET** `/api/v1/users/{user_id}`
+
+**Access:** ADMIN only
+
+**Response:** Single user object
+
+**Effects:**
+- Reads single user from database
+- Returns 404 if user not found
+- No data modification
+
+---
+
+### 1.4 Update User
+**PUT** `/api/v1/users/{user_id}`
+
+**Access:** ADMIN only
+
+**Request Body:**
+```json
+{
+  "is_active": false
+}
+```
+
+**Response:** Updated user object
+
+**Effects:**
+- Updates user fields in database
+- Can activate/deactivate users
+- Returns 404 if user not found
+
+---
+
+## 2. Requests (`/api/v1/requests`)
 
 Manages ticket/request lifecycle from creation to resolution.
 
@@ -43,7 +144,7 @@ Manages ticket/request lifecycle from creation to resolution.
 
 ---
 
-### 1.2 Get All Requests
+### 2.2 Get All Requests
 **GET** `/api/v1/requests/?skip=0&limit=20`
 
 **Access:** ADMIN, STAFF
@@ -69,7 +170,7 @@ Manages ticket/request lifecycle from creation to resolution.
 
 ---
 
-### 1.3 Get Request by ID
+### 2.3 Get Request by ID
 **GET** `/api/v1/requests/{request_id}`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -83,7 +184,7 @@ Manages ticket/request lifecycle from creation to resolution.
 
 ---
 
-### 1.4 Update Request
+### 2.4 Update Request
 **PUT** `/api/v1/requests/{request_id}`
 
 **Access:** ADMIN, STAFF
@@ -115,7 +216,7 @@ Manages ticket/request lifecycle from creation to resolution.
 
 ---
 
-### 1.5 Delete Request
+### 2.5 Delete Request
 **DELETE** `/api/v1/requests/{request_id}`
 
 **Access:** ADMIN only
@@ -137,7 +238,7 @@ Manages ticket/request lifecycle from creation to resolution.
 
 ---
 
-### 1.6 Add Comment to Request
+### 2.6 Add Comment to Request
 **POST** `/api/v1/requests/{request_id}/comments`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -168,7 +269,7 @@ Manages ticket/request lifecycle from creation to resolution.
 
 ---
 
-### 1.7 Get Request Comments
+### 2.7 Get Request Comments
 **GET** `/api/v1/requests/{request_id}/comments`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -183,11 +284,11 @@ Manages ticket/request lifecycle from creation to resolution.
 
 ---
 
-## 2. Roles (`/api/v1/roles`)
+## 3. Roles (`/api/v1/roles`)
 
 Manages user role assignments for access control.
 
-### 2.1 Get All Roles
+### 3.1 Get All Roles
 **GET** `/api/v1/roles/?skip=0&limit=100`
 
 **Access:** ADMIN only
@@ -217,7 +318,7 @@ Manages user role assignments for access control.
 
 ---
 
-### 2.2 Get Role by Email
+### 3.2 Get Role by Email
 **GET** `/api/v1/roles/{email}`
 
 **Access:** ADMIN only
@@ -231,7 +332,7 @@ Manages user role assignments for access control.
 
 ---
 
-### 2.3 Create Role
+### 3.3 Create Role
 **POST** `/api/v1/roles/`
 
 **Access:** ADMIN only
@@ -260,7 +361,7 @@ Manages user role assignments for access control.
 
 ---
 
-### 2.4 Update Role
+### 3.4 Update Role
 **PUT** `/api/v1/roles/{email}`
 
 **Access:** ADMIN only
@@ -282,7 +383,7 @@ Manages user role assignments for access control.
 
 ---
 
-### 2.5 Delete Role
+### 3.5 Delete Role
 **DELETE** `/api/v1/roles/{email}`
 
 **Access:** ADMIN only
@@ -302,7 +403,7 @@ Manages user role assignments for access control.
 
 ---
 
-### 2.6 Bulk Create/Update Roles
+### 3.6 Bulk Create/Update Roles
 **POST** `/api/v1/roles/bulk`
 
 **Access:** ADMIN only
@@ -335,11 +436,11 @@ Manages user role assignments for access control.
 
 ---
 
-## 3. Types (`/api/v1/types`)
+## 4. Types (`/api/v1/types`)
 
 Manages request categorization (Main Types and Sub Types).
 
-### 3.1 Get All Main Types
+### 4.1 Get All Main Types
 **GET** `/api/v1/types/main`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -353,7 +454,7 @@ Manages request categorization (Main Types and Sub Types).
 
 ---
 
-### 3.2 Get Main Type by ID
+### 4.2 Get Main Type by ID
 **GET** `/api/v1/types/main/{main_type_id}`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -367,7 +468,7 @@ Manages request categorization (Main Types and Sub Types).
 
 ---
 
-### 3.3 Create Main Type
+### 4.3 Create Main Type
 **POST** `/api/v1/types/main`
 
 **Access:** ADMIN only
@@ -389,7 +490,7 @@ Manages request categorization (Main Types and Sub Types).
 
 ---
 
-### 3.4 Update Main Type
+### 4.4 Update Main Type
 **PUT** `/api/v1/types/main/{main_type_id}`
 
 **Access:** ADMIN only
@@ -409,7 +510,7 @@ Manages request categorization (Main Types and Sub Types).
 
 ---
 
-### 3.5 Delete Main Type
+### 4.5 Delete Main Type
 **DELETE** `/api/v1/types/main/{main_type_id}`
 
 **Access:** ADMIN only
@@ -428,7 +529,7 @@ Manages request categorization (Main Types and Sub Types).
 
 ---
 
-### 3.6 Get Sub Types for Main Type
+### 4.6 Get Sub Types for Main Type
 **GET** `/api/v1/types/main/{main_type_id}/sub`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -443,7 +544,7 @@ Manages request categorization (Main Types and Sub Types).
 
 ---
 
-### 3.7 Get Sub Type by ID
+### 4.7 Get Sub Type by ID
 **GET** `/api/v1/types/sub/{sub_type_id}`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -457,7 +558,7 @@ Manages request categorization (Main Types and Sub Types).
 
 ---
 
-### 3.8 Create Sub Type
+### 4.8 Create Sub Type
 **POST** `/api/v1/types/sub`
 
 **Access:** ADMIN only
@@ -479,7 +580,7 @@ Manages request categorization (Main Types and Sub Types).
 
 ---
 
-### 3.9 Update Sub Type
+### 4.9 Update Sub Type
 **PUT** `/api/v1/types/sub/{sub_type_id}`
 
 **Access:** ADMIN only
@@ -499,7 +600,7 @@ Manages request categorization (Main Types and Sub Types).
 
 ---
 
-### 3.10 Delete Sub Type
+### 4.10 Delete Sub Type
 **DELETE** `/api/v1/types/sub/{sub_type_id}`
 
 **Access:** ADMIN only
@@ -518,11 +619,11 @@ Manages request categorization (Main Types and Sub Types).
 
 ---
 
-## 4. Assignments (`/api/v1/assignments`)
+## 5. Assignments (`/api/v1/assignments`)
 
 Manages staff assignments to requests.
 
-### 4.1 Get Assignments by Request
+### 5.1 Get Assignments by Request
 **GET** `/api/v1/assignments/request/{request_id}`
 
 **Access:** ADMIN, STAFF
@@ -536,7 +637,7 @@ Manages staff assignments to requests.
 
 ---
 
-### 4.2 Get Assignments by Staff
+### 5.2 Get Assignments by Staff
 **GET** `/api/v1/assignments/staff/{staff_id}?active_only=true`
 
 **Access:** ADMIN, STAFF
@@ -554,7 +655,7 @@ Manages staff assignments to requests.
 
 ---
 
-### 4.3 Get Assignment by ID
+### 5.3 Get Assignment by ID
 **GET** `/api/v1/assignments/{assignment_id}`
 
 **Access:** ADMIN, STAFF
@@ -568,7 +669,7 @@ Manages staff assignments to requests.
 
 ---
 
-### 4.4 Create Assignment
+### 5.4 Create Assignment
 **POST** `/api/v1/assignments/`
 
 **Access:** ADMIN only
@@ -596,7 +697,7 @@ Manages staff assignments to requests.
 
 ---
 
-### 4.5 Update Assignment
+### 5.5 Update Assignment
 **PUT** `/api/v1/assignments/{assignment_id}`
 
 **Access:** ADMIN only
@@ -617,7 +718,7 @@ Manages staff assignments to requests.
 
 ---
 
-### 4.6 Delete Assignment
+### 5.6 Delete Assignment
 **DELETE** `/api/v1/assignments/{assignment_id}`
 
 **Access:** ADMIN only
@@ -636,11 +737,11 @@ Manages staff assignments to requests.
 
 ---
 
-## 5. Store Requests (`/api/v1/store-requests`)
+## 6. Store Requests (`/api/v1/store-requests`)
 
 Manages equipment/supply requests from staff to store personnel.
 
-### 5.1 Get All Store Requests
+### 6.1 Get All Store Requests
 **GET** `/api/v1/store-requests/?skip=0&limit=20`
 
 **Access:** STORE, ADMIN
@@ -663,7 +764,7 @@ Manages equipment/supply requests from staff to store personnel.
 
 ---
 
-### 5.2 Get Store Requests by Status
+### 6.2 Get Store Requests by Status
 **GET** `/api/v1/store-requests/status/{status}?skip=0&limit=20`
 
 **Access:** STORE, ADMIN
@@ -690,7 +791,7 @@ Manages equipment/supply requests from staff to store personnel.
 
 ---
 
-### 5.3 Get Store Requests by Parent Request
+### 6.3 Get Store Requests by Parent Request
 **GET** `/api/v1/store-requests/parent/{parent_request_id}`
 
 **Access:** STAFF, STORE, ADMIN
@@ -704,7 +805,7 @@ Manages equipment/supply requests from staff to store personnel.
 
 ---
 
-### 5.4 Get Store Request by ID
+### 6.4 Get Store Request by ID
 **GET** `/api/v1/store-requests/{store_request_id}`
 
 **Access:** STAFF, STORE, ADMIN
@@ -718,7 +819,7 @@ Manages equipment/supply requests from staff to store personnel.
 
 ---
 
-### 5.5 Create Store Request
+### 6.5 Create Store Request
 **POST** `/api/v1/store-requests/`
 
 **Access:** STAFF only
@@ -745,7 +846,7 @@ Manages equipment/supply requests from staff to store personnel.
 
 ---
 
-### 5.6 Update Store Request
+### 6.6 Update Store Request
 **PUT** `/api/v1/store-requests/{store_request_id}`
 
 **Access:** STORE, ADMIN
@@ -768,7 +869,7 @@ Manages equipment/supply requests from staff to store personnel.
 
 ---
 
-### 5.7 Respond to Store Request
+### 6.7 Respond to Store Request
 **POST** `/api/v1/store-requests/{store_request_id}/respond`
 
 **Access:** STORE only
@@ -798,7 +899,7 @@ Manages equipment/supply requests from staff to store personnel.
 
 ---
 
-### 5.8 Delete Store Request
+### 6.8 Delete Store Request
 **DELETE** `/api/v1/store-requests/{store_request_id}`
 
 **Access:** ADMIN only
