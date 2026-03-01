@@ -12,18 +12,23 @@ class StoreRequestTable(Base):
     """SQLAlchemy StoreRequest table"""
     __tablename__ = "store_requests"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
-    parent_request_id = Column(String, ForeignKey("requests.id"), nullable=False, index=True)
+    id = Column(String, primary_key=True,
+                default=lambda: str(uuid.uuid4()), index=True)
+    parent_request_id = Column(String, ForeignKey(
+        "requests.id"), nullable=False, index=True)
     requested_by = Column(String, ForeignKey("users.id"), nullable=False)
     description = Column(Text, nullable=False)
     status = Column(String, default="PENDING", nullable=False, index=True)
     responded_by = Column(String, ForeignKey("users.id"), nullable=True)
     response_comment = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow, nullable=False)
 
-    parent_request = relationship("RequestTable", back_populates="store_requests")
-    requester = relationship("UserTable", back_populates="store_requests", foreign_keys=[requested_by])
+    parent_request = relationship(
+        "RequestTable", back_populates="store_requests")
+    requester = relationship(
+        "UserTable", back_populates="store_requests", foreign_keys=[requested_by])
 
 
 class StoreRequest(BaseModel):
@@ -49,8 +54,10 @@ class StoreRequest(BaseModel):
             requested_by=str(store_request_table.requested_by),
             description=str(store_request_table.description),
             status=str(store_request_table.status),
-            responded_by=str(store_request_table.responded_by) if store_request_table.responded_by else None,
-            response_comment=str(store_request_table.response_comment) if store_request_table.response_comment else None,
+            responded_by=str(
+                store_request_table.responded_by) if store_request_table.responded_by else None,
+            response_comment=str(
+                store_request_table.response_comment) if store_request_table.response_comment else None,
             created_at=store_request_table.created_at,
             updated_at=store_request_table.updated_at
         )

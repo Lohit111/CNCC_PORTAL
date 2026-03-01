@@ -12,14 +12,17 @@ class AssignmentTable(Base):
     __tablename__ = "assignments"
 
     id = Column(Integer, primary_key=True, index=True)
-    request_id = Column(String, ForeignKey("requests.id"), nullable=False, index=True)
-    staff_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    request_id = Column(String, ForeignKey("requests.id"),
+                        nullable=False, index=True)
+    staff_id = Column(String, ForeignKey("users.id"),
+                      nullable=False, index=True)
     assigned_by = Column(String, ForeignKey("users.id"), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     request = relationship("RequestTable", back_populates="assignments")
-    staff = relationship("UserTable", back_populates="assignments", foreign_keys=[staff_id])
+    staff = relationship(
+        "UserTable", back_populates="assignments", foreign_keys=[staff_id])
 
 
 class Assignment(BaseModel):

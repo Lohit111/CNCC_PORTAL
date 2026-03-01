@@ -14,10 +14,12 @@ logger = logging.getLogger(__name__)
 def get_firebase_user_from_token(authorization: Optional[str]):
     """Verify Firebase token and return user info"""
     if not authorization:
-        raise HTTPException(status_code=401, detail="Missing Authorization header")
+        raise HTTPException(
+            status_code=401, detail="Missing Authorization header")
 
     if not authorization.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="Invalid Authorization header")
+        raise HTTPException(
+            status_code=401, detail="Invalid Authorization header")
 
     token = authorization.split(" ")[1]
 
@@ -48,7 +50,8 @@ async def get_current_user(authorization: str = Header(...), db: Session = Depen
         # Check role assignment
         role_record = Role.get(db, {"email": email})
         if not role_record:
-            logger.warning(f"User {email} attempted access without role assignment")
+            logger.warning(
+                f"User {email} attempted access without role assignment")
             raise HTTPException(
                 status_code=403, detail="Access denied: No role assigned to this email")
 

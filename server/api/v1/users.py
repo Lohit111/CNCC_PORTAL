@@ -18,7 +18,7 @@ async def get_current_user_profile(
     """Get current authenticated user's profile"""
     user = auth_data["user"]
     role = auth_data["role"]
-    
+
     return {
         "id": user.id,
         "email": user.email,

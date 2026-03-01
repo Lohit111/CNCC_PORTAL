@@ -12,21 +12,28 @@ class RequestTable(Base):
     """SQLAlchemy Request table"""
     __tablename__ = "requests"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
-    raised_by = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    id = Column(String, primary_key=True,
+                default=lambda: str(uuid.uuid4()), index=True)
+    raised_by = Column(String, ForeignKey("users.id"),
+                       nullable=False, index=True)
     main_type_id = Column(Integer, ForeignKey("main_types.id"), nullable=False)
     sub_type_id = Column(Integer, ForeignKey("sub_types.id"), nullable=False)
     description = Column(Text, nullable=False)
     status = Column(String, default="RAISED", nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow, nullable=False)
 
-    raiser = relationship("UserTable", back_populates="raised_requests", foreign_keys=[raised_by])
+    raiser = relationship(
+        "UserTable", back_populates="raised_requests", foreign_keys=[raised_by])
     main_type = relationship("MainTypeTable", back_populates="requests")
     sub_type = relationship("SubTypeTable", back_populates="requests")
-    comments = relationship("RequestCommentTable", back_populates="request", cascade="all, delete-orphan")
-    assignments = relationship("AssignmentTable", back_populates="request", cascade="all, delete-orphan")
-    store_requests = relationship("StoreRequestTable", back_populates="parent_request", cascade="all, delete-orphan")
+    comments = relationship(
+        "RequestCommentTable", back_populates="request", cascade="all, delete-orphan")
+    assignments = relationship(
+        "AssignmentTable", back_populates="request", cascade="all, delete-orphan")
+    store_requests = relationship(
+        "StoreRequestTable", back_populates="parent_request", cascade="all, delete-orphan")
 
 
 class Request(BaseModel):

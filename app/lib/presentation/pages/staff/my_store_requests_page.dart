@@ -8,7 +8,8 @@ class MyStoreRequestsPage extends ConsumerStatefulWidget {
   const MyStoreRequestsPage({super.key});
 
   @override
-  ConsumerState<MyStoreRequestsPage> createState() => _MyStoreRequestsPageState();
+  ConsumerState<MyStoreRequestsPage> createState() =>
+      _MyStoreRequestsPageState();
 }
 
 class _MyStoreRequestsPageState extends ConsumerState<MyStoreRequestsPage> {
@@ -27,17 +28,16 @@ class _MyStoreRequestsPageState extends ConsumerState<MyStoreRequestsPage> {
     try {
       final response = await _networkClient.get('/store-requests/');
       final data = response.data;
-      
+
       // Filter by current user
       final user = ref.read(authProvider).user;
       final allRequests = (data['items'] as List)
           .map((json) => StoreRequest.fromJson(json))
           .toList();
-      
+
       setState(() {
-        _storeRequests = allRequests
-            .where((req) => req.requestedBy == user?.id)
-            .toList();
+        _storeRequests =
+            allRequests.where((req) => req.requestedBy == user?.id).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -98,11 +98,14 @@ class _MyStoreRequestsPageState extends ConsumerState<MyStoreRequestsPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                _buildInfoRow('Parent Request', request.parentRequestId.substring(0, 8)),
+                                _buildInfoRow('Parent Request',
+                                    request.parentRequestId.substring(0, 8)),
                                 const SizedBox(height: 8),
-                                _buildInfoRow('Created', _formatDate(request.createdAt)),
+                                _buildInfoRow(
+                                    'Created', _formatDate(request.createdAt)),
                                 const SizedBox(height: 8),
-                                _buildInfoRow('Updated', _formatDate(request.updatedAt)),
+                                _buildInfoRow(
+                                    'Updated', _formatDate(request.updatedAt)),
                                 if (request.responseComment != null) ...[
                                   const Divider(height: 24),
                                   const Text(

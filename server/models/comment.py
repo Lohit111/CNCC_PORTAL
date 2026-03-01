@@ -12,7 +12,8 @@ class RequestCommentTable(Base):
     __tablename__ = "request_comments"
 
     id = Column(Integer, primary_key=True, index=True)
-    request_id = Column(String, ForeignKey("requests.id"), nullable=False, index=True)
+    request_id = Column(String, ForeignKey("requests.id"),
+                        nullable=False, index=True)
     sender_id = Column(String, ForeignKey("users.id"), nullable=False)
     sender_role = Column(String, nullable=False)
     message = Column(Text, nullable=False)
@@ -80,7 +81,8 @@ class RequestComment(BaseModel):
         query = db.query(RequestCommentTable)
         if filter:
             for key, value in filter.items():
-                query = query.filter(getattr(RequestCommentTable, key) == value)
+                query = query.filter(
+                    getattr(RequestCommentTable, key) == value)
         query = query.offset(skip)
         if limit:
             query = query.limit(limit)
@@ -122,5 +124,6 @@ class RequestComment(BaseModel):
         query = db.query(RequestCommentTable)
         if filter:
             for key, value in filter.items():
-                query = query.filter(getattr(RequestCommentTable, key) == value)
+                query = query.filter(
+                    getattr(RequestCommentTable, key) == value)
         return query.count()

@@ -89,12 +89,12 @@ async def respond_to_store_request(
     data = await request.json()
     status = data.get("status")
     response_comment = data.get("response_comment")
-    
+
     return StoreRequestController.respond(
-        db, 
-        store_request_id, 
-        auth_data["user"].id, 
-        status, 
+        db,
+        store_request_id,
+        auth_data["user"].id,
+        status,
         response_comment
     )
 

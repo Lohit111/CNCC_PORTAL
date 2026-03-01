@@ -26,9 +26,8 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
       final response = await _networkClient.get('/roles/');
       final data = response.data;
       setState(() {
-        _roles = (data['items'] as List)
-            .map((json) => Role.fromJson(json))
-            .toList();
+        _roles =
+            (data['items'] as List).map((json) => Role.fromJson(json)).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -94,7 +93,8 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
                   if (mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Role created successfully')),
+                      const SnackBar(
+                          content: Text('Role created successfully')),
                     );
                     _loadRoles();
                   }
@@ -152,7 +152,8 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
                   if (mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Role updated successfully')),
+                      const SnackBar(
+                          content: Text('Role updated successfully')),
                     );
                     _loadRoles();
                   }
@@ -236,7 +237,8 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
                         title: Text(role.email),
-                        subtitle: Text('Created: ${_formatDate(role.createdAt)}'),
+                        subtitle:
+                            Text('Created: ${_formatDate(role.createdAt)}'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [

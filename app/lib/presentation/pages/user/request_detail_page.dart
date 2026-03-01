@@ -30,8 +30,10 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
   Future<void> _loadRequestDetails() async {
     setState(() => _isLoading = true);
     try {
-      final requestResponse = await _networkClient.get('/requests/${widget.requestId}');
-      final commentsResponse = await _networkClient.get('/requests/${widget.requestId}/comments');
+      final requestResponse =
+          await _networkClient.get('/requests/${widget.requestId}');
+      final commentsResponse =
+          await _networkClient.get('/requests/${widget.requestId}/comments');
 
       setState(() {
         _request = Request.fromJson(requestResponse.data);
@@ -203,18 +205,22 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
                                   child: Padding(
                                     padding: const EdgeInsets.all(12),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
                                                 horizontal: 8,
                                                 vertical: 4,
                                               ),
                                               decoration: BoxDecoration(
-                                                color: _getRoleColor(comment.senderRole),
-                                                borderRadius: BorderRadius.circular(4),
+                                                color: _getRoleColor(
+                                                    comment.senderRole),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
                                               ),
                                               child: Text(
                                                 comment.senderRole,

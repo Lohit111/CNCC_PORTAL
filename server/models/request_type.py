@@ -16,7 +16,8 @@ class MainTypeTable(Base):
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    sub_types = relationship("SubTypeTable", back_populates="main_type", cascade="all, delete-orphan")
+    sub_types = relationship(
+        "SubTypeTable", back_populates="main_type", cascade="all, delete-orphan")
     requests = relationship("RequestTable", back_populates="main_type")
 
 
@@ -26,7 +27,8 @@ class SubTypeTable(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    main_type_id = Column(Integer, ForeignKey("main_types.id"), nullable=False, index=True)
+    main_type_id = Column(Integer, ForeignKey(
+        "main_types.id"), nullable=False, index=True)
 
     main_type = relationship("MainTypeTable", back_populates="sub_types")
     requests = relationship("RequestTable", back_populates="sub_type")

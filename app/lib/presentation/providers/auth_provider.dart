@@ -49,10 +49,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _fetchUserProfile() async {
     try {
       state = state.copyWith(isLoading: true, error: null);
-      
+
       final response = await _networkClient.get('/users/me');
       final user = User.fromJson(response.data);
-      
+
       state = AuthState(user: user, isLoading: false);
     } catch (error) {
       final appError = ErrorHandler.handle(error);

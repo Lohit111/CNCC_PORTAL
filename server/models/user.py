@@ -18,10 +18,13 @@ class UserTable(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
 
-    raised_requests = relationship("RequestTable", back_populates="raiser", foreign_keys="RequestTable.raised_by")
+    raised_requests = relationship(
+        "RequestTable", back_populates="raiser", foreign_keys="RequestTable.raised_by")
     comments = relationship("RequestCommentTable", back_populates="sender")
-    assignments = relationship("AssignmentTable", back_populates="staff", foreign_keys="AssignmentTable.staff_id")
-    store_requests = relationship("StoreRequestTable", back_populates="requester", foreign_keys="StoreRequestTable.requested_by")
+    assignments = relationship(
+        "AssignmentTable", back_populates="staff", foreign_keys="AssignmentTable.staff_id")
+    store_requests = relationship(
+        "StoreRequestTable", back_populates="requester", foreign_keys="StoreRequestTable.requested_by")
 
 
 class User(BaseModel):

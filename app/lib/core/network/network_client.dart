@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 class NetworkClient {
   static final NetworkClient _instance = NetworkClient._internal();
   factory NetworkClient() => _instance;
-  
+
   late final Dio _dio;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 

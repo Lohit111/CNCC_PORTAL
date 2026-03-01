@@ -90,7 +90,8 @@ class _LoginPageState extends State<LoginPage> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.login),
-                label: Text(_isLoading ? 'Signing in...' : 'Sign in with Google'),
+                label:
+                    Text(_isLoading ? 'Signing in...' : 'Sign in with Google'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 32,

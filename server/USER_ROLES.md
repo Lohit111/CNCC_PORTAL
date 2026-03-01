@@ -54,6 +54,7 @@ The system has 4 distinct user roles:
 #### ✅ UPDATE Operations
 
 **NONE** - Users cannot update requests directly. They can only:
+
 - Add comments to communicate updates
 - Request changes through comments
 
@@ -404,45 +405,46 @@ The system has 4 distinct user roles:
 
 ## Permission Matrix
 
-| Operation | USER | ADMIN | STAFF | STORE |
-|-----------|------|-------|-------|-------|
-| **Requests** |
-| Create Request | ✅ | ❌ | ❌ | ❌ |
-| View Own Requests | ✅ | ✅ | ✅ | ✅ |
-| View All Requests | ❌ | ✅ | ✅ | ✅ |
-| Update Request | ❌ | ✅ | ✅ | ❌ |
-| Delete Request | ❌ | ✅ | ❌ | ❌ |
-| **Comments** |
-| Add Comment | ✅ | ✅ | ✅ | ✅ |
-| View Comments | ✅ | ✅ | ✅ | ✅ |
-| **Roles** |
-| Create Role | ❌ | ✅ | ❌ | ❌ |
-| View Roles | ❌ | ✅ | ❌ | ❌ |
-| Update Role | ❌ | ✅ | ❌ | ❌ |
-| Delete Role | ❌ | ✅ | ❌ | ❌ |
-| Bulk Roles | ❌ | ✅ | ❌ | ❌ |
-| **Request Types** |
-| View Types | ✅ | ✅ | ✅ | ✅ |
-| Create Type | ❌ | ✅ | ❌ | ❌ |
-| Update Type | ❌ | ✅ | ❌ | ❌ |
-| Delete Type | ❌ | ✅ | ❌ | ❌ |
-| **Assignments** |
-| View Assignments | ❌ | ✅ | ✅ | ❌ |
-| Create Assignment | ❌ | ✅ | ❌ | ❌ |
-| Update Assignment | ❌ | ✅ | ❌ | ❌ |
-| Delete Assignment | ❌ | ✅ | ❌ | ❌ |
-| **Store Requests** |
-| Create Store Request | ❌ | ❌ | ✅ | ❌ |
-| View Store Requests | ❌ | ✅ | ✅ | ✅ |
-| Update Store Request | ❌ | ✅ | ❌ | ✅ |
-| Respond to Store Request | ❌ | ❌ | ❌ | ✅ |
-| Delete Store Request | ❌ | ✅ | ❌ | ❌ |
+| Operation                | USER | ADMIN | STAFF | STORE |
+| ------------------------ | ---- | ----- | ----- | ----- |
+| **Requests**             |
+| Create Request           | ✅   | ❌    | ❌    | ❌    |
+| View Own Requests        | ✅   | ✅    | ✅    | ✅    |
+| View All Requests        | ❌   | ✅    | ✅    | ✅    |
+| Update Request           | ❌   | ✅    | ✅    | ❌    |
+| Delete Request           | ❌   | ✅    | ❌    | ❌    |
+| **Comments**             |
+| Add Comment              | ✅   | ✅    | ✅    | ✅    |
+| View Comments            | ✅   | ✅    | ✅    | ✅    |
+| **Roles**                |
+| Create Role              | ❌   | ✅    | ❌    | ❌    |
+| View Roles               | ❌   | ✅    | ❌    | ❌    |
+| Update Role              | ❌   | ✅    | ❌    | ❌    |
+| Delete Role              | ❌   | ✅    | ❌    | ❌    |
+| Bulk Roles               | ❌   | ✅    | ❌    | ❌    |
+| **Request Types**        |
+| View Types               | ✅   | ✅    | ✅    | ✅    |
+| Create Type              | ❌   | ✅    | ❌    | ❌    |
+| Update Type              | ❌   | ✅    | ❌    | ❌    |
+| Delete Type              | ❌   | ✅    | ❌    | ❌    |
+| **Assignments**          |
+| View Assignments         | ❌   | ✅    | ✅    | ❌    |
+| Create Assignment        | ❌   | ✅    | ❌    | ❌    |
+| Update Assignment        | ❌   | ✅    | ❌    | ❌    |
+| Delete Assignment        | ❌   | ✅    | ❌    | ❌    |
+| **Store Requests**       |
+| Create Store Request     | ❌   | ❌    | ✅    | ❌    |
+| View Store Requests      | ❌   | ✅    | ✅    | ✅    |
+| Update Store Request     | ❌   | ✅    | ❌    | ✅    |
+| Respond to Store Request | ❌   | ❌    | ❌    | ✅    |
+| Delete Store Request     | ❌   | ✅    | ❌    | ❌    |
 
 ---
 
 ## Request Status Flow
 
 ### USER Perspective:
+
 ```
 RAISED (created by user)
   ↓
@@ -460,6 +462,7 @@ RAISED → REJECTED (admin/staff rejected)
 ```
 
 ### STAFF Perspective:
+
 ```
 ASSIGNED (received assignment)
   ↓
@@ -475,6 +478,7 @@ IN_PROGRESS → REASSIGN_REQUESTED (cannot handle)
 ```
 
 ### STORE Perspective:
+
 ```
 PENDING (staff created store request)
   ↓
@@ -492,24 +496,29 @@ PENDING → REJECTED (items unavailable)
 ## Access Control Rules
 
 ### Authentication
+
 - All endpoints require Firebase authentication token
 - Token must be valid and not expired
 - User must have a role assigned in the database
 
 ### Authorization
+
 - Each endpoint checks for specific roles
 - 403 error if user doesn't have required role
 - 401 error if token is invalid
 - 403 error if no role assigned to email
 
 ### Data Access
+
 - **USER**: Can only see their own requests
 - **ADMIN**: Can see everything
 - **STAFF**: Can see all requests and assignments
 - **STORE**: Can see all store requests and related requests
 
 ### Cascade Deletes
+
 Only ADMIN can delete, and deletions cascade:
+
 - Delete Request → Deletes comments, assignments, store requests
 - Delete Main Type → Deletes all sub types under it
 - Delete Role → User loses access but data remains
@@ -546,12 +555,14 @@ Only ADMIN can delete, and deletions cascade:
 ## Best Practices
 
 ### For USERS:
+
 - Provide detailed descriptions in requests
 - Use comments to provide updates
 - Check request status regularly
 - Reply promptly to admin/staff questions
 
 ### For ADMINS:
+
 - Assign requests promptly
 - Monitor request queue
 - Use appropriate status transitions
@@ -559,6 +570,7 @@ Only ADMIN can delete, and deletions cascade:
 - Regularly review role assignments
 
 ### For STAFF:
+
 - Update request status as you work
 - Create store requests early if equipment needed
 - Add progress comments regularly
@@ -566,6 +578,7 @@ Only ADMIN can delete, and deletions cascade:
 - Mark completed when done
 
 ### For STORE:
+
 - Respond to store requests promptly
 - Provide clear response comments
 - Update to FULFILLED when delivered

@@ -3,6 +3,7 @@
 Base URL: `http://localhost:8000`
 
 All endpoints require Firebase Authentication token in the header:
+
 ```
 Authorization: Bearer <firebase_token>
 ```
@@ -14,11 +15,13 @@ Authorization: Bearer <firebase_token>
 Manages user profiles and information.
 
 ### 1.1 Get Current User Profile
+
 **GET** `/api/v1/users/me`
 
 **Access:** USER, ADMIN, STAFF, STORE (all authenticated users)
 
 **Response:**
+
 ```json
 {
   "id": "firebase-uid",
@@ -30,6 +33,7 @@ Manages user profiles and information.
 ```
 
 **Effects:**
+
 - Returns current authenticated user's profile
 - Includes user's assigned role
 - No data modification
@@ -37,6 +41,7 @@ Manages user profiles and information.
 - Can be called on app startup to verify authentication
 
 **Use Cases:**
+
 - Display user profile in navigation bar
 - Check user's role to show/hide UI elements
 - Verify authentication status
@@ -45,15 +50,18 @@ Manages user profiles and information.
 ---
 
 ### 1.2 Get All Users
+
 **GET** `/api/v1/users/?skip=0&limit=100`
 
 **Access:** ADMIN only
 
 **Query Parameters:**
+
 - `skip` (optional, default: 0)
 - `limit` (optional, default: 100, max: 1000)
 
 **Response:**
+
 ```json
 {
   "items": [
@@ -69,6 +77,7 @@ Manages user profiles and information.
 ```
 
 **Effects:**
+
 - Reads all users from database
 - Returns paginated list
 - No data modification
@@ -76,6 +85,7 @@ Manages user profiles and information.
 ---
 
 ### 1.3 Get User by ID
+
 **GET** `/api/v1/users/{user_id}`
 
 **Access:** ADMIN only
@@ -83,6 +93,7 @@ Manages user profiles and information.
 **Response:** Single user object
 
 **Effects:**
+
 - Reads single user from database
 - Returns 404 if user not found
 - No data modification
@@ -90,11 +101,13 @@ Manages user profiles and information.
 ---
 
 ### 1.4 Update User
+
 **PUT** `/api/v1/users/{user_id}`
 
 **Access:** ADMIN only
 
 **Request Body:**
+
 ```json
 {
   "is_active": false
@@ -104,6 +117,7 @@ Manages user profiles and information.
 **Response:** Updated user object
 
 **Effects:**
+
 - Updates user fields in database
 - Can activate/deactivate users
 - Returns 404 if user not found
@@ -115,11 +129,13 @@ Manages user profiles and information.
 Manages ticket/request lifecycle from creation to resolution.
 
 ### 1.1 Create Request
+
 **POST** `/api/v1/requests/`
 
 **Access:** USER only
 
 **Request Body:**
+
 ```json
 {
   "main_type_id": 1,
@@ -131,6 +147,7 @@ Manages ticket/request lifecycle from creation to resolution.
 **Response:** Request object with auto-generated ID and status "RAISED"
 
 **Effects:**
+
 - Creates new request in database
 - Auto-sets `raised_by` to current user's ID
 - Auto-sets `status` to "RAISED"
@@ -138,6 +155,7 @@ Manages ticket/request lifecycle from creation to resolution.
 - Sets `created_at` and `updated_at` timestamps
 
 **Validations:**
+
 - `main_type_id` must exist in database
 - `sub_type_id` must exist and belong to the specified main_type
 - `description` is required
@@ -145,18 +163,23 @@ Manages ticket/request lifecycle from creation to resolution.
 ---
 
 ### 2.2 Get All Requests
+
 **GET** `/api/v1/requests/?skip=0&limit=20`
 
 **Access:** ADMIN, STAFF
 
 **Query Parameters:**
+
 - `skip` (optional, default: 0) - Number of records to skip for pagination
 - `limit` (optional, default: 20, max: 100) - Number of records to return
 
 **Response:**
+
 ```json
 {
-  "items": [/* array of request objects */],
+  "items": [
+    /* array of request objects */
+  ],
   "total": 150,
   "page": 1,
   "page_size": 20,
@@ -165,12 +188,14 @@ Manages ticket/request lifecycle from creation to resolution.
 ```
 
 **Effects:**
+
 - Reads all requests from database with pagination
 - No data modification
 
 ---
 
 ### 2.3 Get Request by ID
+
 **GET** `/api/v1/requests/{request_id}`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -178,6 +203,7 @@ Manages ticket/request lifecycle from creation to resolution.
 **Response:** Single request object
 
 **Effects:**
+
 - Reads single request from database
 - Returns 404 if request not found
 - No data modification
@@ -185,11 +211,13 @@ Manages ticket/request lifecycle from creation to resolution.
 ---
 
 ### 2.4 Update Request
+
 **PUT** `/api/v1/requests/{request_id}`
 
 **Access:** ADMIN, STAFF
 
 **Request Body:**
+
 ```json
 {
   "status": "IN_PROGRESS",
@@ -198,6 +226,7 @@ Manages ticket/request lifecycle from creation to resolution.
 ```
 
 **Possible Status Values:**
+
 - `RAISED` - Initial status when created
 - `REJECTED` - Admin/Staff rejected the request
 - `REPLIED` - Admin/Staff replied to user
@@ -209,6 +238,7 @@ Manages ticket/request lifecycle from creation to resolution.
 **Response:** Updated request object
 
 **Effects:**
+
 - Updates request fields in database
 - Updates `updated_at` timestamp
 - Can change status to progress request through workflow
@@ -217,11 +247,13 @@ Manages ticket/request lifecycle from creation to resolution.
 ---
 
 ### 2.5 Delete Request
+
 **DELETE** `/api/v1/requests/{request_id}`
 
 **Access:** ADMIN only
 
 **Response:**
+
 ```json
 {
   "detail": "Request deleted successfully"
@@ -229,6 +261,7 @@ Manages ticket/request lifecycle from creation to resolution.
 ```
 
 **Effects:**
+
 - **CASCADE DELETE** - Deletes request and ALL related data:
   - All comments on this request
   - All assignments for this request
@@ -239,11 +272,13 @@ Manages ticket/request lifecycle from creation to resolution.
 ---
 
 ### 2.6 Add Comment to Request
+
 **POST** `/api/v1/requests/{request_id}/comments`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
 
 **Request Body:**
+
 ```json
 {
   "message": "Comment text here",
@@ -252,6 +287,7 @@ Manages ticket/request lifecycle from creation to resolution.
 ```
 
 **Comment Types:**
+
 - `REPLY` - Response to previous comment
 - `REJECTION` - Rejection reason
 - `NOTE` - Internal note
@@ -260,6 +296,7 @@ Manages ticket/request lifecycle from creation to resolution.
 **Response:** Created comment object
 
 **Effects:**
+
 - Creates new comment in database
 - Auto-sets `sender_id` to current user's ID
 - Auto-sets `sender_role` to current user's role
@@ -270,6 +307,7 @@ Manages ticket/request lifecycle from creation to resolution.
 ---
 
 ### 2.7 Get Request Comments
+
 **GET** `/api/v1/requests/{request_id}/comments`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -277,6 +315,7 @@ Manages ticket/request lifecycle from creation to resolution.
 **Response:** Array of comment objects ordered by creation time
 
 **Effects:**
+
 - Reads all comments for a request
 - Returns comments in chronological order (timeline view)
 - Returns 404 if request not found
@@ -289,15 +328,18 @@ Manages ticket/request lifecycle from creation to resolution.
 Manages user role assignments for access control.
 
 ### 3.1 Get All Roles
+
 **GET** `/api/v1/roles/?skip=0&limit=100`
 
 **Access:** ADMIN only
 
 **Query Parameters:**
+
 - `skip` (optional, default: 0)
 - `limit` (optional, default: 100, max: 1000)
 
 **Response:**
+
 ```json
 {
   "items": [
@@ -313,12 +355,14 @@ Manages user role assignments for access control.
 ```
 
 **Effects:**
+
 - Reads all role assignments
 - No data modification
 
 ---
 
 ### 3.2 Get Role by Email
+
 **GET** `/api/v1/roles/{email}`
 
 **Access:** ADMIN only
@@ -326,6 +370,7 @@ Manages user role assignments for access control.
 **Response:** Single role object
 
 **Effects:**
+
 - Reads role for specific email
 - Returns 404 if role not found
 - No data modification
@@ -333,11 +378,13 @@ Manages user role assignments for access control.
 ---
 
 ### 3.3 Create Role
+
 **POST** `/api/v1/roles/`
 
 **Access:** ADMIN only
 
 **Request Body:**
+
 ```json
 {
   "email": "newuser@example.com",
@@ -346,6 +393,7 @@ Manages user role assignments for access control.
 ```
 
 **Valid Roles:**
+
 - `USER` - Regular user, can create requests
 - `ADMIN` - Full system access
 - `STAFF` - Can manage assigned requests
@@ -354,6 +402,7 @@ Manages user role assignments for access control.
 **Response:** Created role object
 
 **Effects:**
+
 - Creates new role assignment in database
 - User with this email can now authenticate
 - Returns 409 if role already exists for this email
@@ -362,11 +411,13 @@ Manages user role assignments for access control.
 ---
 
 ### 3.4 Update Role
+
 **PUT** `/api/v1/roles/{email}`
 
 **Access:** ADMIN only
 
 **Request Body:**
+
 ```json
 {
   "role": "STAFF"
@@ -376,6 +427,7 @@ Manages user role assignments for access control.
 **Response:** Updated role object
 
 **Effects:**
+
 - Updates role for existing email
 - Changes user's access permissions immediately
 - Updates `updated_at` timestamp
@@ -384,11 +436,13 @@ Manages user role assignments for access control.
 ---
 
 ### 3.5 Delete Role
+
 **DELETE** `/api/v1/roles/{email}`
 
 **Access:** ADMIN only
 
 **Response:**
+
 ```json
 {
   "detail": "Role deleted successfully"
@@ -396,6 +450,7 @@ Manages user role assignments for access control.
 ```
 
 **Effects:**
+
 - Removes role assignment from database
 - User can no longer authenticate (will get 403 error)
 - Does NOT delete user's data (requests, comments, etc.)
@@ -404,22 +459,25 @@ Manages user role assignments for access control.
 ---
 
 ### 3.6 Bulk Create/Update Roles
+
 **POST** `/api/v1/roles/bulk`
 
 **Access:** ADMIN only
 
 **Request Body:**
+
 ```json
 {
   "roles": [
-    {"email": "user1@example.com", "role": "USER"},
-    {"email": "user2@example.com", "role": "STAFF"},
-    {"email": "user3@example.com", "role": "ADMIN"}
+    { "email": "user1@example.com", "role": "USER" },
+    { "email": "user2@example.com", "role": "STAFF" },
+    { "email": "user3@example.com", "role": "ADMIN" }
   ]
 }
 ```
 
 **Response:**
+
 ```json
 {
   "detail": "Successfully processed 3 roles",
@@ -429,6 +487,7 @@ Manages user role assignments for access control.
 ```
 
 **Effects:**
+
 - Creates new roles for emails that don't exist
 - Updates existing roles for emails that already exist
 - Processes all roles in a single transaction
@@ -441,6 +500,7 @@ Manages user role assignments for access control.
 Manages request categorization (Main Types and Sub Types).
 
 ### 4.1 Get All Main Types
+
 **GET** `/api/v1/types/main`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -448,6 +508,7 @@ Manages request categorization (Main Types and Sub Types).
 **Response:** Array of main type objects
 
 **Effects:**
+
 - Reads all main type categories
 - Used for request creation dropdown
 - No data modification
@@ -455,6 +516,7 @@ Manages request categorization (Main Types and Sub Types).
 ---
 
 ### 4.2 Get Main Type by ID
+
 **GET** `/api/v1/types/main/{main_type_id}`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -462,6 +524,7 @@ Manages request categorization (Main Types and Sub Types).
 **Response:** Single main type object
 
 **Effects:**
+
 - Reads single main type
 - Returns 404 if not found
 - No data modification
@@ -469,11 +532,13 @@ Manages request categorization (Main Types and Sub Types).
 ---
 
 ### 4.3 Create Main Type
+
 **POST** `/api/v1/types/main`
 
 **Access:** ADMIN only
 
 **Request Body:**
+
 ```json
 {
   "name": "Hardware Issues"
@@ -483,6 +548,7 @@ Manages request categorization (Main Types and Sub Types).
 **Response:** Created main type object with auto-generated ID
 
 **Effects:**
+
 - Creates new main type category
 - Auto-sets `created_by` to current admin's ID
 - Auto-sets `created_at` timestamp
@@ -491,11 +557,13 @@ Manages request categorization (Main Types and Sub Types).
 ---
 
 ### 4.4 Update Main Type
+
 **PUT** `/api/v1/types/main/{main_type_id}`
 
 **Access:** ADMIN only
 
 **Request Body:**
+
 ```json
 {
   "name": "Updated Hardware Issues"
@@ -505,17 +573,20 @@ Manages request categorization (Main Types and Sub Types).
 **Response:** Updated main type object
 
 **Effects:**
+
 - Updates main type name
 - Returns 404 if not found
 
 ---
 
 ### 4.5 Delete Main Type
+
 **DELETE** `/api/v1/types/main/{main_type_id}`
 
 **Access:** ADMIN only
 
 **Response:**
+
 ```json
 {
   "detail": "Main type deleted successfully"
@@ -523,6 +594,7 @@ Manages request categorization (Main Types and Sub Types).
 ```
 
 **Effects:**
+
 - **CASCADE DELETE** - Deletes main type and ALL sub types under it
 - Existing requests with this type will have broken references
 - Returns 404 if not found
@@ -530,6 +602,7 @@ Manages request categorization (Main Types and Sub Types).
 ---
 
 ### 4.6 Get Sub Types for Main Type
+
 **GET** `/api/v1/types/main/{main_type_id}/sub`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -537,6 +610,7 @@ Manages request categorization (Main Types and Sub Types).
 **Response:** Array of sub type objects for the specified main type
 
 **Effects:**
+
 - Reads all sub types belonging to a main type
 - Used for cascading dropdown in request creation
 - Returns 404 if main type not found
@@ -545,6 +619,7 @@ Manages request categorization (Main Types and Sub Types).
 ---
 
 ### 4.7 Get Sub Type by ID
+
 **GET** `/api/v1/types/sub/{sub_type_id}`
 
 **Access:** USER, ADMIN, STAFF, STORE (all roles)
@@ -552,6 +627,7 @@ Manages request categorization (Main Types and Sub Types).
 **Response:** Single sub type object
 
 **Effects:**
+
 - Reads single sub type
 - Returns 404 if not found
 - No data modification
@@ -559,11 +635,13 @@ Manages request categorization (Main Types and Sub Types).
 ---
 
 ### 4.8 Create Sub Type
+
 **POST** `/api/v1/types/sub`
 
 **Access:** ADMIN only
 
 **Request Body:**
+
 ```json
 {
   "name": "Laptop Issues",
@@ -574,6 +652,7 @@ Manages request categorization (Main Types and Sub Types).
 **Response:** Created sub type object with auto-generated ID
 
 **Effects:**
+
 - Creates new sub type under specified main type
 - Validates that main_type_id exists
 - Returns 404 if main type not found
@@ -581,11 +660,13 @@ Manages request categorization (Main Types and Sub Types).
 ---
 
 ### 4.9 Update Sub Type
+
 **PUT** `/api/v1/types/sub/{sub_type_id}`
 
 **Access:** ADMIN only
 
 **Request Body:**
+
 ```json
 {
   "name": "Updated Laptop Issues"
@@ -595,17 +676,20 @@ Manages request categorization (Main Types and Sub Types).
 **Response:** Updated sub type object
 
 **Effects:**
+
 - Updates sub type name
 - Returns 404 if not found
 
 ---
 
 ### 4.10 Delete Sub Type
+
 **DELETE** `/api/v1/types/sub/{sub_type_id}`
 
 **Access:** ADMIN only
 
 **Response:**
+
 ```json
 {
   "detail": "Sub type deleted successfully"
@@ -613,6 +697,7 @@ Manages request categorization (Main Types and Sub Types).
 ```
 
 **Effects:**
+
 - Deletes sub type
 - Existing requests with this sub type will have broken references
 - Returns 404 if not found
@@ -624,6 +709,7 @@ Manages request categorization (Main Types and Sub Types).
 Manages staff assignments to requests.
 
 ### 5.1 Get Assignments by Request
+
 **GET** `/api/v1/assignments/request/{request_id}`
 
 **Access:** ADMIN, STAFF
@@ -631,6 +717,7 @@ Manages staff assignments to requests.
 **Response:** Array of assignment objects for the request
 
 **Effects:**
+
 - Reads all assignments (active and inactive) for a request
 - Shows assignment history
 - No data modification
@@ -638,16 +725,19 @@ Manages staff assignments to requests.
 ---
 
 ### 5.2 Get Assignments by Staff
+
 **GET** `/api/v1/assignments/staff/{staff_id}?active_only=true`
 
 **Access:** ADMIN, STAFF
 
 **Query Parameters:**
+
 - `active_only` (optional, default: true) - Filter for active assignments only
 
 **Response:** Array of assignment objects for the staff member
 
 **Effects:**
+
 - Reads all assignments for a staff member
 - Can filter for only active assignments
 - Used to show staff workload
@@ -656,6 +746,7 @@ Manages staff assignments to requests.
 ---
 
 ### 5.3 Get Assignment by ID
+
 **GET** `/api/v1/assignments/{assignment_id}`
 
 **Access:** ADMIN, STAFF
@@ -663,6 +754,7 @@ Manages staff assignments to requests.
 **Response:** Single assignment object
 
 **Effects:**
+
 - Reads single assignment
 - Returns 404 if not found
 - No data modification
@@ -670,11 +762,13 @@ Manages staff assignments to requests.
 ---
 
 ### 5.4 Create Assignment
+
 **POST** `/api/v1/assignments/`
 
 **Access:** ADMIN only
 
 **Request Body:**
+
 ```json
 {
   "request_id": "uuid-here",
@@ -685,6 +779,7 @@ Manages staff assignments to requests.
 **Response:** Created assignment object
 
 **Effects:**
+
 - Creates new assignment linking staff to request
 - Auto-sets `assigned_by` to current admin's ID
 - Auto-sets `is_active` to true
@@ -698,11 +793,13 @@ Manages staff assignments to requests.
 ---
 
 ### 5.5 Update Assignment
+
 **PUT** `/api/v1/assignments/{assignment_id}`
 
 **Access:** ADMIN only
 
 **Request Body:**
+
 ```json
 {
   "is_active": false
@@ -712,6 +809,7 @@ Manages staff assignments to requests.
 **Response:** Updated assignment object
 
 **Effects:**
+
 - Updates assignment fields
 - Can deactivate assignment by setting is_active=false
 - Returns 404 if not found
@@ -719,11 +817,13 @@ Manages staff assignments to requests.
 ---
 
 ### 5.6 Delete Assignment
+
 **DELETE** `/api/v1/assignments/{assignment_id}`
 
 **Access:** ADMIN only
 
 **Response:**
+
 ```json
 {
   "detail": "Assignment deleted successfully"
@@ -731,6 +831,7 @@ Manages staff assignments to requests.
 ```
 
 **Effects:**
+
 - Permanently deletes assignment record
 - Does NOT check if this leaves request unassigned
 - Returns 404 if not found
@@ -742,49 +843,62 @@ Manages staff assignments to requests.
 Manages equipment/supply requests from staff to store personnel.
 
 ### 6.1 Get All Store Requests
+
 **GET** `/api/v1/store-requests/?skip=0&limit=20`
 
 **Access:** STORE, ADMIN
 
 **Query Parameters:**
+
 - `skip` (optional, default: 0)
 - `limit` (optional, default: 20, max: 100)
 
 **Response:**
+
 ```json
 {
-  "items": [/* array of store request objects */],
+  "items": [
+    /* array of store request objects */
+  ],
   "total": 50
 }
 ```
 
 **Effects:**
+
 - Reads all store requests with pagination
 - No data modification
 
 ---
 
 ### 6.2 Get Store Requests by Status
+
 **GET** `/api/v1/store-requests/status/{status}?skip=0&limit=20`
 
 **Access:** STORE, ADMIN
 
 **Path Parameters:**
+
 - `status` - One of: PENDING, APPROVED, REJECTED, FULFILLED
 
 **Query Parameters:**
+
 - `skip` (optional, default: 0)
 - `limit` (optional, default: 20, max: 100)
 
 **Response:**
+
 ```json
 {
-  "items": [/* filtered store request objects */],
+  "items": [
+    /* filtered store request objects */
+  ],
   "total": 15
 }
 ```
 
 **Effects:**
+
 - Reads store requests filtered by status
 - Useful for store dashboard views
 - No data modification
@@ -792,6 +906,7 @@ Manages equipment/supply requests from staff to store personnel.
 ---
 
 ### 6.3 Get Store Requests by Parent Request
+
 **GET** `/api/v1/store-requests/parent/{parent_request_id}`
 
 **Access:** STAFF, STORE, ADMIN
@@ -799,6 +914,7 @@ Manages equipment/supply requests from staff to store personnel.
 **Response:** Array of store request objects linked to the parent request
 
 **Effects:**
+
 - Reads all store requests created for a specific parent request
 - Shows equipment needs for a ticket
 - No data modification
@@ -806,6 +922,7 @@ Manages equipment/supply requests from staff to store personnel.
 ---
 
 ### 6.4 Get Store Request by ID
+
 **GET** `/api/v1/store-requests/{store_request_id}`
 
 **Access:** STAFF, STORE, ADMIN
@@ -813,6 +930,7 @@ Manages equipment/supply requests from staff to store personnel.
 **Response:** Single store request object
 
 **Effects:**
+
 - Reads single store request
 - Returns 404 if not found
 - No data modification
@@ -820,11 +938,13 @@ Manages equipment/supply requests from staff to store personnel.
 ---
 
 ### 6.5 Create Store Request
+
 **POST** `/api/v1/store-requests/`
 
 **Access:** STAFF only
 
 **Request Body:**
+
 ```json
 {
   "parent_request_id": "uuid-of-main-request",
@@ -835,6 +955,7 @@ Manages equipment/supply requests from staff to store personnel.
 **Response:** Created store request object
 
 **Effects:**
+
 - Creates new store request
 - Auto-sets `requested_by` to current staff's ID
 - Auto-sets `status` to "PENDING"
@@ -847,11 +968,13 @@ Manages equipment/supply requests from staff to store personnel.
 ---
 
 ### 6.6 Update Store Request
+
 **PUT** `/api/v1/store-requests/{store_request_id}`
 
 **Access:** STORE, ADMIN
 
 **Request Body:**
+
 ```json
 {
   "status": "APPROVED",
@@ -862,6 +985,7 @@ Manages equipment/supply requests from staff to store personnel.
 **Response:** Updated store request object
 
 **Effects:**
+
 - Updates store request fields
 - Can change status and add comments
 - Updates `updated_at` timestamp
@@ -870,11 +994,13 @@ Manages equipment/supply requests from staff to store personnel.
 ---
 
 ### 6.7 Respond to Store Request
+
 **POST** `/api/v1/store-requests/{store_request_id}/respond`
 
 **Access:** STORE only
 
 **Request Body:**
+
 ```json
 {
   "status": "APPROVED",
@@ -883,6 +1009,7 @@ Manages equipment/supply requests from staff to store personnel.
 ```
 
 **Valid Status Values:**
+
 - `APPROVED` - Store approved the request
 - `REJECTED` - Store rejected the request
 - `FULFILLED` - Items delivered/completed
@@ -890,6 +1017,7 @@ Manages equipment/supply requests from staff to store personnel.
 **Response:** Updated store request object
 
 **Effects:**
+
 - Updates store request status
 - Auto-sets `responded_by` to current store user's ID
 - Sets `response_comment` if provided
@@ -900,11 +1028,13 @@ Manages equipment/supply requests from staff to store personnel.
 ---
 
 ### 6.8 Delete Store Request
+
 **DELETE** `/api/v1/store-requests/{store_request_id}`
 
 **Access:** ADMIN only
 
 **Response:**
+
 ```json
 {
   "detail": "Store request deleted successfully"
@@ -912,6 +1042,7 @@ Manages equipment/supply requests from staff to store personnel.
 ```
 
 **Effects:**
+
 - Permanently deletes store request
 - Does NOT affect parent request
 - Returns 404 if not found
@@ -923,53 +1054,65 @@ Manages equipment/supply requests from staff to store personnel.
 All endpoints may return these error codes:
 
 ### 400 Bad Request
+
 ```json
 {
   "detail": "Validation error message"
 }
 ```
+
 - Invalid data format
 - Business logic validation failed
 
 ### 401 Unauthorized
+
 ```json
 {
   "detail": "Invalid Firebase token"
 }
 ```
+
 - Missing or invalid authentication token
 
 ### 403 Forbidden
+
 ```json
 {
   "detail": "Access denied: Required role(s): ['ADMIN']"
 }
 ```
+
 - User doesn't have required role
 - No role assigned to email
 
 ### 404 Not Found
+
 ```json
 {
   "detail": "Resource not found"
 }
 ```
+
 - Requested resource doesn't exist
 
 ### 409 Conflict
+
 ```json
 {
   "detail": "Resource already exists"
 }
 ```
+
 - Duplicate creation attempt
 
 ### 500 Internal Server Error
+
 ```json
 {
   "detail": "Database error: ..."
 }
 ```
+
 - Server-side error
 - Database connection issues
 
@@ -978,6 +1121,7 @@ All endpoints may return these error codes:
 ## Data Models
 
 ### Request Object
+
 ```json
 {
   "id": "uuid-string",
@@ -992,6 +1136,7 @@ All endpoints may return these error codes:
 ```
 
 ### Comment Object
+
 ```json
 {
   "id": 123,
@@ -1005,6 +1150,7 @@ All endpoints may return these error codes:
 ```
 
 ### Assignment Object
+
 ```json
 {
   "id": 123,
@@ -1017,6 +1163,7 @@ All endpoints may return these error codes:
 ```
 
 ### Store Request Object
+
 ```json
 {
   "id": "uuid-string",
@@ -1032,6 +1179,7 @@ All endpoints may return these error codes:
 ```
 
 ### Role Object
+
 ```json
 {
   "email": "user@example.com",
@@ -1042,6 +1190,7 @@ All endpoints may return these error codes:
 ```
 
 ### Main Type Object
+
 ```json
 {
   "id": 1,
@@ -1052,6 +1201,7 @@ All endpoints may return these error codes:
 ```
 
 ### Sub Type Object
+
 ```json
 {
   "id": 1,

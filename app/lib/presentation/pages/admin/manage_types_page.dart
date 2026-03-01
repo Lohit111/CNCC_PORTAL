@@ -84,7 +84,8 @@ class _ManageTypesPageState extends State<ManageTypesPage> {
 
   void _showSubTypesDialog(MainType mainType) async {
     try {
-      final response = await _networkClient.get('/types/main/${mainType.id}/sub');
+      final response =
+          await _networkClient.get('/types/main/${mainType.id}/sub');
       final subTypes = (response.data as List)
           .map((json) => SubType.fromJson(json))
           .toList();
@@ -133,7 +134,8 @@ class _ManageTypesPageState extends State<ManageTypesPage> {
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
                         title: Text(mainType.name),
-                        subtitle: Text('Created: ${_formatDate(mainType.createdAt)}'),
+                        subtitle:
+                            Text('Created: ${_formatDate(mainType.createdAt)}'),
                         trailing: const Icon(Icons.arrow_forward_ios),
                         onTap: () => _showSubTypesDialog(mainType),
                       ),
@@ -179,7 +181,8 @@ class _SubTypesDialogState extends State<_SubTypesDialog> {
 
   Future<void> _loadSubTypes() async {
     try {
-      final response = await _networkClient.get('/types/main/${widget.mainType.id}/sub');
+      final response =
+          await _networkClient.get('/types/main/${widget.mainType.id}/sub');
       setState(() {
         _subTypes = (response.data as List)
             .map((json) => SubType.fromJson(json))
