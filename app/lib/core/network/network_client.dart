@@ -10,7 +10,8 @@ class NetworkClient {
 
   NetworkClient._internal() {
     _dio = Dio(BaseOptions(
-      baseUrl: 'http://localhost:8000/api/v1',
+      // baseUrl: 'http://localhost:8000/api/v1',
+      baseUrl: 'https://cncc-portal.onrender.com/api/v1',
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
     ));
