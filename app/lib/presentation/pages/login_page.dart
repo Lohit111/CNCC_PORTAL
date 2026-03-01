@@ -22,6 +22,10 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+      // Force sign out to show account picker
+      await _googleSignIn.signOut();
+      await _firebaseAuth.signOut();
+
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         setState(() {

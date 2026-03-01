@@ -5,7 +5,7 @@ from datetime import datetime
 import uuid
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship, Session
-from models.user import Base
+from models.base import Base
 
 
 class StoreRequestTable(Base):

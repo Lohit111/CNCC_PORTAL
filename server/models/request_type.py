@@ -4,7 +4,7 @@ from typing import Optional, List
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import relationship, Session
-from models.user import Base
+from models.base import Base
 
 
 class MainTypeTable(Base):

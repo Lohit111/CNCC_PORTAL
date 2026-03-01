@@ -3,11 +3,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from firebase_admin import credentials, initialize_app, get_app
-from models.user import Base
 from config.database import engine
+from models.base import Base
 from api.router import api_router
 import logging
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 
 # Configure logging

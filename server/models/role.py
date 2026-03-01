@@ -4,7 +4,7 @@ from typing import Optional, List
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime
 from sqlalchemy.orm import Session
-from models.user import Base
+from models.base import Base
 
 
 class RoleTable(Base):
