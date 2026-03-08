@@ -79,10 +79,10 @@ async def add_comment(
     auth_data: dict = Depends(require_role("USER", "ADMIN", "STAFF", "STORE")),
     db: Session = Depends(get_db)
 ):
-    """Add a comment to a request"""
+    """Add a track entry to a request"""
     data = await request.json()
-    data["sender_id"] = auth_data["user"].id
-    data["sender_role"] = auth_data["role"]
+    data["performed_by"] = auth_data["user"].id
+    data["performed_by_role"] = auth_data["role"]
     return RequestController.add_comment(db, request_id, data)
 
 
@@ -92,5 +92,5 @@ async def get_request_comments(
     auth_data: dict = Depends(require_role("USER", "ADMIN", "STAFF", "STORE")),
     db: Session = Depends(get_db)
 ):
-    """Get all comments for a request"""
+    """Get all tracks for a request (timeline)"""
     return RequestController.get_comments(db, request_id)

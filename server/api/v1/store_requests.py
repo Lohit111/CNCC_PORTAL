@@ -14,7 +14,7 @@ router = APIRouter()
 async def get_all_store_requests(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    auth_data: dict = Depends(require_role("STORE", "ADMIN")),
+    auth_data: dict = Depends(require_role("STORE", "ADMIN", "STAFF")),
     db: Session = Depends(get_db)
 ):
     """Get all store requests"""
@@ -119,7 +119,7 @@ async def add_chat_message(
     """Add a chat message to an APPROVED store request"""
     data = await request.json()
     message = data.get("message")
-    
+
     return StoreRequestController.add_chat_message(
         db,
         store_request_id,

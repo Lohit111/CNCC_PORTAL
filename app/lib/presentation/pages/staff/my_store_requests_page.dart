@@ -124,6 +124,17 @@ class _MyStoreRequestsPageState extends ConsumerState<MyStoreRequestsPage> {
                                     child: Text(request.responseComment!),
                                   ),
                                 ],
+                                if (request.status == 'APPROVED') ...[
+                                  const Divider(height: 24),
+                                  ElevatedButton.icon(
+                                    onPressed: () => _openChat(request),
+                                    icon: const Icon(Icons.chat),
+                                    label: const Text('Chat with Store'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -182,5 +193,127 @@ class _MyStoreRequestsPageState extends ConsumerState<MyStoreRequestsPage> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Future<void> _openChat(StoreRequest request) async {
+    try {
+      final response = await _networkClient.get('/store-requests/${request.id}/chat');
+      final chats = response.data as List;
+
+      if (!mounted) return;
+
+      final messageController = TextEditingController();
+
+      showDialog(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Chat with Store'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 400,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: chats.length,
+                      itemBuilder: (context, index) {
+                        final chat = chats[index];
+                        final isMe = chat['sender_role'] == 'STAFF';
+                        return Align(
+                          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isMe ? Colors.blue.shade100 : Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            constraints: const BoxConstraints(maxWidth: 250),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  chat['message'],
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  chat['sender_role'],
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const Divider(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: messageController,
+                          decoration: const InputDecoration(
+                            hintText: 'Type a message...',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.send),
+                        onPressed: () async {
+                          if (messageController.text.isEmpty) return;
+                          
+                          try {
+                            await _networkClient.post(
+                              '/store-requests/${request.id}/chat',
+                              data: {'message': messageController.text},
+                            );
+                            messageController.clear();
+                            
+                            // Reload chat
+                            final newResponse = await _networkClient.get(
+                              '/store-requests/${request.id}/chat',
+                            );
+                            setDialogState(() {
+                              chats.clear();
+                              chats.addAll(newResponse.data as List);
+                            });
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading chat: $e')),
+        );
+      }
+    }
   }
 }

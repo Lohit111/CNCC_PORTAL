@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/request_entity.dart';
 import 'package:ticket_management_app/domain/entities/type_entity.dart';
-import 'package:ticket_management_app/presentation/pages/user/request_detail_page.dart';
+import 'package:ticket_management_app/presentation/pages/user/active_requests_page.dart';
+import 'package:ticket_management_app/presentation/pages/user/replied_requests_user_page.dart';
+import 'package:ticket_management_app/presentation/pages/user/completed_requests_user_page.dart';
 
 class UserHomePage extends ConsumerStatefulWidget {
   const UserHomePage({super.key});
@@ -15,30 +16,7 @@ class UserHomePage extends ConsumerStatefulWidget {
 
 class _UserHomePageState extends ConsumerState<UserHomePage> {
   final _networkClient = NetworkClient();
-  List<Request> _requests = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRequests();
-  }
-
-  Future<void> _loadRequests() async {
-    setState(() => _isLoading = true);
-    try {
-      final response = await _networkClient.get('/users/requests');
-      final data = response.data;
-      setState(() {
-        _requests = (data['items'] as List)
-            .map((json) => Request.fromJson(json))
-            .toList();
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-    }
-  }
+  int _selectedIndex = 0;
 
   void _showCreateRequestDialog() async {
     final mainTypes = await _loadMainTypes();
@@ -47,9 +25,7 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
     showDialog(
       context: context,
       builder: (context) => _CreateRequestDialog(mainTypes: mainTypes),
-    ).then((created) {
-      if (created == true) _loadRequests();
-    });
+    );
   }
 
   Future<List<MainType>> _loadMainTypes() async {
@@ -70,10 +46,6 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
         title: const Text('My Requests'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadRequests,
-          ),
-          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await fb.FirebaseAuth.instance.signOut();
@@ -81,98 +53,46 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _requests.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.inbox, size: 64, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      const Text('No requests yet'),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        onPressed: _showCreateRequestDialog,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Create Request'),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _requests.length,
-                  itemBuilder: (context, index) {
-                    final request = _requests[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        title: Text(
-                          request.description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          'Status: ${request.status}\n${_formatDate(request.createdAt)}',
-                        ),
-                        trailing: _getStatusIcon(request.status),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => RequestDetailPage(
-                                requestId: request.id,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
-      floatingActionButton: FloatingActionButton(
+      body: _buildBody(),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() => _selectedIndex = index);
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.pending_actions),
+            label: 'Active',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.reply),
+            label: 'Needs Response',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.archive),
+            label: 'Completed',
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreateRequestDialog,
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('New Request'),
       ),
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
-  Widget _getStatusIcon(String status) {
-    IconData icon;
-    Color color;
-
-    switch (status) {
-      case 'RAISED':
-        icon = Icons.new_releases;
-        color = Colors.orange;
-        break;
-      case 'ASSIGNED':
-        icon = Icons.assignment_ind;
-        color = Colors.blue;
-        break;
-      case 'IN_PROGRESS':
-        icon = Icons.pending;
-        color = Colors.purple;
-        break;
-      case 'COMPLETED':
-        icon = Icons.check_circle;
-        color = Colors.green;
-        break;
-      case 'REJECTED':
-        icon = Icons.cancel;
-        color = Colors.red;
-        break;
+  Widget _buildBody() {
+    switch (_selectedIndex) {
+      case 0:
+        return const ActiveRequestsPage();
+      case 1:
+        return const RepliedRequestsUserPage();
+      case 2:
+        return const CompletedRequestsUserPage();
       default:
-        icon = Icons.help;
-        color = Colors.grey;
+        return const ActiveRequestsPage();
     }
-
-    return Icon(icon, color: color);
   }
 }
 
