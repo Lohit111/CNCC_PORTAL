@@ -34,7 +34,7 @@ class RequestController:
                     status_code=400, detail="Sub type does not belong to main type")
 
             request = Request.create(db, data)
-            
+
             # Create initial track for request creation
             RequestTrack.create(db, {
                 "request_id": request.id,
@@ -47,7 +47,7 @@ class RequestController:
                     "sub_type_id": data.get("sub_type_id")
                 }
             })
-            
+
             logger.info(f"Request created successfully: {request.id}")
             return request
 
@@ -121,20 +121,63 @@ class RequestController:
                 status_code=500, detail=f"Database error: {str(e)}")
 
     @staticmethod
-    def update(db: Session, request_id: str, data: dict):
-        """Update request"""
+    def update(db: Session, request_id: str, data: dict, user_id: str = None, user_role: str = None):
+        """Update request and automatically create track for status changes"""
         try:
             logger.info(f"Updating request: {request_id}")
 
-            exists = Request.get(db, {"id": request_id})
-            if not exists:
+            # Get existing request to check for status change
+            existing_request = Request.get(db, {"id": request_id})
+            if not existing_request:
                 raise HTTPException(
                     status_code=404, detail="Request not found")
 
+            # Check if status is changing
+            old_status = existing_request.status
+            new_status = data.get("status", old_status)
+            status_changed = old_status != new_status
+
+            # Extract comment for track (not a request table column)
+            comment = data.pop("comment", None)
+
+            # Update the request
             updated = Request.update(db, {"id": request_id}, data)
             if not updated:
                 raise HTTPException(
                     status_code=500, detail="Request update failed")
+
+            # If status changed, create a track entry automatically
+            if status_changed and user_id and user_role:
+                # Determine action type based on new status
+                action_type = new_status  # Default to status name
+
+                # Build track metadata
+                track_metadata = {
+                    "old_status": old_status,
+                    "new_status": new_status
+                }
+
+                # Add assignment info if status is ASSIGNED
+                if new_status == "ASSIGNED":
+                    # Get active assignment for this request
+                    from models.assignment import Assignment
+                    active_assignment = Assignment.get_raw(
+                        db, {"request_id": request_id, "is_active": True})
+                    if active_assignment:
+                        track_metadata["staff_id"] = active_assignment.staff_id
+                        track_metadata["assignment_id"] = active_assignment.id
+
+                RequestTrack.create(db, {
+                    "request_id": request_id,
+                    "action_type": action_type,
+                    "performed_by": user_id,
+                    "performed_by_role": user_role,
+                    "comment": comment,
+                    "track_metadata": track_metadata
+                })
+
+                logger.info(
+                    f"Track created for status change: {old_status} -> {new_status}")
 
             logger.info(f"Request updated successfully: {request_id}")
             return Request.get(db, {"id": request_id})

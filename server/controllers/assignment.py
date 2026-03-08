@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from models.assignment import Assignment
 from models.request import Request
+from models.track import RequestTrack
 from models.user import User
 import logging
 
@@ -32,9 +33,18 @@ class AssignmentController:
 
             assignment = Assignment.create(db, data)
 
-            # Update request status to ASSIGNED
-            Request.update(db, {"id": data.get("request_id")}, {
-                           "status": "ASSIGNED"})
+            # Update request status to ASSIGNED - this will automatically create track
+            from controllers.request import RequestController
+            RequestController.update(
+                db, 
+                data.get("request_id"), 
+                {
+                    "status": "ASSIGNED",
+                    "comment": None
+                },
+                user_id=data.get("assigned_by"),
+                user_role="ADMIN"
+            )
 
             logger.info(f"Assignment created successfully: {assignment.id}")
             return assignment

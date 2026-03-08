@@ -362,8 +362,6 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
         return Colors.green;
       case 'REASSIGN_REQUESTED':
         return Colors.pink;
-      case 'USER_UPDATED':
-        return Colors.teal;
       default:
         return Colors.grey;
     }
@@ -385,8 +383,6 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
         return Icons.check_circle;
       case 'REASSIGN_REQUESTED':
         return Icons.swap_horiz;
-      case 'USER_UPDATED':
-        return Icons.edit;
       case 'STORE_REQUEST_CREATED':
       case 'STORE_REQUEST_APPROVED':
       case 'STORE_REQUEST_REJECTED':

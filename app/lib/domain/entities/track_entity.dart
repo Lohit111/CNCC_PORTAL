@@ -53,6 +53,10 @@ class Track {
   String get actionDisplayText {
     switch (actionType) {
       case 'RAISED':
+        // Check metadata to see if this is an update or initial creation
+        if (metadata != null && metadata!['old_status'] != null) {
+          return 'User Updated Request';
+        }
         return 'Request Created';
       case 'REPLIED':
         return 'Admin Replied';
@@ -66,8 +70,6 @@ class Track {
         return 'Work Started';
       case 'COMPLETED':
         return 'Request Completed';
-      case 'USER_UPDATED':
-        return 'User Updated Request';
       case 'STORE_REQUEST_CREATED':
         return 'Store Request Created';
       case 'STORE_REQUEST_APPROVED':

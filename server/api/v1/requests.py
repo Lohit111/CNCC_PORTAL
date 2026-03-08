@@ -48,12 +48,18 @@ async def create_request(
 async def update_request(
     request_id: str,
     request: Request,
-    auth_data: dict = Depends(require_role("ADMIN", "STAFF")),
+    auth_data: dict = Depends(require_role("USER", "ADMIN", "STAFF")),
     db: Session = Depends(get_db)
 ):
     """Update request"""
     data = await request.json()
-    return RequestController.update(db, request_id, data)
+    return RequestController.update(
+        db, 
+        request_id, 
+        data, 
+        user_id=auth_data["user"].id,
+        user_role=auth_data["role"]
+    )
 
 
 @router.delete("/{request_id}")

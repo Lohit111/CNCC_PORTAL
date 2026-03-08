@@ -75,25 +75,17 @@ When admin replies (status = REPLIED), user has 2 options:
 
 **Option A: Update Existing Request (Continue Track)**
 ```
-POST /api/v1/requests/{request_id}/comments
-Body: {
-  "action_type": "USER_UPDATED",
-  "performed_by": "{user_id}",
-  "performed_by_role": "USER",
-  "comment": "Updated information..."
-}
-
-Then update request:
 PUT /api/v1/requests/{request_id}
 Body: {
   "description": "Updated description",
-  "status": "RAISED"
+  "status": "RAISED",
+  "comment": "Updated information..."
 }
 
 Effect:
 - Same request_id, continues same track
 - Status back to RAISED
-- Track entry added: "User updated request"
+- Track entry added with action_type="RAISED"
 ```
 
 **Option B: Create New Request (Fresh Start)**
@@ -647,14 +639,13 @@ PENDING (STAFF creates)
 
 | Action Type | Who Creates | When |
 |-------------|-------------|------|
-| RAISED | USER | Request created |
+| RAISED | USER | Request created or user updates after REPLIED |
 | REPLIED | ADMIN | Admin responds to user |
 | REJECTED | ADMIN | Request rejected |
 | ASSIGNED | ADMIN | Request assigned to staff |
 | REASSIGN_REQUESTED | STAFF | Staff requests reassignment |
 | IN_PROGRESS | STAFF | Staff starts work |
 | COMPLETED | STAFF | Request completed |
-| USER_UPDATED | USER | User updates request after REPLIED |
 | STORE_REQUEST_CREATED | STAFF | Store request created |
 | STORE_REQUEST_APPROVED | STORE | Store approves request |
 | STORE_REQUEST_REJECTED | STORE | Store rejects request |

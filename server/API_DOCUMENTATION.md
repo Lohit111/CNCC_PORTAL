@@ -246,7 +246,7 @@ Add a track entry to request timeline.
 
 **Request Body:** action_type, comment (optional), metadata (optional)
 
-**Common Action Types:** RAISED, REPLIED, REJECTED, ASSIGNED, REASSIGN_REQUESTED, IN_PROGRESS, COMPLETED, USER_UPDATED
+**Common Action Types:** RAISED, REPLIED, REJECTED, ASSIGNED, REASSIGN_REQUESTED, IN_PROGRESS, COMPLETED
 
 **Response:** Created track object
 
