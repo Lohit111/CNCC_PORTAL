@@ -2,7 +2,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from models.request import Request
-from models.comment import RequestComment
+from models.track import RequestTrack
 from models.assignment import Assignment
 from models.store_request import StoreRequest
 from models.request_type import MainType, SubType
@@ -34,6 +34,20 @@ class RequestController:
                     status_code=400, detail="Sub type does not belong to main type")
 
             request = Request.create(db, data)
+            
+            # Create initial track for request creation
+            RequestTrack.create(db, {
+                "request_id": request.id,
+                "action_type": "RAISED",
+                "performed_by": data.get("raised_by"),
+                "performed_by_role": "USER",
+                "comment": None,
+                "track_metadata": {
+                    "main_type_id": data.get("main_type_id"),
+                    "sub_type_id": data.get("sub_type_id")
+                }
+            })
+            
             logger.info(f"Request created successfully: {request.id}")
             return request
 
@@ -138,8 +152,8 @@ class RequestController:
         try:
             logger.info(f"Deleting request: {request_id}")
 
-            # Delete related comments
-            RequestComment.delete_all(db, {"request_id": request_id})
+            # Delete related tracks
+            RequestTrack.delete_all(db, {"request_id": request_id})
 
             # Delete related assignments
             Assignment.delete_all(db, {"request_id": request_id})
@@ -165,7 +179,7 @@ class RequestController:
 
     @staticmethod
     def add_comment(db: Session, request_id: str, comment_data: dict):
-        """Add a comment to a request"""
+        """Add a track entry to a request"""
         try:
             # Verify request exists
             request = Request.get(db, {"id": request_id})
@@ -174,22 +188,22 @@ class RequestController:
                     status_code=404, detail="Request not found")
 
             comment_data["request_id"] = request_id
-            comment = RequestComment.create(db, comment_data)
+            track = RequestTrack.create(db, comment_data)
 
-            logger.info(f"Comment added to request {request_id}")
-            return comment
+            logger.info(f"Track added to request {request_id}")
+            return track
 
         except HTTPException:
             raise
         except Exception as e:
             logger.error(
-                f"Failed to add comment to request {request_id}: {str(e)}")
+                f"Failed to add track to request {request_id}: {str(e)}")
             raise HTTPException(
                 status_code=500, detail=f"Database error: {str(e)}")
 
     @staticmethod
     def get_comments(db: Session, request_id: str):
-        """Get all comments for a request"""
+        """Get all tracks for a request (timeline)"""
         try:
             # Verify request exists
             request = Request.get(db, {"id": request_id})
@@ -197,13 +211,13 @@ class RequestController:
                 raise HTTPException(
                     status_code=404, detail="Request not found")
 
-            comments = RequestComment.find(db, {"request_id": request_id})
-            return comments
+            tracks = RequestTrack.find(db, {"request_id": request_id})
+            return tracks
 
         except HTTPException:
             raise
         except Exception as e:
             logger.error(
-                f"Failed to fetch comments for request {request_id}: {str(e)}")
+                f"Failed to fetch tracks for request {request_id}: {str(e)}")
             raise HTTPException(
                 status_code=500, detail=f"Database error: {str(e)}")

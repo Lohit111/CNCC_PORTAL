@@ -18,11 +18,12 @@ class UserTable(Base):
 
     raised_requests = relationship(
         "RequestTable", back_populates="raiser", foreign_keys="RequestTable.raised_by")
-    comments = relationship("RequestCommentTable", back_populates="sender")
+    tracks = relationship("RequestTrackTable", back_populates="performer")
     assignments = relationship(
         "AssignmentTable", back_populates="staff", foreign_keys="AssignmentTable.staff_id")
     store_requests = relationship(
         "StoreRequestTable", back_populates="requester", foreign_keys="StoreRequestTable.requested_by")
+    store_chats = relationship("StoreChatTable", back_populates="sender")
 
 
 class User(BaseModel):

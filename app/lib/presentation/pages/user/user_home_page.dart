@@ -27,7 +27,7 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
   Future<void> _loadRequests() async {
     setState(() => _isLoading = true);
     try {
-      final response = await _networkClient.get('/requests/');
+      final response = await _networkClient.get('/users/requests');
       final data = response.data;
       setState(() {
         _requests = (data['items'] as List)

@@ -34,4 +34,34 @@ class StoreRequest {
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'parent_request_id': parentRequestId,
+      'requested_by': requestedBy,
+      'description': description,
+      'status': status,
+      'responded_by': respondedBy,
+      'response_comment': responseComment,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+
+  // Helper method to get status display text
+  String get statusDisplayText {
+    switch (status) {
+      case 'PENDING':
+        return 'Pending';
+      case 'APPROVED':
+        return 'Approved';
+      case 'REJECTED':
+        return 'Rejected';
+      case 'FULFILLED':
+        return 'Fulfilled';
+      default:
+        return status;
+    }
+  }
 }

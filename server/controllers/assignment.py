@@ -31,6 +31,11 @@ class AssignmentController:
                 "request_id"), "is_active": True}, {"is_active": False})
 
             assignment = Assignment.create(db, data)
+
+            # Update request status to ASSIGNED
+            Request.update(db, {"id": data.get("request_id")}, {
+                           "status": "ASSIGNED"})
+
             logger.info(f"Assignment created successfully: {assignment.id}")
             return assignment
 

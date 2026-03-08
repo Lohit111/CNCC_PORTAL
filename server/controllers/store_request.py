@@ -3,6 +3,8 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from models.store_request import StoreRequest
 from models.request import Request
+from models.track import RequestTrack
+from models.store_chat import StoreChat
 from models.user import User
 import logging
 
@@ -22,6 +24,20 @@ class StoreRequestController:
                     status_code=404, detail="Parent request not found")
 
             store_request = StoreRequest.create(db, data)
+            
+            # Create track for store request creation
+            RequestTrack.create(db, {
+                "store_request_id": store_request.id,
+                "request_id": data.get("parent_request_id"),
+                "action_type": "STORE_REQUEST_CREATED",
+                "performed_by": data.get("requested_by"),
+                "performed_by_role": "STAFF",
+                "comment": data.get("description"),
+                "track_metadata": {
+                    "store_request_id": store_request.id
+                }
+            })
+            
             logger.info(
                 f"Store request created successfully: {store_request.id}")
             return store_request
@@ -136,8 +152,8 @@ class StoreRequestController:
         try:
             logger.info(f"Responding to store request: {store_request_id}")
 
-            exists = StoreRequest.get(db, {"id": store_request_id})
-            if not exists:
+            store_request = StoreRequest.get(db, {"id": store_request_id})
+            if not store_request:
                 raise HTTPException(
                     status_code=404, detail="Store request not found")
 
@@ -154,6 +170,26 @@ class StoreRequestController:
             if not updated:
                 raise HTTPException(
                     status_code=500, detail="Store request response failed")
+
+            # Create track for store request response
+            action_type_map = {
+                "APPROVED": "STORE_REQUEST_APPROVED",
+                "REJECTED": "STORE_REQUEST_REJECTED",
+                "FULFILLED": "STORE_REQUEST_FULFILLED"
+            }
+            
+            RequestTrack.create(db, {
+                "store_request_id": store_request_id,
+                "request_id": store_request.parent_request_id,
+                "action_type": action_type_map[status],
+                "performed_by": responded_by,
+                "performed_by_role": "STORE",
+                "comment": response_comment,
+                "track_metadata": {
+                    "store_request_id": store_request_id,
+                    "status": status
+                }
+            })
 
             logger.info(
                 f"Store request responded successfully: {store_request_id}")
@@ -187,5 +223,57 @@ class StoreRequestController:
         except Exception as e:
             logger.error(
                 f"Failed to delete store request {store_request_id}: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Database error: {str(e)}")
+
+    @staticmethod
+    def add_chat_message(db: Session, store_request_id: str, sender_id: str, sender_role: str, message: str):
+        """Add a chat message to an APPROVED store request"""
+        try:
+            store_request = StoreRequest.get(db, {"id": store_request_id})
+            if not store_request:
+                raise HTTPException(
+                    status_code=404, detail="Store request not found")
+
+            if store_request.status != "APPROVED":
+                raise HTTPException(
+                    status_code=400, detail="Chat only available for APPROVED store requests")
+
+            chat_data = {
+                "store_request_id": store_request_id,
+                "sender_id": sender_id,
+                "sender_role": sender_role,
+                "message": message
+            }
+
+            chat = StoreChat.create(db, chat_data)
+            logger.info(f"Chat message added to store request {store_request_id}")
+            return chat
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Failed to add chat message to store request {store_request_id}: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Database error: {str(e)}")
+
+    @staticmethod
+    def get_chat_messages(db: Session, store_request_id: str):
+        """Get all chat messages for a store request"""
+        try:
+            store_request = StoreRequest.get(db, {"id": store_request_id})
+            if not store_request:
+                raise HTTPException(
+                    status_code=404, detail="Store request not found")
+
+            chats = StoreChat.find(db, {"store_request_id": store_request_id})
+            return chats
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Failed to fetch chat messages for store request {store_request_id}: {str(e)}")
             raise HTTPException(
                 status_code=500, detail=f"Database error: {str(e)}")

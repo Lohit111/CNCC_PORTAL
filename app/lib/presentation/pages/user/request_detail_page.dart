@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ticket_management_app/core/network/network_client.dart';
 import 'package:ticket_management_app/domain/entities/request_entity.dart';
-import 'package:ticket_management_app/domain/entities/comment_entity.dart';
+import 'package:ticket_management_app/domain/entities/track_entity.dart';
 
 class RequestDetailPage extends ConsumerStatefulWidget {
   final String requestId;
@@ -15,11 +15,9 @@ class RequestDetailPage extends ConsumerStatefulWidget {
 
 class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
   final _networkClient = NetworkClient();
-  final _commentController = TextEditingController();
   Request? _request;
-  List<Comment> _comments = [];
+  List<Track> _tracks = [];
   bool _isLoading = true;
-  bool _isSendingComment = false;
 
   @override
   void initState() {
@@ -32,13 +30,13 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
     try {
       final requestResponse =
           await _networkClient.get('/requests/${widget.requestId}');
-      final commentsResponse =
+      final tracksResponse =
           await _networkClient.get('/requests/${widget.requestId}/comments');
 
       setState(() {
         _request = Request.fromJson(requestResponse.data);
-        _comments = (commentsResponse.data as List)
-            .map((json) => Comment.fromJson(json))
+        _tracks = (tracksResponse.data as List)
+            .map((json) => Track.fromJson(json))
             .toList();
         _isLoading = false;
       });
@@ -49,39 +47,6 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
           SnackBar(content: Text('Error: $e')),
         );
       }
-    }
-  }
-
-  Future<void> _addComment() async {
-    if (_commentController.text.trim().isEmpty) return;
-
-    setState(() => _isSendingComment = true);
-
-    try {
-      await _networkClient.post(
-        '/requests/${widget.requestId}/comments',
-        data: {
-          'message': _commentController.text,
-          'type': 'REPLY',
-        },
-      );
-
-      _commentController.clear();
-      await _loadRequestDetails();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comment added successfully')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-      }
-    } finally {
-      setState(() => _isSendingComment = false);
     }
   }
 
@@ -115,7 +80,7 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    'Status: ${_request!.status}',
+                                    'Status: ${_request!.statusDisplayText}',
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -155,13 +120,13 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
                       ),
                     ),
 
-                    // Comments Section
+                    // Timeline Section Header
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
                           const Text(
-                            'Comments',
+                            'Timeline',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -178,7 +143,7 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              '${_comments.length}',
+                              '${_tracks.length}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -189,116 +154,157 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
                       ),
                     ),
 
-                    // Comments List
+                    // Timeline List
                     Expanded(
-                      child: _comments.isEmpty
+                      child: _tracks.isEmpty
                           ? const Center(
-                              child: Text('No comments yet'),
+                              child: Text('No activity yet'),
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.all(16),
-                              itemCount: _comments.length,
+                              itemCount: _tracks.length,
                               itemBuilder: (context, index) {
-                                final comment = _comments[index];
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 4,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: _getRoleColor(
-                                                    comment.senderRole),
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                comment.senderRole,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                            const Spacer(),
-                                            Text(
-                                              _formatDate(comment.createdAt),
-                                              style: TextStyle(
-                                                color: Colors.grey[600],
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(comment.message),
-                                      ],
-                                    ),
-                                  ),
-                                );
+                                final track = _tracks[index];
+                                return _buildTrackItem(track, index == _tracks.length - 1);
                               },
                             ),
                     ),
 
-                    // Comment Input
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, -2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _commentController,
-                              decoration: const InputDecoration(
-                                hintText: 'Add a comment...',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
+                    // Respond Button (if status is REPLIED)
+                    if (_request!.status == 'REPLIED')
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, -2),
+                            ),
+                          ],
+                        ),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              // TODO: Navigate to respond page
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Respond page coming soon'),
                                 ),
-                              ),
-                              maxLines: null,
+                              );
+                            },
+                            icon: const Icon(Icons.reply),
+                            label: const Text('Respond to Admin'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.all(16),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          IconButton.filled(
-                            onPressed: _isSendingComment ? null : _addComment,
-                            icon: _isSendingComment
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.send),
+                        ),
+                      ),
+                  ],
+                ),
+    );
+  }
+
+  Widget _buildTrackItem(Track track, bool isLast) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Timeline indicator
+        Column(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _getActionTypeColor(track.actionType),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _getActionTypeIcon(track.actionType),
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 60,
+                color: Colors.grey[300],
+              ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        // Track content
+        Expanded(
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          track.actionDisplayText,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
-                        ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getRoleColor(track.performedByRole),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          track.performedByRole,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatDate(track.createdAt),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 11,
+                    ),
+                  ),
+                  if (track.comment != null && track.comment!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        track.comment!,
+                        style: const TextStyle(fontSize: 13),
                       ),
                     ),
                   ],
-                ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -306,19 +312,25 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
     Color color;
     switch (status) {
       case 'RAISED':
+        color = Colors.blue;
+        break;
+      case 'REPLIED':
         color = Colors.orange;
         break;
       case 'ASSIGNED':
-        color = Colors.blue;
+        color = Colors.purple;
         break;
       case 'IN_PROGRESS':
-        color = Colors.purple;
+        color = Colors.amber;
         break;
       case 'COMPLETED':
         color = Colors.green;
         break;
       case 'REJECTED':
         color = Colors.red;
+        break;
+      case 'REASSIGN_REQUESTED':
+        color = Colors.pink;
         break;
       default:
         color = Colors.grey;
@@ -332,6 +344,57 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
       backgroundColor: color,
       padding: EdgeInsets.zero,
     );
+  }
+
+  Color _getActionTypeColor(String actionType) {
+    switch (actionType) {
+      case 'RAISED':
+        return Colors.blue;
+      case 'REPLIED':
+        return Colors.orange;
+      case 'REJECTED':
+        return Colors.red;
+      case 'ASSIGNED':
+        return Colors.purple;
+      case 'IN_PROGRESS':
+        return Colors.amber;
+      case 'COMPLETED':
+        return Colors.green;
+      case 'REASSIGN_REQUESTED':
+        return Colors.pink;
+      case 'USER_UPDATED':
+        return Colors.teal;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getActionTypeIcon(String actionType) {
+    switch (actionType) {
+      case 'RAISED':
+        return Icons.add_circle;
+      case 'REPLIED':
+        return Icons.chat_bubble;
+      case 'REJECTED':
+        return Icons.cancel;
+      case 'ASSIGNED':
+        return Icons.person_add;
+      case 'IN_PROGRESS':
+        return Icons.work;
+      case 'COMPLETED':
+        return Icons.check_circle;
+      case 'REASSIGN_REQUESTED':
+        return Icons.swap_horiz;
+      case 'USER_UPDATED':
+        return Icons.edit;
+      case 'STORE_REQUEST_CREATED':
+      case 'STORE_REQUEST_APPROVED':
+      case 'STORE_REQUEST_REJECTED':
+      case 'STORE_REQUEST_FULFILLED':
+        return Icons.inventory;
+      default:
+        return Icons.circle;
+    }
   }
 
   Color _getRoleColor(String role) {
@@ -351,11 +414,5 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  @override
-  void dispose() {
-    _commentController.dispose();
-    super.dispose();
   }
 }

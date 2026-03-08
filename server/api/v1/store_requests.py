@@ -107,3 +107,33 @@ async def delete_store_request(
 ):
     """Delete store request"""
     return StoreRequestController.delete(db, store_request_id)
+
+
+@router.post("/{store_request_id}/chat")
+async def add_chat_message(
+    store_request_id: str,
+    request: Request,
+    auth_data: dict = Depends(require_role("STAFF", "STORE")),
+    db: Session = Depends(get_db)
+):
+    """Add a chat message to an APPROVED store request"""
+    data = await request.json()
+    message = data.get("message")
+    
+    return StoreRequestController.add_chat_message(
+        db,
+        store_request_id,
+        auth_data["user"].id,
+        auth_data["role"],
+        message
+    )
+
+
+@router.get("/{store_request_id}/chat")
+async def get_chat_messages(
+    store_request_id: str,
+    auth_data: dict = Depends(require_role("STAFF", "STORE", "ADMIN")),
+    db: Session = Depends(get_db)
+):
+    """Get all chat messages for a store request"""
+    return StoreRequestController.get_chat_messages(db, store_request_id)

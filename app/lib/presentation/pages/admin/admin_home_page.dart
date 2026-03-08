@@ -155,13 +155,109 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
                 ),
               ],
               onSelected: (value) {
-                // Handle actions
+                switch (value) {
+                  case 'assign':
+                    _showAssignStaffDialog(request);
+                    break;
+                  case 'update':
+                    _showUpdateStatusDialog(request);
+                    break;
+                  case 'delete':
+                    _showDeleteConfirmation(request);
+                    break;
+                }
               },
             ),
           ),
         );
       },
     );
+  }
+
+  Future<void> _showAssignStaffDialog(Request request) async {
+    try {
+      // Fetch users and roles
+      final usersResponse = await _networkClient.get('/users/');
+      final rolesResponse = await _networkClient.get('/roles/');
+      
+      final users = usersResponse.data['items'] as List;
+      final roles = rolesResponse.data['items'] as List;
+      
+      // Match users with STAFF role
+      final staffList = users.where((user) {
+        final role = roles.firstWhere(
+          (r) => r['email'] == user['email'],
+          orElse: () => null,
+        );
+        return role != null && role['role'] == 'STAFF';
+      }).toList();
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (context) => _AssignStaffDialog(
+          request: request,
+          staffList: staffList,
+          onAssigned: _loadRequests,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading staff: $e')),
+        );
+      }
+    }
+  }
+
+  void _showUpdateStatusDialog(Request request) {
+    showDialog(
+      context: context,
+      builder: (context) => _UpdateStatusDialog(
+        request: request,
+        onUpdated: _loadRequests,
+      ),
+    );
+  }
+
+  Future<void> _showDeleteConfirmation(Request request) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Request'),
+        content: const Text('Are you sure you want to delete this request? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await _networkClient.delete('/requests/${request.id}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Request deleted successfully')),
+          );
+          _loadRequests();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting request: $e')),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildUsersTab() {
@@ -239,6 +335,212 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AssignStaffDialog extends StatefulWidget {
+  final Request request;
+  final List<dynamic> staffList;
+  final VoidCallback onAssigned;
+
+  const _AssignStaffDialog({
+    required this.request,
+    required this.staffList,
+    required this.onAssigned,
+  });
+
+  @override
+  State<_AssignStaffDialog> createState() => _AssignStaffDialogState();
+}
+
+class _AssignStaffDialogState extends State<_AssignStaffDialog> {
+  final _networkClient = NetworkClient();
+  String? _selectedStaffId;
+  bool _isLoading = false;
+
+  Future<void> _assignStaff() async {
+    if (_selectedStaffId == null) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _networkClient.post('/assignments/', data: {
+        'request_id': widget.request.id,
+        'staff_id': _selectedStaffId,
+      });
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Staff assigned successfully')),
+        );
+        widget.onAssigned();
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error assigning staff: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Assign to Staff'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Request: ${widget.request.description}'),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            decoration: const InputDecoration(
+              labelText: 'Select Staff Member',
+              border: OutlineInputBorder(),
+            ),
+            value: _selectedStaffId,
+            items: widget.staffList.map((staff) {
+              return DropdownMenuItem<String>(
+                value: staff['id'],
+                child: Text(staff['email']),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() => _selectedStaffId = value);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _assignStaff,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Assign'),
+        ),
+      ],
+    );
+  }
+}
+
+class _UpdateStatusDialog extends StatefulWidget {
+  final Request request;
+  final VoidCallback onUpdated;
+
+  const _UpdateStatusDialog({
+    required this.request,
+    required this.onUpdated,
+  });
+
+  @override
+  State<_UpdateStatusDialog> createState() => _UpdateStatusDialogState();
+}
+
+class _UpdateStatusDialogState extends State<_UpdateStatusDialog> {
+  final _networkClient = NetworkClient();
+  String? _selectedStatus;
+  bool _isLoading = false;
+
+  final List<String> _statuses = [
+    'RAISED',
+    'ASSIGNED',
+    'IN_PROGRESS',
+    'COMPLETED',
+    'REJECTED',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedStatus = widget.request.status;
+  }
+
+  Future<void> _updateStatus() async {
+    if (_selectedStatus == null || _selectedStatus == widget.request.status) {
+      Navigator.pop(context);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await _networkClient.put('/requests/${widget.request.id}', data: {
+        'status': _selectedStatus,
+      });
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Status updated successfully')),
+        );
+        widget.onUpdated();
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating status: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Update Status'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Request: ${widget.request.description}'),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            decoration: const InputDecoration(
+              labelText: 'Status',
+              border: OutlineInputBorder(),
+            ),
+            value: _selectedStatus,
+            items: _statuses.map((status) {
+              return DropdownMenuItem<String>(
+                value: status,
+                child: Text(status),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() => _selectedStatus = value);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _updateStatus,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Update'),
+        ),
+      ],
     );
   }
 }

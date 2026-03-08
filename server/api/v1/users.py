@@ -28,6 +28,19 @@ async def get_current_user_profile(
     }
 
 
+@router.get("/requests", response_model=dict)
+async def get_current_user_requests(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    auth_data: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get current user's requests with pagination"""
+    from controllers.request import RequestController
+    user_id = auth_data["user"].id
+    return RequestController.get_by_user(db, user_id, skip=skip, limit=limit)
+
+
 @router.get("/", response_model=dict)
 async def get_all_users(
     skip: int = Query(0, ge=0),

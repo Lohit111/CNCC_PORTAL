@@ -29,6 +29,10 @@ class StoreRequestTable(Base):
         "RequestTable", back_populates="store_requests")
     requester = relationship(
         "UserTable", back_populates="store_requests", foreign_keys=[requested_by])
+    tracks = relationship(
+        "RequestTrackTable", back_populates="store_request", cascade="all, delete-orphan")
+    chats = relationship(
+        "StoreChatTable", back_populates="store_request", cascade="all, delete-orphan")
 
 
 class StoreRequest(BaseModel):

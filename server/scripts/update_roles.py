@@ -6,8 +6,9 @@ from models.role import Role
 
 # Hardcoded list of users to add
 USERS_TO_ADD = {
-    "sailohit948@gmail.com": "USER",
-    "lingalalohit@gmail.com": "ADMIN",
+    # "sailohit948@gmail.com": "USER",
+    # "lingalalohit@gmail.com": "ADMIN",
+    "24071a12f5@vnrvjiet.in": "STAFF",
 }
 
 VALID_ROLES = ["USER", "ADMIN", "STAFF", "STORE"]

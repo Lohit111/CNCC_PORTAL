@@ -20,6 +20,7 @@ class RequestTable(Base):
     sub_type_id = Column(Integer, ForeignKey("sub_types.id"), nullable=False)
     description = Column(Text, nullable=False)
     status = Column(String, default="RAISED", nullable=False, index=True)
+    is_active = Column(String, default="true", nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow, nullable=False)
@@ -28,8 +29,8 @@ class RequestTable(Base):
         "UserTable", back_populates="raised_requests", foreign_keys=[raised_by])
     main_type = relationship("MainTypeTable", back_populates="requests")
     sub_type = relationship("SubTypeTable", back_populates="requests")
-    comments = relationship(
-        "RequestCommentTable", back_populates="request", cascade="all, delete-orphan")
+    tracks = relationship(
+        "RequestTrackTable", back_populates="request", cascade="all, delete-orphan")
     assignments = relationship(
         "AssignmentTable", back_populates="request", cascade="all, delete-orphan")
     store_requests = relationship(
@@ -43,6 +44,7 @@ class Request(BaseModel):
     sub_type_id: int = Field()
     description: str = Field()
     status: str = Field(default="RAISED")
+    is_active: str = Field(default="true")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -59,6 +61,7 @@ class Request(BaseModel):
             sub_type_id=int(request_table.sub_type_id),
             description=str(request_table.description),
             status=str(request_table.status),
+            is_active=str(request_table.is_active),
             created_at=request_table.created_at,
             updated_at=request_table.updated_at
         )
