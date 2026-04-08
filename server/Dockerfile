@@ -7,8 +7,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN chmod +x entrypoint.sh
-
 EXPOSE 8000
 
-CMD ["./entrypoint.sh"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port 8000 & sleep 3 && python3 update_roles.py && wait"]
