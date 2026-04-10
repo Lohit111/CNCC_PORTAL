@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/request_entity.dart';
-import 'package:ticket_management_app/domain/entities/track_entity.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/domain/entities/track_entity.dart';
 
 class RequestDetailPage extends ConsumerStatefulWidget {
   final String requestId;
@@ -165,7 +165,8 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
                               itemCount: _tracks.length,
                               itemBuilder: (context, index) {
                                 final track = _tracks[index];
-                                return _buildTrackItem(track, index == _tracks.length - 1);
+                                return _buildTrackItem(
+                                    track, index == _tracks.length - 1);
                               },
                             ),
                     ),

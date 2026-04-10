@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/request_entity.dart';
-import 'package:ticket_management_app/presentation/pages/admin/admin_request_detail_page.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_request_detail_page.dart';
 
 class AssignedRequestsPage extends StatefulWidget {
   const AssignedRequestsPage({super.key});
@@ -30,7 +30,9 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
         _requests = (data['items'] as List)
             .map((json) => Request.fromJson(json))
             .where((req) =>
-                (req.status == 'ASSIGNED' || req.status == 'IN_PROGRESS' || req.status == 'REASSIGN_REQUESTED') &&
+                (req.status == 'ASSIGNED' ||
+                    req.status == 'IN_PROGRESS' ||
+                    req.status == 'REASSIGN_REQUESTED') &&
                 req.isActive == 'true')
             .toList();
         _isLoading = false;
@@ -148,7 +150,8 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => AdminRequestDetailPage(requestId: request.id),
+                                builder: (context) => AdminRequestDetailPage(
+                                    requestId: request.id),
                               ),
                             );
                           },
@@ -204,7 +207,8 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
 
   Future<void> _viewAssignments(Request request) async {
     try {
-      final response = await _networkClient.get('/assignments/request/${request.id}');
+      final response =
+          await _networkClient.get('/assignments/request/${request.id}');
       final assignments = response.data as List;
 
       if (!mounted) return;
@@ -255,10 +259,10 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
       // Fetch users and roles
       final usersResponse = await _networkClient.get('/users/');
       final rolesResponse = await _networkClient.get('/roles/');
-      
+
       final users = usersResponse.data['items'] as List;
       final roles = rolesResponse.data['items'] as List;
-      
+
       // Match users with STAFF role
       final staffList = users.where((user) {
         final role = roles.firstWhere(

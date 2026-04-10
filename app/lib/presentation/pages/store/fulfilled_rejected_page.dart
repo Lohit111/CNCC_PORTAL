@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/store_request_entity.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/store_request_entity.dart';
 
 class FulfilledRejectedPage extends StatefulWidget {
   const FulfilledRejectedPage({super.key});
@@ -25,9 +25,11 @@ class _FulfilledRejectedPageState extends State<FulfilledRejectedPage> {
     setState(() => _isLoading = true);
     try {
       // Load both FULFILLED and REJECTED
-      final fulfilledResponse = await _networkClient.get('/store-requests/status/FULFILLED');
-      final rejectedResponse = await _networkClient.get('/store-requests/status/REJECTED');
-      
+      final fulfilledResponse =
+          await _networkClient.get('/store-requests/status/FULFILLED');
+      final rejectedResponse =
+          await _networkClient.get('/store-requests/status/REJECTED');
+
       final fulfilled = (fulfilledResponse.data['items'] as List)
           .map((json) => StoreRequest.fromJson(json))
           .toList();
@@ -171,7 +173,8 @@ class _FulfilledRejectedPageState extends State<FulfilledRejectedPage> {
                               request.status == 'FULFILLED'
                                   ? 'Fulfillment Notes:'
                                   : 'Rejection Reason:',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 4),
                             Text(request.responseComment!),
@@ -215,7 +218,8 @@ class _FulfilledRejectedPageState extends State<FulfilledRejectedPage> {
 
   Future<void> _viewChat(StoreRequest request) async {
     try {
-      final response = await _networkClient.get('/store-requests/${request.id}/chat');
+      final response =
+          await _networkClient.get('/store-requests/${request.id}/chat');
       final chats = response.data as List;
 
       if (!mounted) return;
@@ -235,12 +239,16 @@ class _FulfilledRejectedPageState extends State<FulfilledRejectedPage> {
                       final chat = chats[index];
                       final isStore = chat['sender_role'] == 'STORE';
                       return Align(
-                        alignment: isStore ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isStore
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isStore ? Colors.green.shade100 : Colors.blue.shade100,
+                            color: isStore
+                                ? Colors.green.shade100
+                                : Colors.blue.shade100,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           constraints: const BoxConstraints(maxWidth: 250),

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/store_request_entity.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/store_request_entity.dart';
 
 class ApprovedStoreRequestsPage extends StatefulWidget {
   const ApprovedStoreRequestsPage({super.key});
 
   @override
-  State<ApprovedStoreRequestsPage> createState() => _ApprovedStoreRequestsPageState();
+  State<ApprovedStoreRequestsPage> createState() =>
+      _ApprovedStoreRequestsPageState();
 }
 
 class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
@@ -23,7 +24,8 @@ class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
   Future<void> _loadRequests() async {
     setState(() => _isLoading = true);
     try {
-      final response = await _networkClient.get('/store-requests/status/APPROVED');
+      final response =
+          await _networkClient.get('/store-requests/status/APPROVED');
       final data = response.data;
       setState(() {
         _requests = (data['items'] as List)
@@ -150,7 +152,8 @@ class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
 
   Future<void> _openChat(StoreRequest request) async {
     try {
-      final response = await _networkClient.get('/store-requests/${request.id}/chat');
+      final response =
+          await _networkClient.get('/store-requests/${request.id}/chat');
       final chats = response.data as List;
 
       if (!mounted) return;
@@ -174,12 +177,16 @@ class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
                         final chat = chats[index];
                         final isMe = chat['sender_role'] == 'STORE';
                         return Align(
-                          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                          alignment: isMe
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: isMe ? Colors.green.shade100 : Colors.blue.shade100,
+                              color: isMe
+                                  ? Colors.green.shade100
+                                  : Colors.blue.shade100,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             constraints: const BoxConstraints(maxWidth: 250),
@@ -222,14 +229,14 @@ class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
                         icon: const Icon(Icons.send),
                         onPressed: () async {
                           if (messageController.text.isEmpty) return;
-                          
+
                           try {
                             await _networkClient.post(
                               '/store-requests/${request.id}/chat',
                               data: {'message': messageController.text},
                             );
                             messageController.clear();
-                            
+
                             // Reload chat
                             final newResponse = await _networkClient.get(
                               '/store-requests/${request.id}/chat',
@@ -310,7 +317,8 @@ class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
 
     if (confirmed == true) {
       try {
-        await _networkClient.post('/store-requests/${request.id}/respond', data: {
+        await _networkClient
+            .post('/store-requests/${request.id}/respond', data: {
           'status': 'FULFILLED',
           'response_comment': commentController.text.isEmpty
               ? 'Items delivered'

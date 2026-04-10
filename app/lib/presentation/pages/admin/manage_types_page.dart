@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/type_entity.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/type_entity.dart';
 
 class ManageTypesPage extends StatefulWidget {
   const ManageTypesPage({super.key});

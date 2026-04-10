@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -22,25 +23,29 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // Force sign out to show account picker
-      await _googleSignIn.signOut();
-      await _firebaseAuth.signOut();
+      if (kIsWeb) {
+        // Web: use Firebase popup flow
+        final googleProvider = fb.GoogleAuthProvider();
+        await _firebaseAuth.signInWithPopup(googleProvider);
+      } else {
+        // Mobile: use google_sign_in native flow
+        await _googleSignIn.signOut();
+        await _firebaseAuth.signOut();
 
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        setState(() {
-          _isLoading = false;
-        });
-        return;
+        final googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) {
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        final googleAuth = await googleUser.authentication;
+        final credential = fb.GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        await _firebaseAuth.signInWithCredential(credential);
       }
-
-      final googleAuth = await googleUser.authentication;
-      final credential = fb.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      await _firebaseAuth.signInWithCredential(credential);
     } catch (error) {
       setState(() {
         _error = error.toString();

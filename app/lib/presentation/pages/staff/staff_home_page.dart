@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:ticket_management_app/presentation/pages/staff/assigned_to_me_page.dart';
-import 'package:ticket_management_app/presentation/pages/staff/in_progress_page.dart';
-import 'package:ticket_management_app/presentation/pages/staff/completed_by_me_page.dart';
-import 'package:ticket_management_app/presentation/pages/staff/my_store_requests_page.dart';
+import 'package:cncc_portal/presentation/pages/staff/assigned_to_me_page.dart';
+import 'package:cncc_portal/presentation/pages/staff/in_progress_page.dart';
+import 'package:cncc_portal/presentation/pages/staff/completed_by_me_page.dart';
+import 'package:cncc_portal/presentation/pages/staff/my_store_requests_page.dart';
 
 class StaffHomePage extends ConsumerStatefulWidget {
   const StaffHomePage({super.key});

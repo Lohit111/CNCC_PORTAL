@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/request_entity.dart';
-import 'package:ticket_management_app/domain/entities/track_entity.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/domain/entities/track_entity.dart';
 
 class AdminRequestDetailPage extends ConsumerStatefulWidget {
   final String requestId;
@@ -10,10 +10,12 @@ class AdminRequestDetailPage extends ConsumerStatefulWidget {
   const AdminRequestDetailPage({super.key, required this.requestId});
 
   @override
-  ConsumerState<AdminRequestDetailPage> createState() => _AdminRequestDetailPageState();
+  ConsumerState<AdminRequestDetailPage> createState() =>
+      _AdminRequestDetailPageState();
 }
 
-class _AdminRequestDetailPageState extends ConsumerState<AdminRequestDetailPage> {
+class _AdminRequestDetailPageState
+    extends ConsumerState<AdminRequestDetailPage> {
   final _networkClient = NetworkClient();
   Request? _request;
   List<Track> _tracks = [];
@@ -105,7 +107,8 @@ class _AdminRequestDetailPageState extends ConsumerState<AdminRequestDetailPage>
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Created: ${_formatDate(_request!.createdAt)}',
@@ -136,7 +139,9 @@ class _AdminRequestDetailPageState extends ConsumerState<AdminRequestDetailPage>
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
-                                    _request!.isActive == 'true' ? 'ACTIVE' : 'INACTIVE',
+                                    _request!.isActive == 'true'
+                                        ? 'ACTIVE'
+                                        : 'INACTIVE',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 10,
@@ -196,7 +201,8 @@ class _AdminRequestDetailPageState extends ConsumerState<AdminRequestDetailPage>
                               itemCount: _tracks.length,
                               itemBuilder: (context, index) {
                                 final track = _tracks[index];
-                                return _buildTrackItem(track, index == _tracks.length - 1);
+                                return _buildTrackItem(
+                                    track, index == _tracks.length - 1);
                               },
                             ),
                     ),

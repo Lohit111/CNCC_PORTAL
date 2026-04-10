@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/type_entity.dart';
-import 'package:ticket_management_app/presentation/pages/user/active_requests_page.dart';
-import 'package:ticket_management_app/presentation/pages/user/replied_requests_user_page.dart';
-import 'package:ticket_management_app/presentation/pages/user/completed_requests_user_page.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/type_entity.dart';
+import 'package:cncc_portal/presentation/pages/user/active_requests_page.dart';
+import 'package:cncc_portal/presentation/pages/user/replied_requests_user_page.dart';
+import 'package:cncc_portal/presentation/pages/user/completed_requests_user_page.dart';
 
 class UserHomePage extends ConsumerStatefulWidget {
   const UserHomePage({super.key});

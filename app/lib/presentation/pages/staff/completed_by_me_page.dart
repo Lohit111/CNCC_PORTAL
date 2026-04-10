@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/request_entity.dart';
-import 'package:ticket_management_app/domain/entities/track_entity.dart';
-import 'package:ticket_management_app/presentation/providers/auth_provider.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/domain/entities/track_entity.dart';
+import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 
 class CompletedByMePage extends ConsumerStatefulWidget {
   const CompletedByMePage({super.key});
@@ -43,7 +43,8 @@ class _CompletedByMePageState extends ConsumerState<CompletedByMePage> {
           .toList();
 
       // Filter requests that were assigned to me and are now completed
-      final assignedRequestIds = assignments.map((a) => a['request_id']).toSet();
+      final assignedRequestIds =
+          assignments.map((a) => a['request_id']).toSet();
       setState(() {
         _requests = allRequests
             .where((req) =>
@@ -138,10 +139,10 @@ class _CompletedByMePageState extends ConsumerState<CompletedByMePage> {
 
   Future<void> _viewTimeline(Request request) async {
     try {
-      final response = await _networkClient.get('/requests/${request.id}/comments');
-      final tracks = (response.data as List)
-          .map((json) => Track.fromJson(json))
-          .toList();
+      final response =
+          await _networkClient.get('/requests/${request.id}/comments');
+      final tracks =
+          (response.data as List).map((json) => Track.fromJson(json)).toList();
 
       if (!mounted) return;
 
@@ -175,7 +176,8 @@ class _CompletedByMePageState extends ConsumerState<CompletedByMePage> {
                           ),
                         Text(
                           track.createdAt.toString().substring(0, 19),
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ],
                     ),

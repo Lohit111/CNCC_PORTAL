@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:ticket_management_app/presentation/pages/store/pending_store_requests_page.dart';
-import 'package:ticket_management_app/presentation/pages/store/approved_store_requests_page.dart';
-import 'package:ticket_management_app/presentation/pages/store/fulfilled_rejected_page.dart';
+import 'package:cncc_portal/presentation/pages/store/pending_store_requests_page.dart';
+import 'package:cncc_portal/presentation/pages/store/approved_store_requests_page.dart';
+import 'package:cncc_portal/presentation/pages/store/fulfilled_rejected_page.dart';
 
 class StoreHomePage extends ConsumerStatefulWidget {
   const StoreHomePage({super.key});

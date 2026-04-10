@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/store_request_entity.dart';
-import 'package:ticket_management_app/presentation/providers/auth_provider.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/store_request_entity.dart';
+import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 
 class MyStoreRequestsPage extends ConsumerStatefulWidget {
   const MyStoreRequestsPage({super.key});
@@ -197,7 +197,8 @@ class _MyStoreRequestsPageState extends ConsumerState<MyStoreRequestsPage> {
 
   Future<void> _openChat(StoreRequest request) async {
     try {
-      final response = await _networkClient.get('/store-requests/${request.id}/chat');
+      final response =
+          await _networkClient.get('/store-requests/${request.id}/chat');
       final chats = response.data as List;
 
       if (!mounted) return;
@@ -221,12 +222,16 @@ class _MyStoreRequestsPageState extends ConsumerState<MyStoreRequestsPage> {
                         final chat = chats[index];
                         final isMe = chat['sender_role'] == 'STAFF';
                         return Align(
-                          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                          alignment: isMe
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: isMe ? Colors.blue.shade100 : Colors.grey.shade200,
+                              color: isMe
+                                  ? Colors.blue.shade100
+                                  : Colors.grey.shade200,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             constraints: const BoxConstraints(maxWidth: 250),
@@ -269,14 +274,14 @@ class _MyStoreRequestsPageState extends ConsumerState<MyStoreRequestsPage> {
                         icon: const Icon(Icons.send),
                         onPressed: () async {
                           if (messageController.text.isEmpty) return;
-                          
+
                           try {
                             await _networkClient.post(
                               '/store-requests/${request.id}/chat',
                               data: {'message': messageController.text},
                             );
                             messageController.clear();
-                            
+
                             // Reload chat
                             final newResponse = await _networkClient.get(
                               '/store-requests/${request.id}/chat',

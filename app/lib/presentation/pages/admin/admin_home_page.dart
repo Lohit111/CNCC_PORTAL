@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:ticket_management_app/presentation/pages/admin/raised_requests_page.dart';
-import 'package:ticket_management_app/presentation/pages/admin/replied_requests_page.dart';
-import 'package:ticket_management_app/presentation/pages/admin/assigned_requests_page.dart';
-import 'package:ticket_management_app/presentation/pages/admin/completed_requests_page.dart';
-import 'package:ticket_management_app/presentation/pages/admin/manage_roles_page.dart';
-import 'package:ticket_management_app/presentation/pages/admin/manage_types_page.dart';
-import 'package:ticket_management_app/presentation/pages/admin/manage_assignments_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/raised_requests_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/replied_requests_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/assigned_requests_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/completed_requests_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/manage_roles_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/manage_types_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/manage_assignments_page.dart';
 
 class AdminHomePage extends ConsumerStatefulWidget {
   const AdminHomePage({super.key});

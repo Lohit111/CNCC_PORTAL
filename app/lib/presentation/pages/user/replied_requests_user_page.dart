@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/request_entity.dart';
-import 'package:ticket_management_app/domain/entities/track_entity.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/domain/entities/track_entity.dart';
 
 class RepliedRequestsUserPage extends StatefulWidget {
   const RepliedRequestsUserPage({super.key});
 
   @override
-  State<RepliedRequestsUserPage> createState() => _RepliedRequestsUserPageState();
+  State<RepliedRequestsUserPage> createState() =>
+      _RepliedRequestsUserPageState();
 }
 
 class _RepliedRequestsUserPageState extends State<RepliedRequestsUserPage> {
@@ -130,10 +131,10 @@ class _RepliedRequestsUserPageState extends State<RepliedRequestsUserPage> {
 
   Future<void> _viewConversation(Request request) async {
     try {
-      final response = await _networkClient.get('/requests/${request.id}/comments');
-      final tracks = (response.data as List)
-          .map((json) => Track.fromJson(json))
-          .toList();
+      final response =
+          await _networkClient.get('/requests/${request.id}/comments');
+      final tracks =
+          (response.data as List).map((json) => Track.fromJson(json)).toList();
 
       if (!mounted) return;
 
@@ -187,7 +188,8 @@ class _RepliedRequestsUserPageState extends State<RepliedRequestsUserPage> {
   }
 
   Future<void> _showRespondDialog(Request request) async {
-    final descriptionController = TextEditingController(text: request.description);
+    final descriptionController =
+        TextEditingController(text: request.description);
     final commentController = TextEditingController();
 
     final confirmed = await showDialog<bool>(

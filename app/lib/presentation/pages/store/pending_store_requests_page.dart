@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/store_request_entity.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/store_request_entity.dart';
 
 class PendingStoreRequestsPage extends StatefulWidget {
   const PendingStoreRequestsPage({super.key});
 
   @override
-  State<PendingStoreRequestsPage> createState() => _PendingStoreRequestsPageState();
+  State<PendingStoreRequestsPage> createState() =>
+      _PendingStoreRequestsPageState();
 }
 
 class _PendingStoreRequestsPageState extends State<PendingStoreRequestsPage> {
@@ -23,7 +24,8 @@ class _PendingStoreRequestsPageState extends State<PendingStoreRequestsPage> {
   Future<void> _loadRequests() async {
     setState(() => _isLoading = true);
     try {
-      final response = await _networkClient.get('/store-requests/status/PENDING');
+      final response =
+          await _networkClient.get('/store-requests/status/PENDING');
       final data = response.data;
       setState(() {
         _requests = (data['items'] as List)
@@ -183,7 +185,8 @@ class _PendingStoreRequestsPageState extends State<PendingStoreRequestsPage> {
 
     if (confirmed == true) {
       try {
-        await _networkClient.post('/store-requests/${request.id}/respond', data: {
+        await _networkClient
+            .post('/store-requests/${request.id}/respond', data: {
           'status': 'APPROVED',
           'response_comment': commentController.text.isEmpty
               ? 'Request approved'
@@ -252,7 +255,8 @@ class _PendingStoreRequestsPageState extends State<PendingStoreRequestsPage> {
 
     if (confirmed == true) {
       try {
-        await _networkClient.post('/store-requests/${request.id}/respond', data: {
+        await _networkClient
+            .post('/store-requests/${request.id}/respond', data: {
           'status': 'REJECTED',
           'response_comment': commentController.text,
         });

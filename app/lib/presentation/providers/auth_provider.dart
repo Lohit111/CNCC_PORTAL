@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/core/utils/error_handler.dart';
-import 'package:ticket_management_app/domain/entities/user_entity.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/core/utils/error_handler.dart';
+import 'package:cncc_portal/domain/entities/user_entity.dart';
 
 class AuthState {
   final User? user;

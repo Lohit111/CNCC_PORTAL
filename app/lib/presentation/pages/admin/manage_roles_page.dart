@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/role_entity.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/role_entity.dart';
 
 class ManageRolesPage extends StatefulWidget {
   const ManageRolesPage({super.key});

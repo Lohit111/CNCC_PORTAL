@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/request_entity.dart';
-import 'package:ticket_management_app/presentation/providers/auth_provider.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 
 class InProgressPage extends ConsumerStatefulWidget {
   const InProgressPage({super.key});
@@ -42,7 +42,8 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
           .toList();
 
       // Filter requests that are assigned to me and status is IN_PROGRESS
-      final assignedRequestIds = assignments.map((a) => a['request_id']).toSet();
+      final assignedRequestIds =
+          assignments.map((a) => a['request_id']).toSet();
       setState(() {
         _requests = allRequests
             .where((req) =>

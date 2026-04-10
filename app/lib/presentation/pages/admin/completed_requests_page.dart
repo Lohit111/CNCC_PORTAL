@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/request_entity.dart';
-import 'package:ticket_management_app/presentation/pages/admin/admin_request_detail_page.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_request_detail_page.dart';
 
 class CompletedRequestsPage extends StatefulWidget {
   const CompletedRequestsPage({super.key});
@@ -30,7 +30,8 @@ class _CompletedRequestsPageState extends State<CompletedRequestsPage> {
       setState(() {
         _requests = (data['items'] as List)
             .map((json) => Request.fromJson(json))
-            .where((req) => req.status == 'COMPLETED' || req.status == 'REJECTED')
+            .where(
+                (req) => req.status == 'COMPLETED' || req.status == 'REJECTED')
             .toList();
         _isLoading = false;
       });
@@ -160,7 +161,8 @@ class _CompletedRequestsPageState extends State<CompletedRequestsPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => AdminRequestDetailPage(requestId: request.id),
+                            builder: (context) =>
+                                AdminRequestDetailPage(requestId: request.id),
                           ),
                         );
                       },

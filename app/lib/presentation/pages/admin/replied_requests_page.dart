@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:ticket_management_app/core/network/network_client.dart';
-import 'package:ticket_management_app/domain/entities/request_entity.dart';
-import 'package:ticket_management_app/presentation/pages/admin/admin_request_detail_page.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_request_detail_page.dart';
 
 class RepliedRequestsPage extends StatefulWidget {
   const RepliedRequestsPage({super.key});
@@ -114,7 +114,8 @@ class _RepliedRequestsPageState extends State<RepliedRequestsPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => AdminRequestDetailPage(requestId: request.id),
+                            builder: (context) =>
+                                AdminRequestDetailPage(requestId: request.id),
                           ),
                         );
                       },
