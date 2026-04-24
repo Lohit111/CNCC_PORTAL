@@ -1,14 +1,15 @@
 # ============================================================
-# CNCC Portal – Flutter Web (Development Server)
-# Starts with: flutter run -d web-server --web-port=3000
+# CNCC Portal – Flutter Web (Production Build)
+# Stage 1 : Flutter builds the app  →  flutter build web
+# Stage 2 : Python serves the output →  python -m http.server 3000
 # ============================================================
 
 # -----------------------------------------------------------
-# Stage 1: Flutter SDK + dependencies
+# Stage 1: Build
 # -----------------------------------------------------------
-FROM debian:bookworm-slim AS flutter-base
+FROM debian:bookworm-slim AS builder
 
-# Install system dependencies required by Flutter and pub
+# System dependencies required by Flutter
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
@@ -17,41 +18,43 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zip \
     libglu1-mesa \
     ca-certificates \
-    wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Flutter version pinned to exactly match the local install (3.41.7 / Dart 3.11.5)
+# Flutter version pinned to exactly match local install (3.41.7 / Dart 3.11.5)
 ENV FLUTTER_VERSION=3.41.7
 ENV FLUTTER_HOME=/opt/flutter
 ENV PATH="${FLUTTER_HOME}/bin:${PATH}"
 
-# Download and install Flutter
+# Clone Flutter SDK at the exact tag
 RUN git clone --depth 1 --branch ${FLUTTER_VERSION} \
     https://github.com/flutter/flutter.git ${FLUTTER_HOME}
 
-# Pre-cache Flutter web artifacts so they don't need re-downloading at runtime
+# Bootstrap Flutter and pre-cache web artifacts
 RUN flutter config --no-analytics \
     && flutter precache --web \
     && flutter doctor -v
 
-# -----------------------------------------------------------
-# Stage 2: App image
-# -----------------------------------------------------------
-FROM flutter-base AS app
-
 WORKDIR /app
 
-# Copy dependency manifests first (better layer caching)
+# Copy manifests first — pub get is cached unless these change
 COPY pubspec.yaml pubspec.lock ./
-
-# Fetch all pub dependencies
 RUN flutter pub get
 
-# Copy the rest of the source code
+# Copy the full source and build
 COPY . .
+RUN flutter build web --release
 
-# Expose the web-server port
+# -----------------------------------------------------------
+# Stage 2: Serve with Python (tiny final image)
+# -----------------------------------------------------------
+FROM python:3.12-slim AS runner
+
+WORKDIR /web
+
+# Copy only the compiled web output from the builder stage
+COPY --from=builder /app/build/web ./
+
 EXPOSE 3000
 
-# Start the Flutter web development server
-CMD ["flutter", "run", "-d", "web-server", "--web-port=3000", "--web-hostname=0.0.0.0"]
+# Serve on all interfaces so Docker port mapping works
+CMD ["python", "-m", "http.server", "3000", "--bind", "0.0.0.0"]
