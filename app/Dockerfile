@@ -20,8 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Flutter version pinned to match pubspec.lock (>=3.35.0)
-ENV FLUTTER_VERSION=3.32.0
+# Flutter version pinned to exactly match the local install (3.41.7 / Dart 3.11.5)
+ENV FLUTTER_VERSION=3.41.7
 ENV FLUTTER_HOME=/opt/flutter
 ENV PATH="${FLUTTER_HOME}/bin:${PATH}"
 
