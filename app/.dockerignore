@@ -1,0 +1,35 @@
+# Docker ignore – keeps the image lean by excluding unnecessary files
+
+# Version control
+.git
+.gitignore
+
+# IDE / editor configs
+.idea
+.vscode
+*.iml
+
+# Flutter generated / build artefacts
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android / iOS / desktop platform folders (not needed for web-server mode)
+android/
+ios/
+macos/
+linux/
+windows/
+
+# Test files
+test/
+
+# Documentation
+*.md
+*.txt
+*.pdf
+
+# OS junk
+.DS_Store
+Thumbs.db

@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  cncc-portal:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: cncc-portal
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source for live editing (optional – remove for pure container mode)
+      - ./app:/app
+      # Preserve the pub cache between restarts so pub get isn't re-run from scratch
+      - flutter_pub_cache:/root/.pub-cache
+    environment:
+      - FLUTTER_WEB_USE_SKIA=true
+    restart: unless-stopped   # Start automatically when Docker daemon starts
+
+volumes:
+  flutter_pub_cache:
