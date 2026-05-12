@@ -63,7 +63,6 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     description="Production-ready role-based ticket and equipment management system",
-    docs_url="/api/docs",
     redoc_url="/api/redoc",
     lifespan=lifespan
 )

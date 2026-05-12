@@ -50,10 +50,24 @@ async def get_current_user(authorization: str = Header(...), db: Session = Depen
         # Check role assignment
         role_record = Role.get(db, {"email": email})
         if not role_record:
-            logger.warning(
-                f"User {email} attempted access without role assignment")
-            raise HTTPException(
-                status_code=403, detail="Access denied: No role assigned to this email")
+            # Auto-assign "user" role for vnrvjiet.in institutional emails
+            # that do NOT start with two digits (student roll numbers start with digits)
+            local_part = email.split("@")[0] if "@" in email else ""
+            domain = email.split("@")[1] if "@" in email else ""
+            is_vnr_domain = domain == "vnrvjiet.in"
+            starts_with_two_digits = len(
+                local_part) >= 2 and local_part[:2].isdigit()
+
+            # if is_vnr_domain and not starts_with_two_digits:
+            if is_vnr_domain:
+                logger.info(
+                    f"Auto-assigning 'user' role to institutional email: {email}")
+                role_record = Role.create(db, {"email": email, "role": "USER"})
+            else:
+                logger.warning(
+                    f"User {email} attempted access without role assignment")
+                raise HTTPException(
+                    status_code=403, detail="Access denied: No role assigned to this email")
 
         # Get or create user
         user = User.get(db, {"id": firebase_id})

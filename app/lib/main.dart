@@ -81,6 +81,14 @@ class HomeBuilder extends ConsumerWidget {
                   },
                   child: const Text('Retry'),
                 ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    ref.read(authProvider.notifier).logout();
+                  },
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Logout'),
+                ),
               ],
             ),
           ),
