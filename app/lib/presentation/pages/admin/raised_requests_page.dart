@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/domain/entities/type_entity.dart';
 
 class RaisedRequestsPage extends StatefulWidget {
   const RaisedRequestsPage({super.key});
@@ -12,6 +13,9 @@ class RaisedRequestsPage extends StatefulWidget {
 class _RaisedRequestsPageState extends State<RaisedRequestsPage> {
   final _networkClient = NetworkClient();
   List<Request> _requests = [];
+  // id -> name lookup maps
+  final Map<int, String> _mainTypeNames = {};
+  final Map<int, String> _subTypeNames = {};
   bool _isLoading = true;
 
   @override
@@ -25,17 +29,46 @@ class _RaisedRequestsPageState extends State<RaisedRequestsPage> {
     try {
       final response = await _networkClient.get('/requests/');
       final data = response.data;
+      final requests = (data['items'] as List)
+          .map((json) => Request.fromJson(json))
+          .where((req) => req.status == 'RAISED' && req.isActive == 'true')
+          .toList();
+
+      await _loadTypeNames(requests);
+
       setState(() {
-        _requests = (data['items'] as List)
-            .map((json) => Request.fromJson(json))
-            .where((req) => req.status == 'RAISED' && req.isActive == 'true')
-            .toList();
+        _requests = requests;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
     }
   }
+
+  Future<void> _loadTypeNames(List<Request> requests) async {
+    try {
+      // Fetch all main types in one call
+      final mainRes = await _networkClient.get('/types/main');
+      final mainTypes =
+          (mainRes.data as List).map((j) => MainType.fromJson(j)).toList();
+      for (final mt in mainTypes) {
+        _mainTypeNames[mt.id] = mt.name;
+      }
+
+      // Fetch sub types for each unique mainTypeId present in the requests
+      final uniqueMainIds = requests.map((r) => r.mainTypeId).toSet().toList();
+      for (final mainId in uniqueMainIds) {
+        final subRes = await _networkClient.get('/types/main/$mainId/sub');
+        for (final j in (subRes.data as List)) {
+          final st = SubType.fromJson(j);
+          _subTypeNames[st.id] = st.name;
+        }
+      }
+    } catch (_) {}
+  }
+
+  String _mainTypeName(int id) => _mainTypeNames[id] ?? 'Type $id';
+  String _subTypeName(int id) => _subTypeNames[id] ?? 'Sub $id';
 
   @override
   Widget build(BuildContext context) {
@@ -79,45 +112,144 @@ class _RaisedRequestsPageState extends State<RaisedRequestsPage> {
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ExpansionTile(
-            title: Text(
-              request.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            title: Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    _mainTypeName(request.mainTypeId),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    _subTypeName(request.subTypeId),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            subtitle: Text('ID: ${request.id.substring(0, 8)}...'),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    request.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Updated ${_formatDate(request.updatedAt)}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Full Description: ${request.description}'),
+                    const Divider(),
+                    // Type info row
+                    Row(
+                      children: [
+                        const Icon(Icons.category,
+                            size: 16, color: Colors.grey),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${_mainTypeName(request.mainTypeId)}  ›  ${_subTypeName(request.subTypeId)}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    // Full description
+                    const Text(
+                      'Description',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(request.description,
+                        style: const TextStyle(fontSize: 13)),
+                    const SizedBox(height: 10),
+                    // Timestamps
+                    Row(
+                      children: [
+                        Icon(Icons.access_time,
+                            size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Updated ${_formatDate(request.updatedAt)}',
+                          style:
+                              TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(Icons.calendar_today,
+                            size: 14, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Created ${_formatDate(request.createdAt)}',
+                          style:
+                              TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 16),
+                    // Action buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         ElevatedButton.icon(
                           onPressed: () => _showReplyDialog(request),
-                          icon: const Icon(Icons.reply),
+                          icon: const Icon(Icons.reply, size: 18),
                           label: const Text('Reply'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
                           ),
                         ),
                         ElevatedButton.icon(
                           onPressed: () => _showRejectDialog(request),
-                          icon: const Icon(Icons.cancel),
+                          icon: const Icon(Icons.cancel, size: 18),
                           label: const Text('Reject'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
                           ),
                         ),
                         ElevatedButton.icon(
                           onPressed: () => _showAssignDialog(request),
-                          icon: const Icon(Icons.person_add),
+                          icon: const Icon(Icons.person_add, size: 18),
                           label: const Text('Assign'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
                           ),
                         ),
                       ],
@@ -130,6 +262,11 @@ class _RaisedRequestsPageState extends State<RaisedRequestsPage> {
         );
       },
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} '
+        '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   Future<void> _showReplyDialog(Request request) async {
@@ -289,7 +426,7 @@ class _RaisedRequestsPageState extends State<RaisedRequestsPage> {
                     labelText: 'Select Staff Member',
                     border: OutlineInputBorder(),
                   ),
-                  value: selectedStaffId,
+                  initialValue: selectedStaffId,
                   items: staffList.map((staff) {
                     return DropdownMenuItem<String>(
                       value: staff['id'],

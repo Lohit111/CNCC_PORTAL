@@ -7,13 +7,15 @@ class ActiveRequestsPage extends StatefulWidget {
   const ActiveRequestsPage({super.key});
 
   @override
-  State<ActiveRequestsPage> createState() => _ActiveRequestsPageState();
+  State<ActiveRequestsPage> createState() => ActiveRequestsPageState();
 }
 
-class _ActiveRequestsPageState extends State<ActiveRequestsPage> {
+class ActiveRequestsPageState extends State<ActiveRequestsPage> {
   final _networkClient = NetworkClient();
   List<Request> _requests = [];
   bool _isLoading = true;
+
+  void refresh() => _loadRequests();
 
   @override
   void initState() {
@@ -134,6 +136,8 @@ class _ActiveRequestsPageState extends State<ActiveRequestsPage> {
         return Icons.assignment_ind;
       case 'IN_PROGRESS':
         return Icons.pending;
+      case 'REASSIGN_REQUESTED':
+        return Icons.swap_horiz;
       default:
         return Icons.help;
     }
@@ -149,6 +153,8 @@ class _ActiveRequestsPageState extends State<ActiveRequestsPage> {
         return Colors.purple;
       case 'IN_PROGRESS':
         return Colors.amber;
+      case 'REASSIGN_REQUESTED':
+        return Colors.redAccent;
       default:
         return Colors.grey;
     }

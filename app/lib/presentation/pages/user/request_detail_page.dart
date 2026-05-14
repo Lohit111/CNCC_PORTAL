@@ -17,6 +17,7 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
   final _networkClient = NetworkClient();
   Request? _request;
   List<Track> _tracks = [];
+  final Map<String, String> _performerEmails = {};
   bool _isLoading = true;
 
   @override
@@ -31,7 +32,7 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
       final requestResponse =
           await _networkClient.get('/requests/${widget.requestId}');
       final tracksResponse =
-          await _networkClient.get('/requests/${widget.requestId}/comments');
+          await _networkClient.get('/requests/${widget.requestId}/timeline');
 
       setState(() {
         _request = Request.fromJson(requestResponse.data);
@@ -40,6 +41,7 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
             .toList();
         _isLoading = false;
       });
+      await _fetchPerformerEmails();
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
@@ -179,7 +181,7 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
                           color: Colors.white,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 4,
                               offset: const Offset(0, -2),
                             ),
@@ -188,14 +190,7 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
                         child: SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: () {
-                              // TODO: Navigate to respond page
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Respond page coming soon'),
-                                ),
-                              );
-                            },
+                            onPressed: () => _showRespondDialog(_request!),
                             icon: const Icon(Icons.reply),
                             label: const Text('Respond to Admin'),
                             style: ElevatedButton.styleFrom(
@@ -207,6 +202,103 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
                   ],
                 ),
     );
+  }
+
+  Future<void> _showRespondDialog(Request request) async {
+    final descriptionController =
+        TextEditingController(text: request.description);
+    final commentController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Respond to Admin'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Update your request with more information:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Updated Description',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 4,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: commentController,
+                decoration: const InputDecoration(
+                  labelText: 'Additional Comment',
+                  hintText: 'Explain what you updated...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Send Response'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await _networkClient.put('/requests/${request.id}', data: {
+          'description': descriptionController.text,
+          'status': 'RAISED',
+          'comment': commentController.text,
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Response sent successfully')),
+          );
+          _loadRequestDetails();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error sending response: $e')),
+          );
+        }
+      } finally {
+        descriptionController.dispose();
+        commentController.dispose();
+      }
+    } else {
+      descriptionController.dispose();
+      commentController.dispose();
+    }
+  }
+
+  Future<void> _fetchPerformerEmails() async {
+    final ids = _tracks.map((t) => t.performedBy).toSet().toList();
+    if (ids.isEmpty) return;
+    try {
+      final queryParams = ids.map((id) => 'ids=$id').join('&');
+      final res = await _networkClient.get('/users/emails?$queryParams');
+      if (res.data is Map) {
+        (res.data as Map).forEach((k, v) {
+          _performerEmails[k.toString()] = v.toString();
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() {});
   }
 
   Widget _buildTrackItem(Track track, bool isLast) {
@@ -279,6 +371,13 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
                     ],
                   ),
                   const SizedBox(height: 4),
+                  Text(
+                    _performerEmails[track.performedBy] ?? 'Unknown',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 11,
+                    ),
+                  ),
                   Text(
                     _formatDate(track.createdAt),
                     style: TextStyle(

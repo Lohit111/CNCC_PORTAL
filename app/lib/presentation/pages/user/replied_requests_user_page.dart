@@ -132,9 +132,25 @@ class _RepliedRequestsUserPageState extends State<RepliedRequestsUserPage> {
   Future<void> _viewConversation(Request request) async {
     try {
       final response =
-          await _networkClient.get('/requests/${request.id}/comments');
+          await _networkClient.get('/requests/${request.id}/timeline');
       final tracks =
           (response.data as List).map((json) => Track.fromJson(json)).toList();
+
+      // Resolve performer emails — single bulk call
+      final Map<String, String> performerEmails = {};
+      final ids = tracks.map((t) => t.performedBy).toSet().toList();
+      if (ids.isNotEmpty) {
+        try {
+          final queryParams = ids.map((id) => 'ids=$id').join('&');
+          final res =
+              await _networkClient.get('/users/emails?$queryParams');
+          if (res.data is Map) {
+            (res.data as Map).forEach((k, v) {
+              performerEmails[k.toString()] = v.toString();
+            });
+          }
+        } catch (_) {}
+      }
 
       if (!mounted) return;
 
@@ -150,6 +166,8 @@ class _RepliedRequestsUserPageState extends State<RepliedRequestsUserPage> {
               itemBuilder: (context, index) {
                 final track = tracks[index];
                 final isAdmin = track.performedByRole == 'ADMIN';
+                final email =
+                    performerEmails[track.performedBy] ?? 'Unknown';
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   color: isAdmin ? Colors.orange.shade50 : Colors.blue.shade50,
@@ -159,12 +177,20 @@ class _RepliedRequestsUserPageState extends State<RepliedRequestsUserPage> {
                       color: isAdmin ? Colors.orange : Colors.blue,
                     ),
                     title: Text(track.actionDisplayText),
-                    subtitle: track.comment != null
-                        ? Text(
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${track.performedByRole} • $email',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        if (track.comment != null)
+                          Text(
                             track.comment!,
                             style: const TextStyle(fontStyle: FontStyle.italic),
-                          )
-                        : null,
+                          ),
+                      ],
+                    ),
                   ),
                 );
               },

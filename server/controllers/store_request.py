@@ -23,21 +23,21 @@ class StoreRequestController:
                 raise HTTPException(
                     status_code=404, detail="Parent request not found")
 
+            # Extract role before passing data to the model (not a table column)
+            requested_by_role = data.pop("requested_by_role", "STAFF")
+
             store_request = StoreRequest.create(db, data)
-            
+
             # Create track for store request creation
             RequestTrack.create(db, {
                 "store_request_id": store_request.id,
                 "request_id": data.get("parent_request_id"),
                 "action_type": "STORE_REQUEST_CREATED",
                 "performed_by": data.get("requested_by"),
-                "performed_by_role": "STAFF",
+                "performed_by_role": requested_by_role,
                 "comment": data.get("description"),
-                "track_metadata": {
-                    "store_request_id": store_request.id
-                }
             })
-            
+
             logger.info(
                 f"Store request created successfully: {store_request.id}")
             return store_request
@@ -105,20 +105,6 @@ class StoreRequestController:
                 status_code=500, detail=f"Database error: {str(e)}")
 
     @staticmethod
-    def get_by_parent_request(db: Session, parent_request_id: str):
-        """Get all store requests for a parent request"""
-        try:
-            store_requests = StoreRequest.find(
-                db, {"parent_request_id": parent_request_id})
-            return store_requests
-
-        except Exception as e:
-            logger.error(
-                f"Failed to fetch store requests for parent {parent_request_id}: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Database error: {str(e)}")
-
-    @staticmethod
     def update(db: Session, store_request_id: str, data: dict):
         """Update store request"""
         try:
@@ -147,7 +133,7 @@ class StoreRequestController:
                 status_code=500, detail=f"Database error: {str(e)}")
 
     @staticmethod
-    def respond(db: Session, store_request_id: str, responded_by: str, status: str, response_comment: str = None):
+    def respond(db: Session, store_request_id: str, responded_by: str, status: str, response_comment: str = None, responded_by_role: str = "STORE"):
         """Respond to a store request (approve/reject/fulfill)"""
         try:
             logger.info(f"Responding to store request: {store_request_id}")
@@ -177,18 +163,14 @@ class StoreRequestController:
                 "REJECTED": "STORE_REQUEST_REJECTED",
                 "FULFILLED": "STORE_REQUEST_FULFILLED"
             }
-            
+
             RequestTrack.create(db, {
                 "store_request_id": store_request_id,
                 "request_id": store_request.parent_request_id,
                 "action_type": action_type_map[status],
                 "performed_by": responded_by,
-                "performed_by_role": "STORE",
+                "performed_by_role": responded_by_role,
                 "comment": response_comment,
-                "track_metadata": {
-                    "store_request_id": store_request_id,
-                    "status": status
-                }
             })
 
             logger.info(
@@ -247,7 +229,8 @@ class StoreRequestController:
             }
 
             chat = StoreChat.create(db, chat_data)
-            logger.info(f"Chat message added to store request {store_request_id}")
+            logger.info(
+                f"Chat message added to store request {store_request_id}")
             return chat
 
         except HTTPException:

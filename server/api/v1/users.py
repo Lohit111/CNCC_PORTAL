@@ -52,6 +52,21 @@ async def get_all_users(
     return UserController.get_all(db, skip=skip, limit=limit)
 
 
+@router.get("/emails")
+async def get_user_emails_bulk(
+    ids: List[str] = Query(default=[]),
+    auth_data: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Bulk-fetch emails for a list of user IDs (any authenticated user).
+    Returns a dict mapping user_id -> email."""
+    if not ids:
+        return {}
+    from models.user import UserTable
+    rows = db.query(UserTable.id, UserTable.email).filter(UserTable.id.in_(ids)).all()
+    return {row.id: row.email for row in rows}
+
+
 @router.get("/{user_id}", response_model=User)
 async def get_user_by_id(
     user_id: str,

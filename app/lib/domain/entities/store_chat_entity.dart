@@ -22,7 +22,7 @@ class StoreChat {
       senderId: json['sender_id'] as String,
       senderRole: json['sender_role'] as String,
       message: json['message'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: DateTime.parse('${json['created_at']}Z').toLocal(),
     );
   }
 

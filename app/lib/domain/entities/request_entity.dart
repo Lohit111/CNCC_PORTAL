@@ -30,8 +30,8 @@ class Request {
       description: json['description'] as String,
       status: json['status'] as String,
       isActive: json['is_active'] as String? ?? 'true',
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: DateTime.parse('${json['created_at']}Z').toLocal(),
+      updatedAt: DateTime.parse('${json['updated_at']}Z').toLocal(),
     );
   }
 

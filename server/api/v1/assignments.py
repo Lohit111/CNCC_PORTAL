@@ -50,6 +50,7 @@ async def create_assignment(
     """Create a new assignment"""
     data = await request.json()
     data["assigned_by"] = auth_data["user"].id
+    data["assigned_by_role"] = auth_data["role"]
     return AssignmentController.create(db, data)
 
 

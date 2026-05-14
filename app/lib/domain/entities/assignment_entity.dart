@@ -22,7 +22,7 @@ class Assignment {
       staffId: json['staff_id'] as String,
       assignedBy: json['assigned_by'] as String,
       isActive: json['is_active'] as bool,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: DateTime.parse('${json['created_at']}Z').toLocal(),
     );
   }
 }

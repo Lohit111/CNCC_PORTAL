@@ -34,12 +34,13 @@ async def get_request_by_id(
 @router.post("/", response_model=RequestModel)
 async def create_request(
     request: Request,
-    auth_data: dict = Depends(require_role("USER")),
+    auth_data: dict = Depends(require_role("USER", "ADMIN", "STAFF")),
     db: Session = Depends(get_db)
 ):
     """Create a new request"""
     data = await request.json()
     data["raised_by"] = auth_data["user"].id
+    data["raised_by_role"] = auth_data["role"]
     data["status"] = "RAISED"
     return RequestController.create(db, data)
 
@@ -54,9 +55,9 @@ async def update_request(
     """Update request"""
     data = await request.json()
     return RequestController.update(
-        db, 
-        request_id, 
-        data, 
+        db,
+        request_id,
+        data,
         user_id=auth_data["user"].id,
         user_role=auth_data["role"]
     )
@@ -72,25 +73,11 @@ async def delete_request(
     return RequestController.delete(db, request_id)
 
 
-@router.post("/{request_id}/comments")
-async def add_comment(
-    request_id: str,
-    request: Request,
-    auth_data: dict = Depends(require_role("USER", "ADMIN", "STAFF", "STORE")),
-    db: Session = Depends(get_db)
-):
-    """Add a track entry to a request"""
-    data = await request.json()
-    data["performed_by"] = auth_data["user"].id
-    data["performed_by_role"] = auth_data["role"]
-    return RequestController.add_comment(db, request_id, data)
-
-
-@router.get("/{request_id}/comments")
-async def get_request_comments(
+@router.get("/{request_id}/timeline")
+async def get_request_timeline(
     request_id: str,
     auth_data: dict = Depends(require_role("USER", "ADMIN", "STAFF", "STORE")),
     db: Session = Depends(get_db)
 ):
     """Get all tracks for a request (timeline)"""
-    return RequestController.get_comments(db, request_id)
+    return RequestController.get_timeline(db, request_id)

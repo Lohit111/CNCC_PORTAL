@@ -33,16 +33,6 @@ async def get_store_requests_by_status(
     return StoreRequestController.get_by_status(db, status, skip=skip, limit=limit)
 
 
-@router.get("/parent/{parent_request_id}", response_model=List[StoreRequest])
-async def get_store_requests_by_parent(
-    parent_request_id: str,
-    auth_data: dict = Depends(require_role("STAFF", "STORE", "ADMIN")),
-    db: Session = Depends(get_db)
-):
-    """Get all store requests for a parent request"""
-    return StoreRequestController.get_by_parent_request(db, parent_request_id)
-
-
 @router.get("/{store_request_id}", response_model=StoreRequest)
 async def get_store_request_by_id(
     store_request_id: str,
@@ -62,6 +52,7 @@ async def create_store_request(
     """Create a new store request"""
     data = await request.json()
     data["requested_by"] = auth_data["user"].id
+    data["requested_by_role"] = auth_data["role"]
     data["status"] = "PENDING"
     return StoreRequestController.create(db, data)
 
@@ -95,7 +86,8 @@ async def respond_to_store_request(
         store_request_id,
         auth_data["user"].id,
         status,
-        response_comment
+        response_comment,
+        responded_by_role=auth_data["role"]
     )
 
 

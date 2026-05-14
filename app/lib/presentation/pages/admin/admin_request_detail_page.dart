@@ -19,6 +19,7 @@ class _AdminRequestDetailPageState
   final _networkClient = NetworkClient();
   Request? _request;
   List<Track> _tracks = [];
+  final Map<String, String> _performerEmails = {};
   bool _isLoading = true;
 
   @override
@@ -33,7 +34,7 @@ class _AdminRequestDetailPageState
       final requestResponse =
           await _networkClient.get('/requests/${widget.requestId}');
       final tracksResponse =
-          await _networkClient.get('/requests/${widget.requestId}/comments');
+          await _networkClient.get('/requests/${widget.requestId}/timeline');
 
       setState(() {
         _request = Request.fromJson(requestResponse.data);
@@ -42,6 +43,7 @@ class _AdminRequestDetailPageState
             .toList();
         _isLoading = false;
       });
+      await _fetchPerformerEmails();
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
@@ -211,6 +213,21 @@ class _AdminRequestDetailPageState
     );
   }
 
+  Future<void> _fetchPerformerEmails() async {
+    final ids = _tracks.map((t) => t.performedBy).toSet().toList();
+    if (ids.isEmpty) return;
+    try {
+      final queryParams = ids.map((id) => 'ids=$id').join('&');
+      final res = await _networkClient.get('/users/emails?$queryParams');
+      if (res.data is Map) {
+        (res.data as Map).forEach((k, v) {
+          _performerEmails[k.toString()] = v.toString();
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() {});
+  }
+
   Widget _buildTrackItem(Track track, bool isLast) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,6 +298,13 @@ class _AdminRequestDetailPageState
                     ],
                   ),
                   const SizedBox(height: 4),
+                  Text(
+                    _performerEmails[track.performedBy] ?? 'Unknown',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 11,
+                    ),
+                  ),
                   Text(
                     _formatDate(track.createdAt),
                     style: TextStyle(

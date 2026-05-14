@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/core/utils/error_handler.dart';
 import 'package:cncc_portal/domain/entities/request_entity.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 
@@ -137,12 +138,6 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
                         backgroundColor: Colors.green,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      onPressed: () => _showReassignDialog(request),
-                      icon: const Icon(Icons.swap_horiz),
-                      label: const Text('Request Reassignment'),
-                    ),
                   ],
                 ),
               ),
@@ -274,75 +269,25 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _showReassignDialog(Request request) async {
-    final commentController = TextEditingController();
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Request Reassignment'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Request: ${request.description}'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: commentController,
-                decoration: const InputDecoration(
-                  labelText: 'Reason for Reassignment (required)',
-                  hintText: 'Why do you need this reassigned?',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-                onChanged: (value) {
-                  setState(() {}); // Rebuild to enable/disable button
-                },
+          final msg = ErrorHandler.handle(e).message;
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text('Cannot Complete'),
+                ],
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              content: Text(msg),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
             ),
-            ElevatedButton(
-              onPressed: commentController.text.trim().isEmpty
-                  ? null
-                  : () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              child: const Text('Request Reassignment'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await _networkClient.put('/requests/${request.id}', data: {
-          'status': 'REASSIGN_REQUESTED',
-          'comment': commentController.text,
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Reassignment requested')),
-          );
-          _loadRequests();
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
           );
         }
       }

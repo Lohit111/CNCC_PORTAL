@@ -140,9 +140,25 @@ class _CompletedByMePageState extends ConsumerState<CompletedByMePage> {
   Future<void> _viewTimeline(Request request) async {
     try {
       final response =
-          await _networkClient.get('/requests/${request.id}/comments');
+          await _networkClient.get('/requests/${request.id}/timeline');
       final tracks =
           (response.data as List).map((json) => Track.fromJson(json)).toList();
+
+      // Resolve performer emails — single bulk call
+      final Map<String, String> performerEmails = {};
+      final ids = tracks.map((t) => t.performedBy).toSet().toList();
+      if (ids.isNotEmpty) {
+        try {
+          final queryParams = ids.map((id) => 'ids=$id').join('&');
+          final res =
+              await _networkClient.get('/users/emails?$queryParams');
+          if (res.data is Map) {
+            (res.data as Map).forEach((k, v) {
+              performerEmails[k.toString()] = v.toString();
+            });
+          }
+        } catch (_) {}
+      }
 
       if (!mounted) return;
 
@@ -157,6 +173,8 @@ class _CompletedByMePageState extends ConsumerState<CompletedByMePage> {
               itemCount: tracks.length,
               itemBuilder: (context, index) {
                 final track = tracks[index];
+                final email =
+                    performerEmails[track.performedBy] ?? 'Unknown';
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
@@ -168,7 +186,7 @@ class _CompletedByMePageState extends ConsumerState<CompletedByMePage> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('By: ${track.performedByRole}'),
+                        Text('By: ${track.performedByRole} • $email'),
                         if (track.comment != null)
                           Text(
                             'Comment: ${track.comment}',

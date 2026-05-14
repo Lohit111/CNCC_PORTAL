@@ -209,7 +209,27 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
     try {
       final response =
           await _networkClient.get('/assignments/request/${request.id}');
-      final assignments = response.data as List;
+
+      // Keep only active assignments
+      final activeAssignments = (response.data as List)
+          .where((a) => a['is_active'] == true)
+          .toList();
+
+      // Bulk-fetch staff emails — one request
+      final Map<String, String> staffEmails = {};
+      final ids =
+          activeAssignments.map((a) => a['staff_id'] as String).toSet().toList();
+      if (ids.isNotEmpty) {
+        try {
+          final queryParams = ids.map((id) => 'ids=$id').join('&');
+          final res = await _networkClient.get('/users/emails?$queryParams');
+          if (res.data is Map) {
+            (res.data as Map).forEach((k, v) {
+              staffEmails[k.toString()] = v.toString();
+            });
+          }
+        } catch (_) {}
+      }
 
       if (!mounted) return;
 
@@ -217,26 +237,25 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Assigned Staff'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: assignments.length,
-              itemBuilder: (context, index) {
-                final assignment = assignments[index];
-                return ListTile(
-                  leading: Icon(
-                    assignment['is_active'] ? Icons.check_circle : Icons.cancel,
-                    color: assignment['is_active'] ? Colors.green : Colors.grey,
+          content: activeAssignments.isEmpty
+              ? const Text('No active staff assigned.')
+              : SizedBox(
+                  width: double.maxFinite,
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: activeAssignments.length,
+                    itemBuilder: (context, index) {
+                      final assignment = activeAssignments[index];
+                      final staffId = assignment['staff_id'] as String;
+                      final email = staffEmails[staffId] ?? 'Unknown';
+                      return ListTile(
+                        leading:
+                            const Icon(Icons.person, color: Colors.green),
+                        title: Text(email),
+                      );
+                    },
                   ),
-                  title: Text('Staff ID: ${assignment['staff_id']}'),
-                  subtitle: Text(
-                    assignment['is_active'] ? 'Active' : 'Inactive',
-                  ),
-                );
-              },
-            ),
-          ),
+                ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),

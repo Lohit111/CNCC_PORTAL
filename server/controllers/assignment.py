@@ -31,19 +31,22 @@ class AssignmentController:
             Assignment.update(db, {"request_id": data.get(
                 "request_id"), "is_active": True}, {"is_active": False})
 
+            # Extract role before passing data to the model (not a table column)
+            assigned_by_role = data.pop("assigned_by_role", "ADMIN")
+
             assignment = Assignment.create(db, data)
 
             # Update request status to ASSIGNED - this will automatically create track
             from controllers.request import RequestController
             RequestController.update(
-                db, 
-                data.get("request_id"), 
+                db,
+                data.get("request_id"),
                 {
                     "status": "ASSIGNED",
                     "comment": None
                 },
                 user_id=data.get("assigned_by"),
-                user_role="ADMIN"
+                user_role=assigned_by_role
             )
 
             logger.info(f"Assignment created successfully: {assignment.id}")

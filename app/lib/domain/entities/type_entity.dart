@@ -16,7 +16,7 @@ class MainType {
       id: json['id'] as int,
       name: json['name'] as String,
       createdBy: json['created_by'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: DateTime.parse('${json['created_at']}Z').toLocal(),
     );
   }
 }

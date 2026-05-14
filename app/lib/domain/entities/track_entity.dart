@@ -6,7 +6,6 @@ class Track {
   final String performedBy;
   final String performedByRole;
   final String? comment;
-  final Map<String, dynamic>? metadata;
   final DateTime createdAt;
 
   Track({
@@ -17,7 +16,6 @@ class Track {
     required this.performedBy,
     required this.performedByRole,
     this.comment,
-    this.metadata,
     required this.createdAt,
   });
 
@@ -30,8 +28,7 @@ class Track {
       performedBy: json['performed_by'] as String,
       performedByRole: json['performed_by_role'] as String,
       comment: json['comment'] as String?,
-      metadata: json['metadata'] as Map<String, dynamic>?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: DateTime.parse('${json['created_at']}Z').toLocal(),
     );
   }
 
@@ -44,7 +41,6 @@ class Track {
       'performed_by': performedBy,
       'performed_by_role': performedByRole,
       'comment': comment,
-      'metadata': metadata,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -53,10 +49,6 @@ class Track {
   String get actionDisplayText {
     switch (actionType) {
       case 'RAISED':
-        // Check metadata to see if this is an update or initial creation
-        if (metadata != null && metadata!['old_status'] != null) {
-          return 'User Updated Request';
-        }
         return 'Request Created';
       case 'REPLIED':
         return 'Admin Replied';

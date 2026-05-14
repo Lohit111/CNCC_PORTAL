@@ -185,9 +185,7 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
       try {
         await _networkClient.put('/requests/${request.id}', data: {
           'status': 'IN_PROGRESS',
-          'comment': commentController.text.isEmpty
-              ? 'Started working on this request'
-              : commentController.text,
+          'comment': commentController.text,
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/domain/entities/role_entity.dart';
@@ -116,56 +117,111 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
 
   void _showUpdateRoleDialog(Role role) {
     String selectedRole = role.role;
+    bool isUpdating = false;
+    String? errorMessage;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text('Update Role: ${role.email}'),
-          content: DropdownButtonFormField<String>(
-            initialValue: selectedRole,
-            decoration: const InputDecoration(
-              labelText: 'Role',
-              border: OutlineInputBorder(),
-            ),
-            items: const [
-              DropdownMenuItem(value: 'USER', child: Text('USER')),
-              DropdownMenuItem(value: 'ADMIN', child: Text('ADMIN')),
-              DropdownMenuItem(value: 'STAFF', child: Text('STAFF')),
-              DropdownMenuItem(value: 'STORE', child: Text('STORE')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: selectedRole,
+                decoration: const InputDecoration(
+                  labelText: 'Role',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'USER', child: Text('USER')),
+                  DropdownMenuItem(value: 'ADMIN', child: Text('ADMIN')),
+                  DropdownMenuItem(value: 'STAFF', child: Text('STAFF')),
+                  DropdownMenuItem(value: 'STORE', child: Text('STORE')),
+                ],
+                onChanged: isUpdating
+                    ? null
+                    : (value) {
+                        setDialogState(() {
+                          selectedRole = value!;
+                          errorMessage = null;
+                        });
+                      },
+              ),
+              if (errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    border: Border.all(color: Colors.red.shade200),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.warning_amber_rounded,
+                          color: Colors.red.shade700, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          errorMessage!,
+                          style: TextStyle(
+                              color: Colors.red.shade800, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
-            onChanged: (value) {
-              setDialogState(() => selectedRole = value!);
-            },
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed:
+                  isUpdating ? null : () => Navigator.pop(context),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                try {
-                  await _networkClient.put('/roles/${role.email}', data: {
-                    'role': selectedRole,
-                  });
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Role updated successfully')),
-                    );
-                    _loadRoles();
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
-                  }
-                }
-              },
-              child: const Text('Update'),
+              onPressed: isUpdating
+                  ? null
+                  : () async {
+                      setDialogState(() {
+                        isUpdating = true;
+                        errorMessage = null;
+                      });
+                      try {
+                        await _networkClient.put('/roles/${role.email}',
+                            data: {'role': selectedRole});
+                        if (mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Role updated successfully')),
+                          );
+                          _loadRoles();
+                        }
+                      } catch (e) {
+                        String message = 'Failed to update role.';
+                        if (e is DioException &&
+                            e.response?.data != null) {
+                          final detail = e.response!.data['detail'];
+                          if (detail != null) message = detail.toString();
+                        }
+                        setDialogState(() {
+                          isUpdating = false;
+                          errorMessage = message;
+                        });
+                      }
+                    },
+              child: isUpdating
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Update'),
             ),
           ],
         ),
@@ -173,44 +229,7 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
     );
   }
 
-  Future<void> _deleteRole(String email) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: Text('Are you sure you want to delete role for $email?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
 
-    if (confirm == true) {
-      try {
-        await _networkClient.delete('/roles/$email');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Role deleted successfully')),
-          );
-          _loadRoles();
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
-          );
-        }
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -265,16 +284,10 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
                                   value: 'edit',
                                   child: Text('Edit'),
                                 ),
-                                const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Delete'),
-                                ),
                               ],
                               onSelected: (value) {
                                 if (value == 'edit') {
                                   _showUpdateRoleDialog(role);
-                                } else if (value == 'delete') {
-                                  _deleteRole(role.email);
                                 }
                               },
                             ),

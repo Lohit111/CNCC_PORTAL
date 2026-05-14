@@ -33,6 +33,9 @@ class RequestController:
                 raise HTTPException(
                     status_code=400, detail="Sub type does not belong to main type")
 
+            # Extract role before passing data to the model (not a table column)
+            raised_by_role = data.pop("raised_by_role", "USER")
+
             request = Request.create(db, data)
 
             # Create initial track for request creation
@@ -40,12 +43,8 @@ class RequestController:
                 "request_id": request.id,
                 "action_type": "RAISED",
                 "performed_by": data.get("raised_by"),
-                "performed_by_role": "USER",
+                "performed_by_role": raised_by_role,
                 "comment": None,
-                "track_metadata": {
-                    "main_type_id": data.get("main_type_id"),
-                    "sub_type_id": data.get("sub_type_id")
-                }
             })
 
             logger.info(f"Request created successfully: {request.id}")
@@ -137,6 +136,27 @@ class RequestController:
             new_status = data.get("status", old_status)
             status_changed = old_status != new_status
 
+            # Block completion if there are active store requests
+            if new_status == "COMPLETED" and status_changed:
+                from models.store_request import StoreRequestTable
+                active_store_requests = db.query(StoreRequestTable).filter(
+                    StoreRequestTable.parent_request_id == request_id,
+                    StoreRequestTable.status.notin_(["REJECTED", "FULFILLED"])
+                ).count()
+                if active_store_requests > 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Cannot complete request: {active_store_requests} store request(s) are still pending. Ensure all store requests are fulfilled or rejected first."
+                    )
+
+            # Deactivate all assignments when reassignment is requested or ending a request
+            if (new_status in ["REASSIGN_REQUESTED", "COMPLETED", "REJECTED"]) and status_changed:
+                Assignment.update(
+                    db,
+                    {"request_id": request_id, "is_active": True},
+                    {"is_active": False}
+                )
+
             # Extract comment for track (not a request table column)
             comment = data.pop("comment", None)
 
@@ -151,29 +171,12 @@ class RequestController:
                 # Determine action type based on new status
                 action_type = new_status  # Default to status name
 
-                # Build track metadata
-                track_metadata = {
-                    "old_status": old_status,
-                    "new_status": new_status
-                }
-
-                # Add assignment info if status is ASSIGNED
-                if new_status == "ASSIGNED":
-                    # Get active assignment for this request
-                    from models.assignment import Assignment
-                    active_assignment = Assignment.get_raw(
-                        db, {"request_id": request_id, "is_active": True})
-                    if active_assignment:
-                        track_metadata["staff_id"] = active_assignment.staff_id
-                        track_metadata["assignment_id"] = active_assignment.id
-
                 RequestTrack.create(db, {
                     "request_id": request_id,
                     "action_type": action_type,
                     "performed_by": user_id,
                     "performed_by_role": user_role,
                     "comment": comment,
-                    "track_metadata": track_metadata
                 })
 
                 logger.info(
@@ -221,31 +224,7 @@ class RequestController:
                 status_code=500, detail=f"Database error: {str(e)}")
 
     @staticmethod
-    def add_comment(db: Session, request_id: str, comment_data: dict):
-        """Add a track entry to a request"""
-        try:
-            # Verify request exists
-            request = Request.get(db, {"id": request_id})
-            if not request:
-                raise HTTPException(
-                    status_code=404, detail="Request not found")
-
-            comment_data["request_id"] = request_id
-            track = RequestTrack.create(db, comment_data)
-
-            logger.info(f"Track added to request {request_id}")
-            return track
-
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(
-                f"Failed to add track to request {request_id}: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"Database error: {str(e)}")
-
-    @staticmethod
-    def get_comments(db: Session, request_id: str):
+    def get_timeline(db: Session, request_id: str):
         """Get all tracks for a request (timeline)"""
         try:
             # Verify request exists

@@ -19,7 +19,7 @@ class User {
       email: json['email'] as String,
       role: json['role'] as String,
       isActive: json['is_active'] as bool,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      createdAt: DateTime.parse('${json['created_at']}Z').toLocal(),
     );
   }
 

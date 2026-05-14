@@ -2,7 +2,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text, JSON
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship, Session
 from models.base import Base
 
@@ -20,7 +20,6 @@ class RequestTrackTable(Base):
     performed_by = Column(String, ForeignKey("users.id"), nullable=False)
     performed_by_role = Column(String, nullable=False)
     comment = Column(Text, nullable=True)
-    track_metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     request = relationship("RequestTable", back_populates="tracks")
@@ -36,7 +35,6 @@ class RequestTrack(BaseModel):
     performed_by: str = Field()
     performed_by_role: str = Field()
     comment: Optional[str] = Field(default=None)
-    track_metadata: Optional[dict] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
@@ -53,7 +51,6 @@ class RequestTrack(BaseModel):
             performed_by=str(track_table.performed_by),
             performed_by_role=str(track_table.performed_by_role),
             comment=str(track_table.comment) if track_table.comment else None,
-            track_metadata=track_table.track_metadata,
             created_at=track_table.created_at
         )
 
