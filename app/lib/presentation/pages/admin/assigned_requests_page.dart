@@ -211,14 +211,15 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
           await _networkClient.get('/assignments/request/${request.id}');
 
       // Keep only active assignments
-      final activeAssignments = (response.data as List)
-          .where((a) => a['is_active'] == true)
-          .toList();
+      final activeAssignments =
+          (response.data as List).where((a) => a['is_active'] == true).toList();
 
       // Bulk-fetch staff emails — one request
       final Map<String, String> staffEmails = {};
-      final ids =
-          activeAssignments.map((a) => a['staff_id'] as String).toSet().toList();
+      final ids = activeAssignments
+          .map((a) => a['staff_id'] as String)
+          .toSet()
+          .toList();
       if (ids.isNotEmpty) {
         try {
           final queryParams = ids.map((id) => 'ids=$id').join('&');
@@ -249,8 +250,7 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
                       final staffId = assignment['staff_id'] as String;
                       final email = staffEmails[staffId] ?? 'Unknown';
                       return ListTile(
-                        leading:
-                            const Icon(Icons.person, color: Colors.green),
+                        leading: const Icon(Icons.person, color: Colors.green),
                         title: Text(email),
                       );
                     },
@@ -293,36 +293,72 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
 
       if (!mounted) return;
 
-      String? selectedStaffId;
+      final Set<String> selectedIds = {};
 
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => StatefulBuilder(
           builder: (context, setState) => AlertDialog(
-            title: const Text('Reassign to Different Staff'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Request: ${request.description}'),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    labelText: 'Select New Staff Member',
-                    border: OutlineInputBorder(),
+            title: const Text('Reassign to Staff'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    request.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
-                  value: selectedStaffId,
-                  items: staffList.map((staff) {
-                    return DropdownMenuItem<String>(
-                      value: staff['id'],
-                      child: Text(staff['email']),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => selectedStaffId = value);
-                  },
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Select one or more staff members:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    child: staffList.isEmpty
+                        ? const Text('No staff members available.')
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: staffList.length,
+                            itemBuilder: (context, index) {
+                              final staff = staffList[index];
+                              final id = staff['id'] as String;
+                              return CheckboxListTile(
+                                dense: true,
+                                title: Text(staff['email'] as String),
+                                value: selectedIds.contains(id),
+                                onChanged: (checked) {
+                                  setState(() {
+                                    if (checked == true) {
+                                      selectedIds.add(id);
+                                    } else {
+                                      selectedIds.remove(id);
+                                    }
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                  if (selectedIds.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '${selectedIds.length} selected',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -330,7 +366,7 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: selectedStaffId == null
+                onPressed: selectedIds.isEmpty
                     ? null
                     : () => Navigator.pop(context, true),
                 child: const Text('Reassign'),
@@ -340,14 +376,17 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
         ),
       );
 
-      if (confirmed == true && selectedStaffId != null) {
-        await _networkClient.post('/assignments/', data: {
+      if (confirmed == true && selectedIds.isNotEmpty) {
+        await _networkClient.post('/assignments/bulk', data: {
           'request_id': request.id,
-          'staff_id': selectedStaffId,
+          'staff_ids': selectedIds.toList(),
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Staff reassigned successfully')),
+            SnackBar(
+              content: Text(
+                  '${selectedIds.length} staff member(s) reassigned successfully'),
+            ),
           );
           _loadRequests();
         }

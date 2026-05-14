@@ -41,6 +41,26 @@ async def get_assignment_by_id(
     return AssignmentController.get_by_id(db, assignment_id)
 
 
+@router.post("/bulk", response_model=List[Assignment])
+async def create_bulk_assignments(
+    request: Request,
+    auth_data: dict = Depends(require_role("ADMIN")),
+    db: Session = Depends(get_db)
+):
+    """Assign multiple staff members to a request at once.
+    Body: { "request_id": str, "staff_ids": [str, ...] }
+    Deactivates previous assignments and sets request status to ASSIGNED.
+    """
+    data = await request.json()
+    return AssignmentController.create_bulk(
+        db,
+        request_id=data["request_id"],
+        staff_ids=data["staff_ids"],
+        assigned_by=auth_data["user"].id,
+        assigned_by_role=auth_data["role"],
+    )
+
+
 @router.post("/", response_model=Assignment)
 async def create_assignment(
     request: Request,

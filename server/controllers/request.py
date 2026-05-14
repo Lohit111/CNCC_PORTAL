@@ -1,7 +1,7 @@
 """Request Controller - Handles all business logic for Request model"""
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from models.request import Request
+from models.request import Request, RequestTable
 from models.track import RequestTrack
 from models.assignment import Assignment
 from models.store_request import StoreRequest
@@ -125,11 +125,27 @@ class RequestController:
         try:
             logger.info(f"Updating request: {request_id}")
 
-            # Get existing request to check for status change
-            existing_request = Request.get(db, {"id": request_id})
-            if not existing_request:
-                raise HTTPException(
-                    status_code=404, detail="Request not found")
+            new_status = data.get("status")
+
+            # For status transitions that are vulnerable to race conditions,
+            # acquire a row-level lock (SELECT FOR UPDATE) so only one
+            # concurrent request can proceed through the check-then-act.
+            if new_status in ("IN_PROGRESS", "REASSIGN_REQUESTED"):
+                locked_row = (
+                    db.query(RequestTable)
+                    .filter(RequestTable.id == request_id)
+                    .with_for_update()
+                    .first()
+                )
+                if locked_row is None:
+                    raise HTTPException(
+                        status_code=404, detail="Request not found")
+                existing_request = Request.from_orm(locked_row)
+            else:
+                existing_request = Request.get(db, {"id": request_id})
+                if not existing_request:
+                    raise HTTPException(
+                        status_code=404, detail="Request not found")
 
             # Check if status is changing
             old_status = existing_request.status
@@ -147,6 +163,15 @@ class RequestController:
                     raise HTTPException(
                         status_code=400,
                         detail=f"Cannot complete request: {active_store_requests} store request(s) are still pending. Ensure all store requests are fulfilled or rejected first."
+                    )
+
+            # Guard against race conditions: IN_PROGRESS and REASSIGN_REQUESTED
+            # are only valid transitions from ASSIGNED state
+            if new_status in ("IN_PROGRESS", "REASSIGN_REQUESTED") and status_changed:
+                if old_status != "ASSIGNED":
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"Cannot set status to {new_status}: request is no longer in ASSIGNED state (current: {old_status}). Please refresh and try again."
                     )
 
             # Deactivate all assignments when reassignment is requested or ending a request

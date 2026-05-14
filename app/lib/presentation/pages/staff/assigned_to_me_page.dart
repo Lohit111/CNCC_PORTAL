@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/core/utils/error_handler.dart';
 import 'package:cncc_portal/domain/entities/request_entity.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 
@@ -195,8 +196,28 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
+          final msg = ErrorHandler.handle(e).message;
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.sync_problem, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text('Stale State'),
+                ],
+              ),
+              content: Text(msg),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _loadRequests();
+                  },
+                  child: const Text('Refresh'),
+                ),
+              ],
+            ),
           );
         }
       }
@@ -262,8 +283,28 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
+          final msg = ErrorHandler.handle(e).message;
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.sync_problem, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text('Stale State'),
+                ],
+              ),
+              content: Text(msg),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _loadRequests();
+                  },
+                  child: const Text('Refresh'),
+                ),
+              ],
+            ),
           );
         }
       }

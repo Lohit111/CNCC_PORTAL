@@ -60,6 +60,69 @@ class AssignmentController:
                 status_code=500, detail=f"Database error: {str(e)}")
 
     @staticmethod
+    def create_bulk(db: Session, request_id: str, staff_ids: list, assigned_by: str, assigned_by_role: str):
+        """Create multiple assignments for a request (multi-staff assign).
+        Deactivates all previous active assignments first, then creates one
+        assignment per staff_id and sets the request status to ASSIGNED.
+        """
+        try:
+            from controllers.request import RequestController
+
+            request = Request.get(db, {"id": request_id})
+            if not request:
+                raise HTTPException(
+                    status_code=404, detail="Request not found")
+
+            if not staff_ids:
+                raise HTTPException(
+                    status_code=400, detail="At least one staff member must be selected")
+
+            # Verify all staff exist up-front
+            for staff_id in staff_ids:
+                staff = User.get(db, {"id": staff_id})
+                if not staff:
+                    raise HTTPException(
+                        status_code=404, detail=f"Staff user not found: {staff_id}")
+
+            # Deactivate all previous active assignments for this request
+            Assignment.update(
+                db,
+                {"request_id": request_id, "is_active": True},
+                {"is_active": False}
+            )
+
+            # Create one assignment per staff member
+            assignments = []
+            for staff_id in staff_ids:
+                assignment = Assignment.create(db, {
+                    "request_id": request_id,
+                    "staff_id": staff_id,
+                    "assigned_by": assigned_by,
+                    "is_active": True,
+                })
+                assignments.append(assignment)
+
+            # Set request status to ASSIGNED with a track entry
+            RequestController.update(
+                db,
+                request_id,
+                {"status": "ASSIGNED", "comment": None},
+                user_id=assigned_by,
+                user_role=assigned_by_role
+            )
+
+            logger.info(
+                f"Bulk assignment created: {len(assignments)} staff for request {request_id}")
+            return assignments
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to create bulk assignment: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Database error: {str(e)}")
+
+    @staticmethod
     def get_by_id(db: Session, assignment_id: int):
         """Get assignment by ID"""
         try:

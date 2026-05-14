@@ -408,36 +408,72 @@ class _RaisedRequestsPageState extends State<RaisedRequestsPage> {
 
       if (!mounted) return;
 
-      String? selectedStaffId;
+      final Set<String> selectedIds = {};
 
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => StatefulBuilder(
           builder: (context, setState) => AlertDialog(
             title: const Text('Assign to Staff'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Request: ${request.description}'),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    labelText: 'Select Staff Member',
-                    border: OutlineInputBorder(),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    request.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
-                  initialValue: selectedStaffId,
-                  items: staffList.map((staff) {
-                    return DropdownMenuItem<String>(
-                      value: staff['id'],
-                      child: Text(staff['email']),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => selectedStaffId = value);
-                  },
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Select one or more staff members:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    child: staffList.isEmpty
+                        ? const Text('No staff members available.')
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: staffList.length,
+                            itemBuilder: (context, index) {
+                              final staff = staffList[index];
+                              final id = staff['id'] as String;
+                              return CheckboxListTile(
+                                dense: true,
+                                title: Text(staff['email'] as String),
+                                value: selectedIds.contains(id),
+                                onChanged: (checked) {
+                                  setState(() {
+                                    if (checked == true) {
+                                      selectedIds.add(id);
+                                    } else {
+                                      selectedIds.remove(id);
+                                    }
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                  if (selectedIds.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '${selectedIds.length} selected',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -445,7 +481,7 @@ class _RaisedRequestsPageState extends State<RaisedRequestsPage> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: selectedStaffId == null
+                onPressed: selectedIds.isEmpty
                     ? null
                     : () => Navigator.pop(context, true),
                 child: const Text('Assign'),
@@ -455,14 +491,17 @@ class _RaisedRequestsPageState extends State<RaisedRequestsPage> {
         ),
       );
 
-      if (confirmed == true && selectedStaffId != null) {
-        await _networkClient.post('/assignments/', data: {
+      if (confirmed == true && selectedIds.isNotEmpty) {
+        await _networkClient.post('/assignments/bulk', data: {
           'request_id': request.id,
-          'staff_id': selectedStaffId,
+          'staff_ids': selectedIds.toList(),
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Staff assigned successfully')),
+            SnackBar(
+              content: Text(
+                  '${selectedIds.length} staff member(s) assigned successfully'),
+            ),
           );
           _loadRequests();
         }
