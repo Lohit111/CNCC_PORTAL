@@ -155,14 +155,38 @@ class RequestController:
             # Block completion if there are active store requests
             if new_status == "COMPLETED" and status_changed:
                 from models.store_request import StoreRequestTable
-                active_store_requests = db.query(StoreRequestTable).filter(
-                    StoreRequestTable.parent_request_id == request_id,
-                    StoreRequestTable.status.notin_(["REJECTED", "FULFILLED"])
-                ).count()
-                if active_store_requests > 0:
+                from models.user import UserTable
+                active_rows = (
+                    db.query(
+                        StoreRequestTable.id,
+                        StoreRequestTable.description,
+                        StoreRequestTable.status,
+                        UserTable.email.label("requested_by_email"),
+                    )
+                    .join(UserTable, UserTable.id == StoreRequestTable.requested_by)
+                    .filter(
+                        StoreRequestTable.parent_request_id == request_id,
+                        StoreRequestTable.status.notin_(
+                            ["REJECTED", "FULFILLED"]),
+                    )
+                    .all()
+                )
+                if active_rows:
+                    pending = [
+                        {
+                            "id": row.id,
+                            "description": row.description,
+                            "status": row.status,
+                            "requested_by": row.requested_by_email,
+                        }
+                        for row in active_rows
+                    ]
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Cannot complete request: {active_store_requests} store request(s) are still pending. Ensure all store requests are fulfilled or rejected first."
+                        detail={
+                            "message": f"Cannot complete request: {len(pending)} store request(s) are still pending. Ensure all store requests are fulfilled or rejected first.",
+                            "pending_store_requests": pending,
+                        },
                     )
 
             # Guard against race conditions: IN_PROGRESS and REASSIGN_REQUESTED

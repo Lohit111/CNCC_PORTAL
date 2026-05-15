@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/core/utils/error_handler.dart';
 import 'package:cncc_portal/domain/entities/request_entity.dart';
@@ -120,7 +121,13 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text('Full Description: ${request.description}'),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => _viewAssignedStaff(request),
+                      icon: const Icon(Icons.people, size: 18),
+                      label: const Text('View Assigned Staff'),
+                    ),
+                    const SizedBox(height: 12),
                     ElevatedButton.icon(
                       onPressed: () => _showCreateStoreRequestDialog(request),
                       icon: const Icon(Icons.shopping_cart),
@@ -146,6 +153,69 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
         );
       },
     );
+  }
+
+  Future<void> _viewAssignedStaff(Request request) async {
+    try {
+      final response =
+          await _networkClient.get('/assignments/request/${request.id}');
+      final activeAssignments =
+          (response.data as List).where((a) => a['is_active'] == true).toList();
+
+      final Map<String, String> staffEmails = {};
+      final ids = activeAssignments
+          .map((a) => a['staff_id'] as String)
+          .toSet()
+          .toList();
+      if (ids.isNotEmpty) {
+        try {
+          final queryParams = ids.map((id) => 'ids=$id').join('&');
+          final res = await _networkClient.get('/users/emails?$queryParams');
+          if (res.data is Map) {
+            (res.data as Map)
+                .forEach((k, v) => staffEmails[k.toString()] = v.toString());
+          }
+        } catch (_) {}
+      }
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Assigned Staff'),
+          content: activeAssignments.isEmpty
+              ? const Text('No active staff assigned.')
+              : SizedBox(
+                  width: double.maxFinite,
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: activeAssignments.length,
+                    itemBuilder: (context, index) {
+                      final staffId =
+                          activeAssignments[index]['staff_id'] as String;
+                      return ListTile(
+                        leading: const Icon(Icons.person, color: Colors.green),
+                        title: Text(staffEmails[staffId] ?? 'Unknown'),
+                      );
+                    },
+                  ),
+                ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading staff: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _showCreateStoreRequestDialog(Request request) async {
@@ -270,6 +340,15 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
       } catch (e) {
         if (mounted) {
           final msg = ErrorHandler.handle(e).message;
+          // Try to parse structured pending store requests from the error
+          List<dynamic>? pendingStoreRequests;
+          if (e is DioException &&
+              e.response?.data is Map &&
+              e.response!.data['detail'] is Map) {
+            final detail = e.response!.data['detail'] as Map;
+            pendingStoreRequests = detail['pending_store_requests'] as List?;
+          }
+
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
@@ -280,7 +359,82 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
                   Text('Cannot Complete'),
                 ],
               ),
-              content: Text(msg),
+              content: pendingStoreRequests != null &&
+                      pendingStoreRequests.isNotEmpty
+                  ? SizedBox(
+                      width: double.maxFinite,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${pendingStoreRequests.length} store request(s) are still pending:',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 300),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: pendingStoreRequests.length,
+                              itemBuilder: (context, index) {
+                                final sr = pendingStoreRequests![index]
+                                    as Map<String, dynamic>;
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(10),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 6,
+                                                      vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.orange.shade100,
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                sr['status'] as String,
+                                                style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                sr['requested_by'] as String,
+                                                style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.grey[600]),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          sr['description'] as String,
+                                          style: const TextStyle(fontSize: 13),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Text(msg),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),

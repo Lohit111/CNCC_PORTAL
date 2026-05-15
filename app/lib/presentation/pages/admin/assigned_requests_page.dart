@@ -140,11 +140,12 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        ElevatedButton.icon(
-                          onPressed: () => _viewAssignments(request),
-                          icon: const Icon(Icons.people),
-                          label: const Text('View Staff'),
-                        ),
+                        if (request.status != 'REASSIGN_REQUESTED')
+                          ElevatedButton.icon(
+                            onPressed: () => _viewAssignments(request),
+                            icon: const Icon(Icons.people),
+                            label: const Text('View Staff'),
+                          ),
                         ElevatedButton.icon(
                           onPressed: () {
                             Navigator.push(

@@ -120,7 +120,13 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text('Full Description: ${request.description}'),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => _viewAssignedStaff(request),
+                      icon: const Icon(Icons.people, size: 18),
+                      label: const Text('View Assigned Staff'),
+                    ),
+                    const SizedBox(height: 12),
                     ElevatedButton.icon(
                       onPressed: () => _showStartWorkDialog(request),
                       icon: const Icon(Icons.play_arrow),
@@ -143,6 +149,69 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
         );
       },
     );
+  }
+
+  Future<void> _viewAssignedStaff(Request request) async {
+    try {
+      final response =
+          await _networkClient.get('/assignments/request/${request.id}');
+      final activeAssignments =
+          (response.data as List).where((a) => a['is_active'] == true).toList();
+
+      final Map<String, String> staffEmails = {};
+      final ids = activeAssignments
+          .map((a) => a['staff_id'] as String)
+          .toSet()
+          .toList();
+      if (ids.isNotEmpty) {
+        try {
+          final queryParams = ids.map((id) => 'ids=$id').join('&');
+          final res = await _networkClient.get('/users/emails?$queryParams');
+          if (res.data is Map) {
+            (res.data as Map)
+                .forEach((k, v) => staffEmails[k.toString()] = v.toString());
+          }
+        } catch (_) {}
+      }
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Assigned Staff'),
+          content: activeAssignments.isEmpty
+              ? const Text('No active staff assigned.')
+              : SizedBox(
+                  width: double.maxFinite,
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: activeAssignments.length,
+                    itemBuilder: (context, index) {
+                      final staffId =
+                          activeAssignments[index]['staff_id'] as String;
+                      return ListTile(
+                        leading: const Icon(Icons.person, color: Colors.green),
+                        title: Text(staffEmails[staffId] ?? 'Unknown'),
+                      );
+                    },
+                  ),
+                ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading staff: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _showStartWorkDialog(Request request) async {

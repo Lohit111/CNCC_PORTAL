@@ -82,7 +82,7 @@ async def root():
     """Root endpoint"""
     return {
         "message": "Ticket Management System API",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "docs": "/api/docs"
     }
 
