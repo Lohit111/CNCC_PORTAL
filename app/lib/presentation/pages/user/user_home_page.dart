@@ -50,10 +50,11 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Requests'),
+        title: const Text('CNCC Portal'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Sign out',
             onPressed: () async {
               await fb.FirebaseAuth.instance.signOut();
             },
@@ -68,23 +69,27 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.pending_actions),
+            icon: Icon(Icons.pending_actions_rounded),
+            selectedIcon: Icon(Icons.pending_actions_rounded),
             label: 'Active',
           ),
           NavigationDestination(
-            icon: Icon(Icons.reply),
+            icon: Icon(Icons.reply_rounded),
+            selectedIcon: Icon(Icons.reply_rounded),
             label: 'Needs Response',
           ),
           NavigationDestination(
-            icon: Icon(Icons.archive),
+            icon: Icon(Icons.task_alt_rounded),
+            selectedIcon: Icon(Icons.task_alt_rounded),
             label: 'Completed',
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCreateRequestDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('New Request'),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('New Request',
+            style: TextStyle(fontWeight: FontWeight.w600)),
       ),
     );
   }

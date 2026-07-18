@@ -24,11 +24,9 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       if (kIsWeb) {
-        // Web: use Firebase popup flow
         final googleProvider = fb.GoogleAuthProvider();
         await _firebaseAuth.signInWithPopup(googleProvider);
       } else {
-        // Mobile: use google_sign_in native flow
         await _googleSignIn.signOut();
         await _firebaseAuth.signOut();
 
@@ -56,59 +54,118 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.support_agent,
-                size: 100,
-                color: Colors.blue,
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Request Management System',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 48),
-              if (_error != null)
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo / icon
                 Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
+                  width: 88,
+                  height: 88,
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
+                    color: cs.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Text(
-                    _error!,
-                    style: TextStyle(color: Colors.red.shade900),
-                  ),
-                ),
-              ElevatedButton.icon(
-                onPressed: _isLoading ? null : _signInWithGoogle,
-                icon: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.login),
-                label:
-                    Text(_isLoading ? 'Signing in...' : 'Sign in with Google'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
+                  child: Icon(
+                    Icons.support_agent_rounded,
+                    size: 48,
+                    color: cs.primary,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 28),
+                Text(
+                  'CNCC Portal',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurface,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sign in to manage your requests',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: cs.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 48),
+
+                // Error banner
+                if (_error != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: cs.error.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border:
+                          Border.all(color: cs.error.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, color: cs.error, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: TextStyle(color: cs.error, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Google sign-in button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _signInWithGoogle,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.login_rounded, size: 20),
+                              SizedBox(width: 10),
+                              Text(
+                                'Continue with Google',
+                                style: TextStyle(
+                                    fontSize: 15, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+                Text(
+                  'Use your institutional email to sign in',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onSurface.withValues(alpha: 0.35),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

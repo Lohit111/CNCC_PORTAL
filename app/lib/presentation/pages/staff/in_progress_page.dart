@@ -30,20 +30,17 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
       final user = ref.read(authProvider).user;
       if (user == null) return;
 
-      // Get my assignments
       final assignmentsResponse = await _networkClient.get(
         '/assignments/staff/${user.id}',
         queryParameters: {'active_only': true},
       );
       final assignments = assignmentsResponse.data as List;
 
-      // Get all requests
       final requestsResponse = await _networkClient.get('/requests/');
       final allRequests = (requestsResponse.data['items'] as List)
           .map((json) => Request.fromJson(json))
           .toList();
 
-      // Filter requests that are assigned to me and status is IN_PROGRESS
       final assignedRequestIds =
           assignments.map((a) => a['request_id']).toSet();
       setState(() {
@@ -67,7 +64,7 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
         title: const Text('In Progress'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadRequests,
           ),
         ],
@@ -77,79 +74,40 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
   }
 
   Widget _buildBody() {
+    final cs = Theme.of(context).colorScheme;
+
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (_requests.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No requests in progress'),
-            SizedBox(height: 8),
-            Text(
-              'Start working on assigned requests',
-              style: TextStyle(color: Colors.grey),
-            ),
+            Icon(Icons.inbox_rounded,
+                size: 64, color: cs.onSurface.withValues(alpha: 0.2)),
+            const SizedBox(height: 16),
+            Text('No requests in progress',
+                style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5))),
+            const SizedBox(height: 8),
+            Text('Start working on assigned requests',
+                style: TextStyle(color: cs.onSurface.withValues(alpha: 0.35))),
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: _requests.length,
       itemBuilder: (context, index) {
         final request = _requests[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ExpansionTile(
-            leading: const Icon(Icons.work, color: Colors.amber),
-            title: Text(
-              request.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text('ID: ${request.id.substring(0, 8)}...'),
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('Full Description: ${request.description}'),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () => _viewAssignedStaff(request),
-                      icon: const Icon(Icons.people, size: 18),
-                      label: const Text('View Assigned Staff'),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: () => _showCreateStoreRequestDialog(request),
-                      icon: const Icon(Icons.shopping_cart),
-                      label: const Text('Request Equipment'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      onPressed: () => _showCompleteDialog(request),
-                      icon: const Icon(Icons.check_circle),
-                      label: const Text('Mark as Complete'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        return _InProgressCard(
+          request: request,
+          onViewStaff: () => _viewAssignedStaff(request),
+          onRequestEquipment: () => _showCreateStoreRequestDialog(request),
+          onMarkComplete: () => _showCompleteDialog(request),
         );
       },
     );
@@ -180,12 +138,14 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
 
       if (!mounted) return;
 
+      final cs = Theme.of(context).colorScheme;
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Assigned Staff'),
           content: activeAssignments.isEmpty
-              ? const Text('No active staff assigned.')
+              ? Text('No active staff assigned.',
+                  style: TextStyle(color: cs.onSurface.withValues(alpha: 0.7)))
               : SizedBox(
                   width: double.maxFinite,
                   child: ListView.builder(
@@ -195,7 +155,8 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
                       final staffId =
                           activeAssignments[index]['staff_id'] as String;
                       return ListTile(
-                        leading: const Icon(Icons.person, color: Colors.green),
+                        leading: const Icon(Icons.person_rounded,
+                            color: Color(0xFFA6E3A1)),
                         title: Text(staffEmails[staffId] ?? 'Unknown'),
                       );
                     },
@@ -231,7 +192,13 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'For Request: ${request.description.length > 30 ? '${request.description.substring(0, 30)}...' : request.description}',
+                'For: ${request.description.length > 40 ? '${request.description.substring(0, 40)}...' : request.description}',
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.7)),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -239,12 +206,9 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
                 decoration: const InputDecoration(
                   labelText: 'Equipment Description (required)',
                   hintText: 'List the items you need...',
-                  border: OutlineInputBorder(),
                 ),
                 maxLines: 4,
-                onChanged: (value) {
-                  setState(() {}); // Rebuild to enable/disable button
-                },
+                onChanged: (value) => setState(() {}),
               ),
             ],
           ),
@@ -296,14 +260,23 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Request: ${request.description}'),
+            Text(
+              request.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.7)),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: commentController,
               decoration: const InputDecoration(
                 labelText: 'Completion Notes',
                 hintText: 'What did you do to resolve this?',
-                border: OutlineInputBorder(),
               ),
               maxLines: 4,
             ),
@@ -316,7 +289,10 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFA6E3A1),
+              foregroundColor: Colors.black87,
+            ),
             child: const Text('Complete'),
           ),
         ],
@@ -340,7 +316,6 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
       } catch (e) {
         if (mounted) {
           final msg = ErrorHandler.handle(e).message;
-          // Try to parse structured pending store requests from the error
           List<dynamic>? pendingStoreRequests;
           if (e is DioException &&
               e.response?.data is Map &&
@@ -349,12 +324,13 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
             pendingStoreRequests = detail['pending_store_requests'] as List?;
           }
 
+          final cs = Theme.of(context).colorScheme;
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
               title: const Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                  Icon(Icons.warning_amber_rounded, color: Color(0xFFF9E2AF)),
                   SizedBox(width: 8),
                   Text('Cannot Complete'),
                 ],
@@ -368,7 +344,7 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${pendingStoreRequests.length} store request(s) are still pending:',
+                            '${pendingStoreRequests.length} store request(s) still pending:',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
@@ -380,8 +356,15 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
                               itemBuilder: (context, index) {
                                 final sr = pendingStoreRequests![index]
                                     as Map<String, dynamic>;
-                                return Card(
+                                return Container(
                                   margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: cs.surface,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: cs.onSurface
+                                            .withValues(alpha: 0.08)),
+                                  ),
                                   child: Padding(
                                     padding: const EdgeInsets.all(10),
                                     child: Column(
@@ -396,16 +379,18 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
                                                       horizontal: 6,
                                                       vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: Colors.orange.shade100,
+                                                color: const Color(0xFFF9E2AF)
+                                                    .withValues(alpha: 0.12),
                                                 borderRadius:
                                                     BorderRadius.circular(4),
                                               ),
                                               child: Text(
                                                 sr['status'] as String,
                                                 style: const TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight:
-                                                        FontWeight.bold),
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFFF9E2AF),
+                                                ),
                                               ),
                                             ),
                                             const SizedBox(width: 8),
@@ -414,7 +399,9 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
                                                 sr['requested_by'] as String,
                                                 style: TextStyle(
                                                     fontSize: 11,
-                                                    color: Colors.grey[600]),
+                                                    color: cs.onSurface
+                                                        .withValues(
+                                                            alpha: 0.4)),
                                               ),
                                             ),
                                           ],
@@ -422,7 +409,9 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
                                         const SizedBox(height: 4),
                                         Text(
                                           sr['description'] as String,
-                                          style: const TextStyle(fontSize: 13),
+                                          style: TextStyle(
+                                              fontSize: 13,
+                                              color: cs.onSurface),
                                         ),
                                       ],
                                     ),
@@ -446,5 +435,120 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
         }
       }
     }
+  }
+}
+
+class _InProgressCard extends StatelessWidget {
+  final Request request;
+  final VoidCallback onViewStaff;
+  final VoidCallback onRequestEquipment;
+  final VoidCallback onMarkComplete;
+
+  const _InProgressCard({
+    required this.request,
+    required this.onViewStaff,
+    required this.onRequestEquipment,
+    required this.onMarkComplete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    const accent = Color(0xFFF9E2AF);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: accent.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child:
+                        const Icon(Icons.work_rounded, color: accent, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          request.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: cs.onSurface),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${request.createdAt.day}/${request.createdAt.month}/${request.createdAt.year}',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: cs.onSurface.withValues(alpha: 0.4)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onViewStaff,
+                    icon: const Icon(Icons.people_rounded, size: 16),
+                    label: const Text('View Assigned Staff',
+                        style: TextStyle(fontSize: 13)),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: onRequestEquipment,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF89B4FA),
+                      side: const BorderSide(
+                          color: Color(0xFF89B4FA), width: 0.8),
+                    ),
+                    icon: const Icon(Icons.shopping_cart_rounded, size: 16),
+                    label: const Text('Request Equipment',
+                        style: TextStyle(fontSize: 13)),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: onMarkComplete,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFA6E3A1),
+                      foregroundColor: Colors.black87,
+                    ),
+                    icon: const Icon(Icons.check_circle_rounded, size: 16),
+                    label: const Text('Mark as Complete',
+                        style: TextStyle(fontSize: 13)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

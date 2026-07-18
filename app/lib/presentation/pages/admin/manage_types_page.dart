@@ -41,13 +41,14 @@ class _ManageTypesPageState extends State<ManageTypesPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create Main Type'),
+        title: const Text('Create Category'),
         content: TextField(
           controller: nameController,
           decoration: const InputDecoration(
-            labelText: 'Name',
-            border: OutlineInputBorder(),
+            labelText: 'Category Name',
+            hintText: 'e.g. Infrastructure',
           ),
+          autofocus: true,
         ),
         actions: [
           TextButton(
@@ -56,19 +57,19 @@ class _ManageTypesPageState extends State<ManageTypesPage> {
           ),
           ElevatedButton(
             onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) return;
               try {
-                await _networkClient.post('/types/main', data: {
-                  'name': nameController.text,
-                });
-                if (mounted) {
+                await _networkClient.post('/types/main', data: {'name': name});
+                if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Main type created')),
+                    const SnackBar(content: Text('Category created')),
                   );
                   _loadMainTypes();
                 }
               } catch (e) {
-                if (mounted) {
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error: $e')),
                   );
@@ -111,12 +112,14 @@ class _ManageTypesPageState extends State<ManageTypesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manage Types'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadMainTypes,
           ),
         ],
@@ -124,35 +127,84 @@ class _ManageTypesPageState extends State<ManageTypesPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _mainTypes.isEmpty
-              ? const Center(child: Text('No main types found'))
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.category_rounded,
+                          size: 56, color: cs.onSurface.withValues(alpha: 0.2)),
+                      const SizedBox(height: 14),
+                      Text('No categories yet',
+                          style: TextStyle(
+                              color: cs.onSurface.withValues(alpha: 0.4))),
+                    ],
+                  ),
+                )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                   itemCount: _mainTypes.length,
                   itemBuilder: (context, index) {
                     final mainType = _mainTypes[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        title: Text(mainType.name),
-                        subtitle:
-                            Text('Created: ${_formatDate(mainType.createdAt)}'),
-                        trailing: const Icon(Icons.arrow_forward_ios),
-                        onTap: () => _showSubTypesDialog(mainType),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Material(
+                        color: cs.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => _showSubTypesDialog(mainType),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                  color: cs.onSurface.withValues(alpha: 0.06)),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 4),
+                              leading: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: cs.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(Icons.category_rounded,
+                                    color: cs.primary, size: 18),
+                              ),
+                              title: Text(mainType.name,
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: cs.onSurface)),
+                              subtitle: Text(
+                                'Created ${_formatDate(mainType.createdAt)}',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.onSurface.withValues(alpha: 0.4)),
+                              ),
+                              trailing: Icon(
+                                Icons.chevron_right_rounded,
+                                color: cs.onSurface.withValues(alpha: 0.3),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   },
                 ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateMainTypeDialog,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add_rounded),
       ),
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 }
+
+// ── Sub-types dialog ──────────────────────────────────────────────────────────
 
 class _SubTypesDialog extends StatefulWidget {
   final MainType mainType;
@@ -203,13 +255,14 @@ class _SubTypesDialogState extends State<_SubTypesDialog> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create Sub Type'),
+        title: Text('Add Sub-type to ${widget.mainType.name}'),
         content: TextField(
           controller: nameController,
           decoration: const InputDecoration(
-            labelText: 'Name',
-            border: OutlineInputBorder(),
+            labelText: 'Sub-type Name',
+            hintText: 'e.g. Network Issue',
           ),
+          autofocus: true,
         ),
         actions: [
           TextButton(
@@ -218,21 +271,23 @@ class _SubTypesDialogState extends State<_SubTypesDialog> {
           ),
           ElevatedButton(
             onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) return;
               try {
                 await _networkClient.post('/types/sub', data: {
-                  'name': nameController.text,
+                  'name': name,
                   'main_type_id': widget.mainType.id,
                 });
-                if (mounted) {
+                if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Sub type created')),
+                    const SnackBar(content: Text('Sub-type created')),
                   );
                   _loadSubTypes();
                   widget.onRefresh();
                 }
               } catch (e) {
-                if (mounted) {
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error: $e')),
                   );
@@ -248,20 +303,53 @@ class _SubTypesDialogState extends State<_SubTypesDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return AlertDialog(
-      title: Text('Sub Types: ${widget.mainType.name}'),
+      title: Row(
+        children: [
+          Icon(Icons.category_rounded, size: 18, color: cs.primary),
+          const SizedBox(width: 8),
+          Text(widget.mainType.name),
+        ],
+      ),
       content: SizedBox(
         width: double.maxFinite,
         child: _subTypes.isEmpty
-            ? const Center(child: Text('No sub types'))
+            ? Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text(
+                    'No sub-types yet',
+                    style:
+                        TextStyle(color: cs.onSurface.withValues(alpha: 0.4)),
+                  ),
+                ),
+              )
             : ListView.builder(
                 shrinkWrap: true,
                 itemCount: _subTypes.length,
                 itemBuilder: (context, index) {
                   final subType = _subTypes[index];
-                  return ListTile(
-                    title: Text(subType.name),
-                    dense: true,
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: cs.primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.subdirectory_arrow_right_rounded,
+                            size: 14,
+                            color: cs.onSurface.withValues(alpha: 0.4)),
+                        const SizedBox(width: 8),
+                        Text(subType.name,
+                            style:
+                                TextStyle(fontSize: 13, color: cs.onSurface)),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -273,8 +361,8 @@ class _SubTypesDialogState extends State<_SubTypesDialog> {
         ),
         ElevatedButton.icon(
           onPressed: _showCreateSubTypeDialog,
-          icon: const Icon(Icons.add),
-          label: const Text('Add Sub Type'),
+          icon: const Icon(Icons.add_rounded, size: 16),
+          label: const Text('Add Sub-type'),
         ),
       ],
     );

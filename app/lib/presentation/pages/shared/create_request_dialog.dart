@@ -68,7 +68,7 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Create New Request'),
+      title: const Text('New Request'),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -76,7 +76,8 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<MainType>(
-                decoration: const InputDecoration(labelText: 'Main Type'),
+                decoration: const InputDecoration(labelText: 'Category'),
+                dropdownColor: const Color(0xFF313244),
                 items: widget.mainTypes.map((type) {
                   return DropdownMenuItem(
                     value: type,
@@ -86,17 +87,16 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
                 onChanged: (value) {
                   setState(() {
                     _selectedMainType = value;
-                    if (value != null) {
-                      _loadSubTypes(value.id);
-                    }
+                    if (value != null) _loadSubTypes(value.id);
                   });
                 },
                 validator: (value) =>
-                    value == null ? 'Please select a main type' : null,
+                    value == null ? 'Please select a category' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               DropdownButtonFormField<SubType>(
-                decoration: const InputDecoration(labelText: 'Sub Type'),
+                decoration: const InputDecoration(labelText: 'Sub-category'),
+                dropdownColor: const Color(0xFF313244),
                 items: _subTypes.map((type) {
                   return DropdownMenuItem(
                     value: type,
@@ -107,16 +107,17 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
                   setState(() => _selectedSubType = value);
                 },
                 validator: (value) =>
-                    value == null ? 'Please select a sub type' : null,
+                    value == null ? 'Please select a sub-category' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
                   labelText: 'Description',
-                  border: OutlineInputBorder(),
+                  hintText: 'Describe your request in detail...',
+                  alignLabelWithHint: true,
                 ),
-                maxLines: 4,
+                maxLines: 5,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter a description';
@@ -137,11 +138,12 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
           onPressed: _isLoading ? null : _createRequest,
           child: _isLoading
               ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('Create'),
+              : const Text('Submit'),
         ),
       ],
     );

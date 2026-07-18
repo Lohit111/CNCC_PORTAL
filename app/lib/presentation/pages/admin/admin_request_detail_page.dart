@@ -54,165 +54,6 @@ class _AdminRequestDetailPageState
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Request Details'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadRequestDetails,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _request == null
-              ? const Center(child: Text('Request not found'))
-              : Column(
-                  children: [
-                    // Request Details Card
-                    Card(
-                      margin: const EdgeInsets.all(16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    'Status: ${_request!.statusDisplayText}',
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                _getStatusChip(_request!.status),
-                              ],
-                            ),
-                            const Divider(height: 24),
-                            const Text(
-                              'Description:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(_request!.description),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Created: ${_formatDate(_request!.createdAt)}',
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Updated: ${_formatDate(_request!.updatedAt)}',
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _request!.isActive == 'true'
-                                        ? Colors.green
-                                        : Colors.grey,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    _request!.isActive == 'true'
-                                        ? 'ACTIVE'
-                                        : 'INACTIVE',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Timeline Section Header
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          const Text(
-                            'Timeline',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.blue,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${_tracks.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Timeline List
-                    Expanded(
-                      child: _tracks.isEmpty
-                          ? const Center(
-                              child: Text('No activity yet'),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _tracks.length,
-                              itemBuilder: (context, index) {
-                                final track = _tracks[index];
-                                return _buildTrackItem(
-                                    track, index == _tracks.length - 1);
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-    );
-  }
-
   Future<void> _fetchPerformerEmails() async {
     final ids = _tracks.map((t) => t.performedBy).toSet().toList();
     if (ids.isEmpty) return;
@@ -228,41 +69,224 @@ class _AdminRequestDetailPageState
     if (mounted) setState(() {});
   }
 
-  Widget _buildTrackItem(Track track, bool isLast) {
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Request Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _loadRequestDetails,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _request == null
+              ? const Center(child: Text('Request not found'))
+              : Column(
+                  children: [
+                    _buildHeaderCard(cs),
+                    _buildTimelineHeader(cs),
+                    Expanded(child: _buildTimeline(cs)),
+                  ],
+                ),
+    );
+  }
+
+  Widget _buildHeaderCard(ColorScheme cs) {
+    final statusColor = _statusColor(_request!.status);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(_statusIcon(_request!.status),
+                        size: 13, color: statusColor),
+                    const SizedBox(width: 5),
+                    Text(
+                      _request!.statusDisplayText,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: statusColor),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (_request!.isActive == 'true'
+                          ? const Color(0xFFA6E3A1)
+                          : const Color(0xFF6C7086))
+                      .withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _request!.isActive == 'true' ? 'ACTIVE' : 'INACTIVE',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: _request!.isActive == 'true'
+                        ? const Color(0xFFA6E3A1)
+                        : const Color(0xFF6C7086),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _request!.description,
+            style: TextStyle(fontSize: 15, color: cs.onSurface, height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          Divider(color: cs.onSurface.withValues(alpha: 0.06)),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.calendar_today_rounded,
+                  size: 12, color: cs.onSurface.withValues(alpha: 0.35)),
+              const SizedBox(width: 5),
+              Text(
+                'Created ${_formatDate(_request!.createdAt)}',
+                style: TextStyle(
+                    fontSize: 11, color: cs.onSurface.withValues(alpha: 0.4)),
+              ),
+              const SizedBox(width: 12),
+              Icon(Icons.update_rounded,
+                  size: 12, color: cs.onSurface.withValues(alpha: 0.35)),
+              const SizedBox(width: 5),
+              Text(
+                'Updated ${_formatDate(_request!.updatedAt)}',
+                style: TextStyle(
+                    fontSize: 11, color: cs.onSurface.withValues(alpha: 0.4)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineHeader(ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+      child: Row(
+        children: [
+          Text(
+            'Timeline',
+            style: TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w600, color: cs.onSurface),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '${_tracks.length}',
+              style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700, color: cs.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeline(ColorScheme cs) {
+    if (_tracks.isEmpty) {
+      return Center(
+        child: Text('No activity yet',
+            style: TextStyle(color: cs.onSurface.withValues(alpha: 0.4))),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      itemCount: _tracks.length,
+      itemBuilder: (context, index) =>
+          _buildTrackItem(_tracks[index], index == _tracks.length - 1, cs),
+    );
+  }
+
+  Widget _buildTrackItem(Track track, bool isLast, ColorScheme cs) {
+    final actionColor = _actionColor(track.actionType);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Timeline indicator
-        Column(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: _getActionTypeColor(track.actionType),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                _getActionTypeIcon(track.actionType),
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            if (!isLast)
+        SizedBox(
+          width: 44,
+          child: Column(
+            children: [
               Container(
-                width: 2,
-                height: 60,
-                color: Colors.grey[300],
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: actionColor.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(_actionIcon(track.actionType),
+                    color: actionColor, size: 17),
               ),
-          ],
+              if (!isLast)
+                Container(
+                  width: 2,
+                  height: 52,
+                  margin: const EdgeInsets.symmetric(vertical: 3),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        actionColor.withValues(alpha: 0.4),
+                        actionColor.withValues(alpha: 0.05),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+            ],
+          ),
         ),
-        const SizedBox(width: 12),
-        // Track content
+        const SizedBox(width: 10),
         Expanded(
-          child: Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: Padding(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 4),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cs.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -271,28 +295,26 @@ class _AdminRequestDetailPageState
                       Expanded(
                         child: Text(
                           track.actionDisplayText,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: cs.onSurface),
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
+                            horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
-                          color: _getRoleColor(track.performedByRole),
-                          borderRadius: BorderRadius.circular(4),
+                          color: _roleColor(track.performedByRole)
+                              .withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(5),
                         ),
                         child: Text(
                           track.performedByRole,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: TextStyle(
+                              color: _roleColor(track.performedByRole),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -301,28 +323,29 @@ class _AdminRequestDetailPageState
                   Text(
                     _performerEmails[track.performedBy] ?? 'Unknown',
                     style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 11,
-                    ),
+                        fontSize: 11,
+                        color: cs.onSurface.withValues(alpha: 0.5)),
                   ),
                   Text(
                     _formatDate(track.createdAt),
                     style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 11,
-                    ),
+                        fontSize: 10,
+                        color: cs.onSurface.withValues(alpha: 0.35)),
                   ),
                   if (track.comment != null && track.comment!.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(4),
+                        color: cs.onSurface.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         track.comment!,
-                        style: const TextStyle(fontSize: 13),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurface.withValues(alpha: 0.8),
+                            height: 1.4),
                       ),
                     ),
                   ],
@@ -335,107 +358,114 @@ class _AdminRequestDetailPageState
     );
   }
 
-  Widget _getStatusChip(String status) {
-    Color color;
+  // ── helpers ──────────────────────────────────────────────────────────────
+
+  Color _statusColor(String status) {
     switch (status) {
       case 'RAISED':
-        color = Colors.blue;
-        break;
+        return const Color(0xFF89B4FA);
       case 'REPLIED':
-        color = Colors.orange;
-        break;
+        return const Color(0xFFFAB387);
       case 'ASSIGNED':
-        color = Colors.purple;
-        break;
+        return const Color(0xFFCBA6F7);
       case 'IN_PROGRESS':
-        color = Colors.amber;
-        break;
+        return const Color(0xFFF9E2AF);
       case 'COMPLETED':
-        color = Colors.green;
-        break;
+        return const Color(0xFFA6E3A1);
       case 'REJECTED':
-        color = Colors.red;
-        break;
+        return const Color(0xFFF38BA8);
       case 'REASSIGN_REQUESTED':
-        color = Colors.pink;
-        break;
+        return const Color(0xFFEBA0AC);
       default:
-        color = Colors.grey;
-    }
-
-    return Chip(
-      label: Text(
-        status,
-        style: const TextStyle(color: Colors.white, fontSize: 12),
-      ),
-      backgroundColor: color,
-      padding: EdgeInsets.zero,
-    );
-  }
-
-  Color _getActionTypeColor(String actionType) {
-    switch (actionType) {
-      case 'RAISED':
-        return Colors.blue;
-      case 'REPLIED':
-        return Colors.orange;
-      case 'REJECTED':
-        return Colors.red;
-      case 'ASSIGNED':
-        return Colors.purple;
-      case 'IN_PROGRESS':
-        return Colors.amber;
-      case 'COMPLETED':
-        return Colors.green;
-      case 'REASSIGN_REQUESTED':
-        return Colors.pink;
-      default:
-        return Colors.grey;
+        return const Color(0xFF6C7086);
     }
   }
 
-  IconData _getActionTypeIcon(String actionType) {
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'RAISED':
+        return Icons.fiber_new_rounded;
+      case 'REPLIED':
+        return Icons.reply_rounded;
+      case 'ASSIGNED':
+        return Icons.assignment_ind_rounded;
+      case 'IN_PROGRESS':
+        return Icons.pending_rounded;
+      case 'COMPLETED':
+        return Icons.check_circle_rounded;
+      case 'REJECTED':
+        return Icons.cancel_rounded;
+      case 'REASSIGN_REQUESTED':
+        return Icons.swap_horiz_rounded;
+      default:
+        return Icons.help_outline_rounded;
+    }
+  }
+
+  Color _actionColor(String actionType) {
     switch (actionType) {
       case 'RAISED':
-        return Icons.add_circle;
+        return const Color(0xFF89B4FA);
       case 'REPLIED':
-        return Icons.chat_bubble;
+        return const Color(0xFFFAB387);
       case 'REJECTED':
-        return Icons.cancel;
+        return const Color(0xFFF38BA8);
       case 'ASSIGNED':
-        return Icons.person_add;
+        return const Color(0xFFCBA6F7);
       case 'IN_PROGRESS':
-        return Icons.work;
+        return const Color(0xFFF9E2AF);
       case 'COMPLETED':
-        return Icons.check_circle;
+        return const Color(0xFFA6E3A1);
       case 'REASSIGN_REQUESTED':
-        return Icons.swap_horiz;
+        return const Color(0xFFEBA0AC);
+      default:
+        return const Color(0xFF6C7086);
+    }
+  }
+
+  IconData _actionIcon(String actionType) {
+    switch (actionType) {
+      case 'RAISED':
+        return Icons.add_circle_rounded;
+      case 'REPLIED':
+        return Icons.chat_bubble_rounded;
+      case 'REJECTED':
+        return Icons.cancel_rounded;
+      case 'ASSIGNED':
+        return Icons.person_add_rounded;
+      case 'IN_PROGRESS':
+        return Icons.work_rounded;
+      case 'COMPLETED':
+        return Icons.check_circle_rounded;
+      case 'REASSIGN_REQUESTED':
+        return Icons.swap_horiz_rounded;
       case 'STORE_REQUEST_CREATED':
       case 'STORE_REQUEST_APPROVED':
       case 'STORE_REQUEST_REJECTED':
       case 'STORE_REQUEST_FULFILLED':
-        return Icons.inventory;
+        return Icons.inventory_2_rounded;
       default:
         return Icons.circle;
     }
   }
 
-  Color _getRoleColor(String role) {
+  Color _roleColor(String role) {
     switch (role) {
       case 'ADMIN':
-        return Colors.red;
+        return const Color(0xFFF38BA8);
       case 'STAFF':
-        return Colors.blue;
+        return const Color(0xFF89B4FA);
       case 'STORE':
-        return Colors.green;
+        return const Color(0xFFA6E3A1);
       case 'USER':
-        return Colors.orange;
+        return const Color(0xFFFAB387);
       default:
-        return Colors.grey;
+        return const Color(0xFF6C7086);
     }
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    return '${date.day}/${date.month}/${date.year} '
+        '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 }

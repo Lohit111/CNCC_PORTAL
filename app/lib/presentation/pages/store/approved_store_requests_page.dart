@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/domain/entities/store_request_entity.dart';
+import 'package:cncc_portal/presentation/pages/shared/store_chat_page.dart';
 
 class ApprovedStoreRequestsPage extends StatefulWidget {
   const ApprovedStoreRequestsPage({super.key});
@@ -42,10 +43,10 @@ class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Approved Requests'),
+        title: const Text('Approved'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadRequests,
           ),
         ],
@@ -60,224 +61,178 @@ class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
     }
 
     if (_requests.isEmpty) {
-      return const Center(
+      final cs = Theme.of(context).colorScheme;
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No approved requests'),
-            SizedBox(height: 8),
-            Text(
-              'Approved requests will appear here',
-              style: TextStyle(color: Colors.grey),
-            ),
+            Icon(Icons.check_circle_outline_rounded,
+                size: 56, color: cs.onSurface.withValues(alpha: 0.2)),
+            const SizedBox(height: 14),
+            Text('No approved requests',
+                style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5))),
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: _requests.length,
       itemBuilder: (context, index) {
         final request = _requests[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ExpansionTile(
-            leading: const Icon(Icons.check_circle, color: Colors.blue),
-            title: Text(
-              request.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              'Parent: ${request.parentRequestId.substring(0, 8)}...\n${_formatDate(request.createdAt)}',
-            ),
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('Full Description: ${request.description}'),
-                    if (request.responseComment != null) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Your Response:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(request.responseComment!),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () => _openChat(request),
-                      icon: const Icon(Icons.chat),
-                      label: const Text('Chat with Staff'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      onPressed: () => _showFulfillDialog(request),
-                      icon: const Icon(Icons.done_all),
-                      label: const Text('Mark as Fulfilled'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                      ),
-                    ),
-                  ],
-                ),
+        return _ApprovedCard(
+          request: request,
+          onRefresh: _loadRequests,
+          onOpenChat: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => StoreChatPage(
+                storeRequestId: request.id,
+                myRole: 'STORE',
+                title: 'Chat with Staff',
               ),
-            ],
+            ),
           ),
         );
       },
     );
   }
+}
 
-  Future<void> _openChat(StoreRequest request) async {
-    try {
-      final response =
-          await _networkClient.get('/store-requests/${request.id}/chat');
-      final chats = response.data as List;
+class _ApprovedCard extends StatelessWidget {
+  final StoreRequest request;
+  final VoidCallback onRefresh;
+  final VoidCallback onOpenChat;
 
-      if (!mounted) return;
+  const _ApprovedCard({
+    required this.request,
+    required this.onRefresh,
+    required this.onOpenChat,
+  });
 
-      final messageController = TextEditingController();
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    const accent = Color(0xFF89B4FA); // blue for approved
 
-      showDialog(
-        context: context,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Chat with Staff'),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 400,
-              child: Column(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: accent.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: Row(
                 children: [
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: chats.length,
-                      itemBuilder: (context, index) {
-                        final chat = chats[index];
-                        final isMe = chat['sender_role'] == 'STORE';
-                        return Align(
-                          alignment: isMe
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isMe
-                                  ? Colors.green.shade100
-                                  : Colors.blue.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            constraints: const BoxConstraints(maxWidth: 250),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  chat['message'],
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  chat['sender_role'],
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
                     ),
+                    child: const Icon(Icons.check_circle_rounded,
+                        color: accent, size: 20),
                   ),
-                  const Divider(),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: messageController,
-                          decoration: const InputDecoration(
-                            hintText: 'Type a message...',
-                            border: OutlineInputBorder(),
-                          ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          request.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: cs.onSurface),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.send),
-                        onPressed: () async {
-                          if (messageController.text.isEmpty) return;
-
-                          try {
-                            await _networkClient.post(
-                              '/store-requests/${request.id}/chat',
-                              data: {'message': messageController.text},
-                            );
-                            messageController.clear();
-
-                            // Reload chat
-                            final newResponse = await _networkClient.get(
-                              '/store-requests/${request.id}/chat',
-                            );
-                            setDialogState(() {
-                              chats.clear();
-                              chats.addAll(newResponse.data as List);
-                            });
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error: $e')),
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ],
+                        const SizedBox(height: 3),
+                        Text(
+                          _formatDate(request.createdAt),
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: cs.onSurface.withValues(alpha: 0.4)),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
+            if (request.responseComment != null &&
+                request.responseComment!.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.comment_rounded,
+                          size: 14, color: cs.onSurface.withValues(alpha: 0.4)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          request.responseComment!,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: cs.onSurface.withValues(alpha: 0.7)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
-          ),
+            Divider(height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onOpenChat,
+                      icon: const Icon(Icons.chat_rounded, size: 16),
+                      label: const Text('Chat', style: TextStyle(fontSize: 13)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showFulfillDialog(context, request),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFA6E3A1),
+                        foregroundColor: Colors.black87,
+                      ),
+                      icon: const Icon(Icons.done_all_rounded, size: 16),
+                      label:
+                          const Text('Fulfill', style: TextStyle(fontSize: 13)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading chat: $e')),
-        );
-      }
-    }
+      ),
+    );
   }
 
-  Future<void> _showFulfillDialog(StoreRequest request) async {
+  Future<void> _showFulfillDialog(
+      BuildContext context, StoreRequest request) async {
     final commentController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
@@ -288,14 +243,23 @@ class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Request: ${request.description}'),
+            Text(
+              request.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6)),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: commentController,
               decoration: const InputDecoration(
                 labelText: 'Fulfillment Notes',
                 hintText: 'Items delivered to staff member...',
-                border: OutlineInputBorder(),
               ),
               maxLines: 3,
             ),
@@ -308,7 +272,9 @@ class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFA6E3A1),
+                foregroundColor: Colors.black87),
             child: const Text('Mark Fulfilled'),
           ),
         ],
@@ -317,21 +283,22 @@ class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
 
     if (confirmed == true) {
       try {
-        await _networkClient
+        final networkClient = NetworkClient();
+        await networkClient
             .post('/store-requests/${request.id}/respond', data: {
           'status': 'FULFILLED',
           'response_comment': commentController.text.isEmpty
               ? 'Items delivered'
               : commentController.text,
         });
-        if (mounted) {
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Request marked as fulfilled')),
+            const SnackBar(content: Text('Marked as fulfilled')),
           );
-          _loadRequests();
+          onRefresh();
         }
       } catch (e) {
-        if (mounted) {
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: $e')),
           );
@@ -340,7 +307,5 @@ class _ApprovedStoreRequestsPageState extends State<ApprovedStoreRequestsPage> {
     }
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 }

@@ -46,19 +46,10 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Assigned Requests'),
-            Text(
-              'Being worked on by staff',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
-            ),
-          ],
-        ),
+        title: const Text('Assigned'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadRequests,
           ),
         ],
@@ -68,154 +59,220 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final cs = Theme.of(context).colorScheme;
+
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
 
     if (_requests.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No assigned requests'),
+            Icon(Icons.inbox_rounded,
+                size: 56, color: cs.onSurface.withValues(alpha: 0.2)),
+            const SizedBox(height: 14),
+            Text('No assigned requests',
+                style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5))),
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: _requests.length,
       itemBuilder: (context, index) {
         final request = _requests[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ExpansionTile(
-            leading: Icon(
-              _getIconForStatus(request.status),
-              color: _getColorForStatus(request.status),
+        final accent = _statusColor(request.status);
+        final isReassign = request.status == 'REASSIGN_REQUESTED';
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: accent.withValues(alpha: 0.25)),
             ),
-            title: Text(
-              request.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              'Status: ${request.statusDisplayText}\nID: ${request.id.substring(0, 8)}...',
-            ),
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Full Description: ${request.description}'),
-                    const SizedBox(height: 16),
-                    if (request.status == 'REASSIGN_REQUESTED')
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.pink.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.pink),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.warning, color: Colors.pink),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Staff has requested reassignment',
-                                  style: TextStyle(color: Colors.pink),
-                                ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(_statusIcon(request.status),
+                            color: accent, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              request.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: cs.onSurface),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(5),
                               ),
-                            ],
-                          ),
+                              child: Text(
+                                request.statusDisplayText,
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: accent),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        if (request.status != 'REASSIGN_REQUESTED')
-                          ElevatedButton.icon(
-                            onPressed: () => _viewAssignments(request),
-                            icon: const Icon(Icons.people),
-                            label: const Text('View Staff'),
-                          ),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AdminRequestDetailPage(
-                                    requestId: request.id),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.timeline),
-                          label: const Text('Timeline'),
-                        ),
-                        if (request.status == 'REASSIGN_REQUESTED')
-                          ElevatedButton.icon(
-                            onPressed: () => _reassignStaff(request),
-                            icon: const Icon(Icons.swap_horiz),
-                            label: const Text('Reassign'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
+                    ],
+                  ),
+                ),
+
+                // Reassign warning banner
+                if (isReassign)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEBA0AC).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color:
+                                const Color(0xFFEBA0AC).withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded,
+                              color: Color(0xFFEBA0AC), size: 16),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Staff has requested reassignment',
+                              style: TextStyle(
+                                  color: Color(0xFFEBA0AC),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500),
                             ),
                           ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
+
+                Divider(height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
+
+                // Actions
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  child: Row(
+                    children: [
+                      if (!isReassign) ...[
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _viewAssignments(context, request),
+                            icon: const Icon(Icons.people_rounded, size: 16),
+                            label: const Text('Staff',
+                                style: TextStyle(fontSize: 13)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  AdminRequestDetailPage(requestId: request.id),
+                            ),
+                          ),
+                          icon: const Icon(Icons.timeline_rounded, size: 16),
+                          label: const Text('Timeline',
+                              style: TextStyle(fontSize: 13)),
+                        ),
+                      ),
+                      if (isReassign) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _reassignStaff(context, request),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFAB387),
+                              foregroundColor: Colors.black87,
+                            ),
+                            icon:
+                                const Icon(Icons.swap_horiz_rounded, size: 16),
+                            label: const Text('Reassign',
+                                style: TextStyle(fontSize: 13)),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  IconData _getIconForStatus(String status) {
+  Color _statusColor(String status) {
     switch (status) {
       case 'ASSIGNED':
-        return Icons.person_add;
+        return const Color(0xFFCBA6F7);
       case 'IN_PROGRESS':
-        return Icons.work;
+        return const Color(0xFFF9E2AF);
       case 'REASSIGN_REQUESTED':
-        return Icons.swap_horiz;
+        return const Color(0xFFEBA0AC);
+      default:
+        return const Color(0xFF6C7086);
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'ASSIGNED':
+        return Icons.assignment_ind_rounded;
+      case 'IN_PROGRESS':
+        return Icons.work_rounded;
+      case 'REASSIGN_REQUESTED':
+        return Icons.swap_horiz_rounded;
       default:
         return Icons.circle;
     }
   }
 
-  Color _getColorForStatus(String status) {
-    switch (status) {
-      case 'ASSIGNED':
-        return Colors.purple;
-      case 'IN_PROGRESS':
-        return Colors.amber;
-      case 'REASSIGN_REQUESTED':
-        return Colors.pink;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Future<void> _viewAssignments(Request request) async {
+  Future<void> _viewAssignments(BuildContext context, Request request) async {
     try {
       final response =
           await _networkClient.get('/assignments/request/${request.id}');
-
-      // Keep only active assignments
       final activeAssignments =
           (response.data as List).where((a) => a['is_active'] == true).toList();
 
-      // Bulk-fetch staff emails — one request
       final Map<String, String> staffEmails = {};
       final ids = activeAssignments
           .map((a) => a['staff_id'] as String)
@@ -233,7 +290,7 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
         } catch (_) {}
       }
 
-      if (!mounted) return;
+      if (!context.mounted) return;
 
       showDialog(
         context: context,
@@ -247,12 +304,12 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
                     shrinkWrap: true,
                     itemCount: activeAssignments.length,
                     itemBuilder: (context, index) {
-                      final assignment = activeAssignments[index];
-                      final staffId = assignment['staff_id'] as String;
-                      final email = staffEmails[staffId] ?? 'Unknown';
+                      final staffId =
+                          activeAssignments[index]['staff_id'] as String;
                       return ListTile(
-                        leading: const Icon(Icons.person, color: Colors.green),
-                        title: Text(email),
+                        leading: const Icon(Icons.person_rounded,
+                            color: Color(0xFFA6E3A1)),
+                        title: Text(staffEmails[staffId] ?? 'Unknown'),
                       );
                     },
                   ),
@@ -266,24 +323,22 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
         ),
       );
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading assignments: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }
   }
 
-  Future<void> _reassignStaff(Request request) async {
+  Future<void> _reassignStaff(BuildContext context, Request request) async {
     try {
-      // Fetch users and roles
       final usersResponse = await _networkClient.get('/users/');
       final rolesResponse = await _networkClient.get('/roles/');
 
       final users = usersResponse.data['items'] as List;
       final roles = rolesResponse.data['items'] as List;
 
-      // Match users with STAFF role
       final staffList = users.where((user) {
         final role = roles.firstWhere(
           (r) => r['email'] == user['email'],
@@ -292,7 +347,7 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
         return role != null && role['role'] == 'STAFF';
       }).toList();
 
-      if (!mounted) return;
+      if (!context.mounted) return;
 
       final Set<String> selectedIds = {};
 
@@ -311,16 +366,19 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
                     request.description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6)),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Select one or more staff members:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  const Text('Select one or more staff members:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 300),
+                    constraints: const BoxConstraints(maxHeight: 280),
                     child: staffList.isEmpty
                         ? const Text('No staff members available.')
                         : ListView.builder(
@@ -382,20 +440,17 @@ class _AssignedRequestsPageState extends State<AssignedRequestsPage> {
           'request_id': request.id,
           'staff_ids': selectedIds.toList(),
         });
-        if (mounted) {
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  '${selectedIds.length} staff member(s) reassigned successfully'),
-            ),
+            SnackBar(content: Text('${selectedIds.length} staff reassigned')),
           );
           _loadRequests();
         }
       }
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error reassigning staff: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }

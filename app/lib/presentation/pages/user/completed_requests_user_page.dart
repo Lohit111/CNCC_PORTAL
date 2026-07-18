@@ -15,7 +15,7 @@ class _CompletedRequestsUserPageState extends State<CompletedRequestsUserPage> {
   final _networkClient = NetworkClient();
   List<Request> _requests = [];
   bool _isLoading = true;
-  String _filter = 'ALL'; // ALL, COMPLETED, REJECTED
+  String _filter = 'ALL';
 
   @override
   void initState() {
@@ -50,51 +50,47 @@ class _CompletedRequestsUserPageState extends State<CompletedRequestsUserPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Completed Requests'),
+        title: const Text('Completed'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadRequests,
           ),
         ],
       ),
       body: Column(
         children: [
-          _buildFilterChips(),
+          _buildFilterRow(),
           Expanded(child: _buildBody()),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChips() {
-    return Container(
-      padding: const EdgeInsets.all(16),
+  Widget _buildFilterRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Row(
         children: [
-          FilterChip(
-            label: const Text('All'),
-            selected: _filter == 'ALL',
-            onSelected: (selected) {
-              setState(() => _filter = 'ALL');
-            },
-          ),
+          _FilterPill(
+              label: 'All',
+              count: _requests.length,
+              selected: _filter == 'ALL',
+              onTap: () => setState(() => _filter = 'ALL')),
           const SizedBox(width: 8),
-          FilterChip(
-            label: const Text('Completed'),
-            selected: _filter == 'COMPLETED',
-            onSelected: (selected) {
-              setState(() => _filter = 'COMPLETED');
-            },
-          ),
+          _FilterPill(
+              label: 'Completed',
+              count: _requests.where((r) => r.status == 'COMPLETED').length,
+              color: const Color(0xFFA6E3A1),
+              selected: _filter == 'COMPLETED',
+              onTap: () => setState(() => _filter = 'COMPLETED')),
           const SizedBox(width: 8),
-          FilterChip(
-            label: const Text('Rejected'),
-            selected: _filter == 'REJECTED',
-            onSelected: (selected) {
-              setState(() => _filter = 'REJECTED');
-            },
-          ),
+          _FilterPill(
+              label: 'Rejected',
+              count: _requests.where((r) => r.status == 'REJECTED').length,
+              color: const Color(0xFFF38BA8),
+              selected: _filter == 'REJECTED',
+              onTap: () => setState(() => _filter = 'REJECTED')),
         ],
       ),
     );
@@ -105,53 +101,129 @@ class _CompletedRequestsUserPageState extends State<CompletedRequestsUserPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final filteredRequests = _filteredRequests;
+    final filtered = _filteredRequests;
 
-    if (filteredRequests.isEmpty) {
+    if (filtered.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.inbox, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text('No ${_filter.toLowerCase()} requests'),
+            Icon(Icons.task_alt_rounded,
+                size: 56,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.2)),
+            const SizedBox(height: 14),
+            Text(
+              'No ${_filter == 'ALL' ? 'archived' : _filter.toLowerCase()} requests',
+              style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.4),
+              ),
+            ),
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredRequests.length,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      itemCount: filtered.length,
       itemBuilder: (context, index) {
-        final request = filteredRequests[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            leading: Icon(
-              request.status == 'COMPLETED' ? Icons.check_circle : Icons.cancel,
-              color: request.status == 'COMPLETED' ? Colors.green : Colors.red,
-              size: 32,
-            ),
-            title: Text(
-              request.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              '${request.statusDisplayText}\n${_formatDate(request.createdAt)}',
-            ),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () {
-              Navigator.push(
+        final request = filtered[index];
+        final isCompleted = request.status == 'COMPLETED';
+        final color =
+            isCompleted ? const Color(0xFFA6E3A1) : const Color(0xFFF38BA8);
+        final cs = Theme.of(context).colorScheme;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Material(
+            color: cs.surface,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => RequestDetailPage(
-                    requestId: request.id,
-                  ),
+                  builder: (_) => RequestDetailPage(requestId: request.id),
                 ),
-              );
-            },
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        isCompleted
+                            ? Icons.check_circle_rounded
+                            : Icons.cancel_rounded,
+                        color: color,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            request.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: cs.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  request.statusDisplayText,
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: color,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                _formatDate(request.updatedAt),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: cs.onSurface.withValues(alpha: 0.4),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(Icons.chevron_right_rounded,
+                        color: cs.onSurface.withValues(alpha: 0.25), size: 20),
+                  ],
+                ),
+              ),
+            ),
           ),
         );
       },
@@ -160,5 +232,83 @@ class _CompletedRequestsUserPageState extends State<CompletedRequestsUserPage> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color? color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FilterPill({
+    required this.label,
+    required this.count,
+    this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final activeColor = color ?? cs.primary;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected
+              ? activeColor.withValues(alpha: 0.18)
+              : const Color(0xFF313244),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected
+                ? activeColor.withValues(alpha: 0.5)
+                : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected
+                    ? activeColor
+                    : cs.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            if (count > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? activeColor.withValues(alpha: 0.25)
+                      : cs.onSurface.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: selected
+                        ? activeColor
+                        : cs.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }

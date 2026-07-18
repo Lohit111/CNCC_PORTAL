@@ -21,13 +21,127 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Request Management System',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
+      title: 'CNCC Portal',
+      theme: _buildDarkTheme(),
+      darkTheme: _buildDarkTheme(),
+      themeMode: ThemeMode.dark,
       home: const HomeBuilder(),
       debugShowCheckedModeBanner: false,
+    );
+  }
+
+  ThemeData _buildDarkTheme() {
+    const seed = Color(0xFF6C63FF); // indigo-violet accent
+    final cs = ColorScheme.fromSeed(
+      seedColor: seed,
+      brightness: Brightness.dark,
+      surface: const Color(0xFF1E1E2E),
+      onSurface: const Color(0xFFCDD6F4),
+    );
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: cs,
+      scaffoldBackgroundColor: const Color(0xFF181825),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF1E1E2E),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF181825),
+        foregroundColor: Color(0xFFCDD6F4),
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          color: Color(0xFFCDD6F4),
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: const Color(0xFF1E1E2E),
+        indicatorColor: seed.withValues(alpha: 0.25),
+        labelTextStyle: WidgetStateProperty.all(
+          const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: seed,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: const Color(0xFF313244),
+        selectedColor: seed.withValues(alpha: 0.3),
+        labelStyle: const TextStyle(fontSize: 12),
+        side: BorderSide.none,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF313244),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: seed, width: 1.5),
+        ),
+        labelStyle: const TextStyle(color: Color(0xFF9399B2)),
+        hintStyle: const TextStyle(color: Color(0xFF6C7086)),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: seed,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: seed,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFCDD6F4),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        ),
+      ),
+      dividerTheme: DividerThemeData(
+        color: Colors.white.withValues(alpha: 0.08),
+        thickness: 1,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: const Color(0xFF1E1E2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titleTextStyle: const TextStyle(
+          color: Color(0xFFCDD6F4),
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: const Color(0xFF313244),
+        contentTextStyle: const TextStyle(color: Color(0xFFCDD6F4)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }
@@ -51,42 +165,42 @@ class HomeBuilder extends ConsumerWidget {
       return Scaffold(
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(32.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.red,
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(Icons.error_outline_rounded,
+                      size: 36, color: Colors.red),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 const Text(
                   'Authentication Error',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   authState.error!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red),
+                  style: TextStyle(
+                      color: Colors.red.withValues(alpha: 0.8), fontSize: 13),
                 ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    ref.read(authProvider.notifier).refresh();
-                  },
-                  child: const Text('Retry'),
+                const SizedBox(height: 28),
+                ElevatedButton.icon(
+                  onPressed: () => ref.read(authProvider.notifier).refresh(),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Retry'),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 OutlinedButton.icon(
-                  onPressed: () {
-                    ref.read(authProvider.notifier).logout();
-                  },
-                  icon: const Icon(Icons.logout),
+                  onPressed: () => ref.read(authProvider.notifier).logout(),
+                  icon: const Icon(Icons.logout_rounded, size: 18),
                   label: const Text('Logout'),
                 ),
               ],
@@ -118,15 +232,22 @@ class HomeBuilder extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.warning,
-                  size: 64,
-                  color: Colors.orange,
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(Icons.warning_amber_rounded,
+                      size: 36, color: Colors.orange),
                 ),
-                const SizedBox(height: 16),
-                Text('Unknown role: ${user.role}'),
-                const SizedBox(height: 8),
-                const Text('Please contact your administrator'),
+                const SizedBox(height: 20),
+                Text('Unknown role: ${user.role}',
+                    style: const TextStyle(fontSize: 16)),
+                const SizedBox(height: 6),
+                const Text('Please contact your administrator',
+                    style: TextStyle(color: Color(0xFF6C7086))),
               ],
             ),
           ),

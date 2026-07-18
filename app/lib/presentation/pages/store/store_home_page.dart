@@ -22,7 +22,8 @@ class _StoreHomePageState extends ConsumerState<StoreHomePage> {
         title: const Text('Store Dashboard'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Sign out',
             onPressed: () async {
               await fb.FirebaseAuth.instance.signOut();
             },
@@ -37,15 +38,15 @@ class _StoreHomePageState extends ConsumerState<StoreHomePage> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.pending),
+            icon: Icon(Icons.pending_rounded),
             label: 'Pending',
           ),
           NavigationDestination(
-            icon: Icon(Icons.check_circle),
+            icon: Icon(Icons.check_circle_rounded),
             label: 'Approved',
           ),
           NavigationDestination(
-            icon: Icon(Icons.archive),
+            icon: Icon(Icons.task_alt_rounded),
             label: 'Completed',
           ),
         ],

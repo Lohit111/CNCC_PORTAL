@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/domain/entities/store_request_entity.dart';
+import 'package:cncc_portal/presentation/pages/shared/store_chat_page.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 
 class MyStoreRequestsPage extends ConsumerStatefulWidget {
@@ -28,16 +29,14 @@ class _MyStoreRequestsPageState extends ConsumerState<MyStoreRequestsPage> {
     try {
       final response = await _networkClient.get('/store-requests/');
       final data = response.data;
-
-      // Filter by current user
       final user = ref.read(authProvider).user;
-      final allRequests = (data['items'] as List)
+      final all = (data['items'] as List)
           .map((json) => StoreRequest.fromJson(json))
           .toList();
 
       setState(() {
         _storeRequests =
-            allRequests.where((req) => req.requestedBy == user?.id).toList();
+            all.where((req) => req.requestedBy == user?.id).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -54,10 +53,10 @@ class _MyStoreRequestsPageState extends ConsumerState<MyStoreRequestsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Store Requests'),
+        title: const Text('Store Requests'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadStoreRequests,
           ),
         ],
@@ -65,260 +64,206 @@ class _MyStoreRequestsPageState extends ConsumerState<MyStoreRequestsPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _storeRequests.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.inventory, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('No store requests yet'),
-                    ],
-                  ),
-                )
+              ? _buildEmpty()
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                   itemCount: _storeRequests.length,
-                  itemBuilder: (context, index) {
-                    final request = _storeRequests[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ExpansionTile(
-                        title: Text(
-                          request.description,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                  itemBuilder: (context, index) => _StoreRequestCard(
+                    request: _storeRequests[index],
+                    onOpenChat: (req) => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => StoreChatPage(
+                          storeRequestId: req.id,
+                          myRole: 'STAFF',
+                          title: 'Chat with Store',
                         ),
-                        subtitle: Text(
-                          'Status: ${request.status}\n${_formatDate(request.createdAt)}',
-                        ),
-                        trailing: _getStatusChip(request.status),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _buildInfoRow('Parent Request',
-                                    request.parentRequestId.substring(0, 8)),
-                                const SizedBox(height: 8),
-                                _buildInfoRow(
-                                    'Created', _formatDate(request.createdAt)),
-                                const SizedBox(height: 8),
-                                _buildInfoRow(
-                                    'Updated', _formatDate(request.updatedAt)),
-                                if (request.responseComment != null) ...[
-                                  const Divider(height: 24),
-                                  const Text(
-                                    'Store Response:',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.shade100,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(request.responseComment!),
-                                  ),
-                                ],
-                                if (request.status == 'APPROVED') ...[
-                                  const Divider(height: 24),
-                                  ElevatedButton.icon(
-                                    onPressed: () => _openChat(request),
-                                    icon: const Icon(Icons.chat),
-                                    label: const Text('Chat with Store'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.grey,
-          ),
-        ),
-        Text(value),
-      ],
-    );
-  }
-
-  Widget _getStatusChip(String status) {
-    Color color;
-    switch (status) {
-      case 'PENDING':
-        color = Colors.orange;
-        break;
-      case 'APPROVED':
-        color = Colors.blue;
-        break;
-      case 'REJECTED':
-        color = Colors.red;
-        break;
-      case 'FULFILLED':
-        color = Colors.green;
-        break;
-      default:
-        color = Colors.grey;
-    }
-
-    return Chip(
-      label: Text(
-        status,
-        style: const TextStyle(color: Colors.white, fontSize: 12),
+  Widget _buildEmpty() {
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inventory_2_rounded,
+              size: 56, color: cs.onSurface.withValues(alpha: 0.2)),
+          const SizedBox(height: 14),
+          Text('No store requests yet',
+              style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5))),
+        ],
       ),
-      backgroundColor: color,
-      padding: EdgeInsets.zero,
     );
   }
+}
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
+class _StoreRequestCard extends StatelessWidget {
+  final StoreRequest request;
+  final void Function(StoreRequest) onOpenChat;
 
-  Future<void> _openChat(StoreRequest request) async {
-    try {
-      final response =
-          await _networkClient.get('/store-requests/${request.id}/chat');
-      final chats = response.data as List;
+  const _StoreRequestCard({required this.request, required this.onOpenChat});
 
-      if (!mounted) return;
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = _statusColor(request.status);
 
-      final messageController = TextEditingController();
-
-      showDialog(
-        context: context,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Chat with Store'),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 400,
-              child: Column(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: Row(
                 children: [
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: chats.length,
-                      itemBuilder: (context, index) {
-                        final chat = chats[index];
-                        final isMe = chat['sender_role'] == 'STAFF';
-                        return Align(
-                          alignment: isMe
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isMe
-                                  ? Colors.blue.shade100
-                                  : Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            constraints: const BoxConstraints(maxWidth: 250),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  chat['message'],
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  chat['sender_role'],
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
                     ),
+                    child: Icon(_statusIcon(request.status),
+                        color: color, size: 20),
                   ),
-                  const Divider(),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: messageController,
-                          decoration: const InputDecoration(
-                            hintText: 'Type a message...',
-                            border: OutlineInputBorder(),
-                          ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          request.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: cs.onSurface),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.send),
-                        onPressed: () async {
-                          if (messageController.text.isEmpty) return;
-
-                          try {
-                            await _networkClient.post(
-                              '/store-requests/${request.id}/chat',
-                              data: {'message': messageController.text},
-                            );
-                            messageController.clear();
-
-                            // Reload chat
-                            final newResponse = await _networkClient.get(
-                              '/store-requests/${request.id}/chat',
-                            );
-                            setDialogState(() {
-                              chats.clear();
-                              chats.addAll(newResponse.data as List);
-                            });
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error: $e')),
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Text(
+                                request.statusDisplayText,
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: color),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _formatDate(request.updatedAt),
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: cs.onSurface.withValues(alpha: 0.4)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
+            if (request.responseComment != null &&
+                request.responseComment!.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.store_rounded,
+                          size: 13, color: cs.onSurface.withValues(alpha: 0.4)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          request.responseComment!,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: cs.onSurface.withValues(alpha: 0.7)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
-          ),
+            if (request.status == 'APPROVED') ...[
+              Divider(height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => onOpenChat(request),
+                    icon: const Icon(Icons.chat_rounded, size: 16),
+                    label: const Text('Chat with Store',
+                        style: TextStyle(fontSize: 13)),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading chat: $e')),
-        );
-      }
+      ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'PENDING':
+        return const Color(0xFFF9E2AF);
+      case 'APPROVED':
+        return const Color(0xFF89B4FA);
+      case 'REJECTED':
+        return const Color(0xFFF38BA8);
+      case 'FULFILLED':
+        return const Color(0xFFA6E3A1);
+      default:
+        return const Color(0xFF6C7086);
     }
   }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'PENDING':
+        return Icons.pending_rounded;
+      case 'APPROVED':
+        return Icons.check_circle_rounded;
+      case 'REJECTED':
+        return Icons.cancel_rounded;
+      case 'FULFILLED':
+        return Icons.done_all_rounded;
+      default:
+        return Icons.help_outline_rounded;
+    }
+  }
+
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 }

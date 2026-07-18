@@ -57,25 +57,23 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
                 controller: emailController,
                 decoration: const InputDecoration(
                   labelText: 'Email',
-                  border: OutlineInputBorder(),
+                  hintText: 'user@example.com',
                 ),
+                keyboardType: TextInputType.emailAddress,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                 initialValue: selectedRole,
-                decoration: const InputDecoration(
-                  labelText: 'Role',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Role'),
+                dropdownColor: const Color(0xFF313244),
                 items: const [
                   DropdownMenuItem(value: 'USER', child: Text('USER')),
                   DropdownMenuItem(value: 'ADMIN', child: Text('ADMIN')),
                   DropdownMenuItem(value: 'STAFF', child: Text('STAFF')),
                   DropdownMenuItem(value: 'STORE', child: Text('STORE')),
                 ],
-                onChanged: (value) {
-                  setDialogState(() => selectedRole = value!);
-                },
+                onChanged: (value) =>
+                    setDialogState(() => selectedRole = value!),
               ),
             ],
           ),
@@ -86,21 +84,22 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
             ),
             ElevatedButton(
               onPressed: () async {
+                final email = emailController.text.trim();
+                if (email.isEmpty) return;
                 try {
                   await _networkClient.post('/roles/', data: {
-                    'email': emailController.text,
+                    'email': email,
                     'role': selectedRole,
                   });
-                  if (mounted) {
+                  if (context.mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Role created successfully')),
+                      const SnackBar(content: Text('Role created')),
                     );
                     _loadRoles();
                   }
                 } catch (e) {
-                  if (mounted) {
+                  if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Error: $e')),
                     );
@@ -124,16 +123,25 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text('Update Role: ${role.email}'),
+          title: const Text('Update Role'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                role.email,
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6)),
+              ),
+              const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                 initialValue: selectedRole,
-                decoration: const InputDecoration(
-                  labelText: 'Role',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Role'),
+                dropdownColor: const Color(0xFF313244),
                 items: const [
                   DropdownMenuItem(value: 'USER', child: Text('USER')),
                   DropdownMenuItem(value: 'ADMIN', child: Text('ADMIN')),
@@ -142,33 +150,32 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
                 ],
                 onChanged: isUpdating
                     ? null
-                    : (value) {
-                        setDialogState(() {
+                    : (value) => setDialogState(() {
                           selectedRole = value!;
                           errorMessage = null;
-                        });
-                      },
+                        }),
               ),
               if (errorMessage != null) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    border: Border.all(color: Colors.red.shade200),
+                    color: const Color(0xFFF38BA8).withValues(alpha: 0.1),
+                    border: Border.all(
+                        color: const Color(0xFFF38BA8).withValues(alpha: 0.3)),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.warning_amber_rounded,
-                          color: Colors.red.shade700, size: 18),
+                      const Icon(Icons.warning_amber_rounded,
+                          color: Color(0xFFF38BA8), size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           errorMessage!,
-                          style: TextStyle(
-                              color: Colors.red.shade800, fontSize: 13),
+                          style: const TextStyle(
+                              color: Color(0xFFF38BA8), fontSize: 12),
                         ),
                       ),
                     ],
@@ -179,33 +186,27 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
           ),
           actions: [
             TextButton(
-              onPressed:
-                  isUpdating ? null : () => Navigator.pop(context),
+              onPressed: isUpdating ? null : () => Navigator.pop(context),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: isUpdating
                   ? null
                   : () async {
-                      setDialogState(() {
-                        isUpdating = true;
-                        errorMessage = null;
-                      });
+                      setDialogState(() => isUpdating = true);
                       try {
                         await _networkClient.put('/roles/${role.email}',
                             data: {'role': selectedRole});
-                        if (mounted) {
+                        if (context.mounted) {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Role updated successfully')),
+                            const SnackBar(content: Text('Role updated')),
                           );
                           _loadRoles();
                         }
                       } catch (e) {
                         String message = 'Failed to update role.';
-                        if (e is DioException &&
-                            e.response?.data != null) {
+                        if (e is DioException && e.response?.data != null) {
                           final detail = e.response!.data['detail'];
                           if (detail != null) message = detail.toString();
                         }
@@ -219,7 +220,8 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
                     )
                   : const Text('Update'),
             ),
@@ -229,16 +231,16 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manage Roles'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadRoles,
           ),
         ],
@@ -246,52 +248,89 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _roles.isEmpty
-              ? const Center(child: Text('No roles found'))
+              ? Center(
+                  child: Text('No roles found',
+                      style: TextStyle(
+                          color: cs.onSurface.withValues(alpha: 0.4))))
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
                   itemCount: _roles.length,
                   itemBuilder: (context, index) {
                     final role = _roles[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        title: Text(role.email),
-                        subtitle:
-                            Text('Created: ${_formatDate(role.createdAt)}'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _getRoleColor(role.role),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                role.role,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                    final roleColor = _roleColor(role.role);
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: cs.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: cs.onSurface.withValues(alpha: 0.06)),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
+                          leading: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: roleColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.person_rounded,
+                                color: roleColor, size: 18),
+                          ),
+                          title: Text(role.email,
+                              style:
+                                  TextStyle(fontSize: 14, color: cs.onSurface)),
+                          subtitle: Text(
+                            _formatDate(role.createdAt),
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: cs.onSurface.withValues(alpha: 0.4)),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: roleColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  role.role,
+                                  style: TextStyle(
+                                    color: roleColor,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
-                            ),
-                            PopupMenuButton(
-                              itemBuilder: (context) => [
-                                const PopupMenuItem(
-                                  value: 'edit',
-                                  child: Text('Edit'),
-                                ),
-                              ],
-                              onSelected: (value) {
-                                if (value == 'edit') {
-                                  _showUpdateRoleDialog(role);
-                                }
-                              },
-                            ),
-                          ],
+                              PopupMenuButton<String>(
+                                color: const Color(0xFF313244),
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.edit_rounded, size: 16),
+                                        SizedBox(width: 8),
+                                        Text('Edit'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                onSelected: (value) {
+                                  if (value == 'edit') {
+                                    _showUpdateRoleDialog(role);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -299,27 +338,25 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
                 ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateRoleDialog,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add_rounded),
       ),
     );
   }
 
-  Color _getRoleColor(String role) {
+  Color _roleColor(String role) {
     switch (role) {
       case 'ADMIN':
-        return Colors.red;
+        return const Color(0xFFF38BA8);
       case 'STAFF':
-        return Colors.blue;
+        return const Color(0xFF89B4FA);
       case 'STORE':
-        return Colors.green;
+        return const Color(0xFFA6E3A1);
       case 'USER':
-        return Colors.orange;
+        return const Color(0xFFFAB387);
       default:
-        return Colors.grey;
+        return const Color(0xFF6C7086);
     }
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 }

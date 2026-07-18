@@ -29,20 +29,17 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
       final user = ref.read(authProvider).user;
       if (user == null) return;
 
-      // Get my assignments
       final assignmentsResponse = await _networkClient.get(
         '/assignments/staff/${user.id}',
         queryParameters: {'active_only': true},
       );
       final assignments = assignmentsResponse.data as List;
 
-      // Get all requests
       final requestsResponse = await _networkClient.get('/requests/');
       final allRequests = (requestsResponse.data['items'] as List)
           .map((json) => Request.fromJson(json))
           .toList();
 
-      // Filter requests that are assigned to me and status is ASSIGNED
       final assignedRequestIds =
           assignments.map((a) => a['request_id']).toSet();
       setState(() {
@@ -66,7 +63,7 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
         title: const Text('Assigned to Me'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _loadRequests,
           ),
         ],
@@ -76,76 +73,40 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
   }
 
   Widget _buildBody() {
+    final cs = Theme.of(context).colorScheme;
+
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (_requests.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No new assignments'),
-            SizedBox(height: 8),
-            Text(
-              'Requests assigned to you will appear here',
-              style: TextStyle(color: Colors.grey),
-            ),
+            Icon(Icons.inbox_rounded,
+                size: 64, color: cs.onSurface.withValues(alpha: 0.2)),
+            const SizedBox(height: 16),
+            Text('No new assignments',
+                style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5))),
+            const SizedBox(height: 8),
+            Text('Requests assigned to you will appear here',
+                style: TextStyle(color: cs.onSurface.withValues(alpha: 0.35))),
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: _requests.length,
       itemBuilder: (context, index) {
         final request = _requests[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ExpansionTile(
-            leading: const Icon(Icons.assignment_ind, color: Colors.purple),
-            title: Text(
-              request.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text('ID: ${request.id.substring(0, 8)}...'),
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('Full Description: ${request.description}'),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () => _viewAssignedStaff(request),
-                      icon: const Icon(Icons.people, size: 18),
-                      label: const Text('View Assigned Staff'),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: () => _showStartWorkDialog(request),
-                      icon: const Icon(Icons.play_arrow),
-                      label: const Text('Start Working'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    OutlinedButton.icon(
-                      onPressed: () => _showReassignDialog(request),
-                      icon: const Icon(Icons.swap_horiz),
-                      label: const Text('Request Reassignment'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        return _AssignedCard(
+          request: request,
+          onViewStaff: () => _viewAssignedStaff(request),
+          onStartWork: () => _showStartWorkDialog(request),
+          onReassign: () => _showReassignDialog(request),
         );
       },
     );
@@ -176,12 +137,14 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
 
       if (!mounted) return;
 
+      final cs = Theme.of(context).colorScheme;
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Assigned Staff'),
           content: activeAssignments.isEmpty
-              ? const Text('No active staff assigned.')
+              ? Text('No active staff assigned.',
+                  style: TextStyle(color: cs.onSurface.withValues(alpha: 0.7)))
               : SizedBox(
                   width: double.maxFinite,
                   child: ListView.builder(
@@ -191,7 +154,8 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
                       final staffId =
                           activeAssignments[index]['staff_id'] as String;
                       return ListTile(
-                        leading: const Icon(Icons.person, color: Colors.green),
+                        leading: const Icon(Icons.person_rounded,
+                            color: Color(0xFFA6E3A1)),
                         title: Text(staffEmails[staffId] ?? 'Unknown'),
                       );
                     },
@@ -225,14 +189,23 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Request: ${request.description}'),
+            Text(
+              request.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.7)),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: commentController,
               decoration: const InputDecoration(
                 labelText: 'Comment (optional)',
                 hintText: 'What are you planning to do?',
-                border: OutlineInputBorder(),
               ),
               maxLines: 3,
             ),
@@ -271,7 +244,7 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
             builder: (context) => AlertDialog(
               title: const Row(
                 children: [
-                  Icon(Icons.sync_problem, color: Colors.orange),
+                  Icon(Icons.sync_problem_rounded, color: Color(0xFFF9E2AF)),
                   SizedBox(width: 8),
                   Text('Stale State'),
                 ],
@@ -305,19 +278,26 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Request: ${request.description}'),
+              Text(
+                request.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.7)),
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: commentController,
                 decoration: const InputDecoration(
                   labelText: 'Reason for Reassignment (required)',
                   hintText: 'Why do you need this reassigned?',
-                  border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
-                onChanged: (value) {
-                  setState(() {}); // Rebuild to enable/disable button
-                },
+                onChanged: (value) => setState(() {}),
               ),
             ],
           ),
@@ -330,7 +310,10 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
               onPressed: commentController.text.trim().isEmpty
                   ? null
                   : () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFAB387),
+                foregroundColor: Colors.black87,
+              ),
               child: const Text('Request Reassignment'),
             ),
           ],
@@ -358,7 +341,7 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
             builder: (context) => AlertDialog(
               title: const Row(
                 children: [
-                  Icon(Icons.sync_problem, color: Colors.orange),
+                  Icon(Icons.sync_problem_rounded, color: Color(0xFFF9E2AF)),
                   SizedBox(width: 8),
                   Text('Stale State'),
                 ],
@@ -378,5 +361,115 @@ class _AssignedToMePageState extends ConsumerState<AssignedToMePage> {
         }
       }
     }
+  }
+}
+
+class _AssignedCard extends StatelessWidget {
+  final Request request;
+  final VoidCallback onViewStaff;
+  final VoidCallback onStartWork;
+  final VoidCallback onReassign;
+
+  const _AssignedCard({
+    required this.request,
+    required this.onViewStaff,
+    required this.onStartWork,
+    required this.onReassign,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    const accent = Color(0xFFCBA6F7);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: accent.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.assignment_ind_rounded,
+                        color: accent, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          request.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: cs.onSurface),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${request.createdAt.day}/${request.createdAt.month}/${request.createdAt.year}',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: cs.onSurface.withValues(alpha: 0.4)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onViewStaff,
+                    icon: const Icon(Icons.people_rounded, size: 16),
+                    label: const Text('View Assigned Staff',
+                        style: TextStyle(fontSize: 13)),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: onStartWork,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFA6E3A1),
+                      foregroundColor: Colors.black87,
+                    ),
+                    icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                    label: const Text('Start Working',
+                        style: TextStyle(fontSize: 13)),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: onReassign,
+                    icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                    label: const Text('Request Reassignment',
+                        style: TextStyle(fontSize: 13)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
