@@ -22,48 +22,47 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CNCC Portal',
-      theme: _buildDarkTheme(),
-      darkTheme: _buildDarkTheme(),
-      themeMode: ThemeMode.dark,
+      theme: _buildLightTheme(),
+      themeMode: ThemeMode.light,
       home: const HomeBuilder(),
       debugShowCheckedModeBanner: false,
     );
   }
 
-  ThemeData _buildDarkTheme() {
+  ThemeData _buildLightTheme() {
     const seed = Color(0xFF6C63FF); // indigo-violet accent
     final cs = ColorScheme.fromSeed(
       seedColor: seed,
-      brightness: Brightness.dark,
-      surface: const Color(0xFF1E1E2E),
-      onSurface: const Color(0xFFCDD6F4),
+      brightness: Brightness.light,
+      surface: Colors.white,
+      onSurface: const Color(0xFF1C1B1F),
     );
     return ThemeData(
       useMaterial3: true,
       colorScheme: cs,
-      scaffoldBackgroundColor: const Color(0xFF181825),
+      scaffoldBackgroundColor: const Color(0xFFF4F4F8),
       cardTheme: CardThemeData(
-        color: const Color(0xFF1E1E2E),
+        color: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          side: BorderSide(color: Colors.black.withValues(alpha: 0.06)),
         ),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF181825),
-        foregroundColor: Color(0xFFCDD6F4),
+        backgroundColor: Color(0xFFF4F4F8),
+        foregroundColor: Color(0xFF1C1B1F),
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          color: Color(0xFFCDD6F4),
+          color: Color(0xFF1C1B1F),
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: const Color(0xFF1E1E2E),
-        indicatorColor: seed.withValues(alpha: 0.25),
+        backgroundColor: Colors.white,
+        indicatorColor: seed.withValues(alpha: 0.18),
         labelTextStyle: WidgetStateProperty.all(
           const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         ),
@@ -74,29 +73,29 @@ class MyApp extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: const Color(0xFF313244),
-        selectedColor: seed.withValues(alpha: 0.3),
+        backgroundColor: const Color(0xFFE8EAF0),
+        selectedColor: seed.withValues(alpha: 0.2),
         labelStyle: const TextStyle(fontSize: 12),
         side: BorderSide.none,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF313244),
+        fillColor: const Color(0xFFEEEEF5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: seed, width: 1.5),
         ),
-        labelStyle: const TextStyle(color: Color(0xFF9399B2)),
-        hintStyle: const TextStyle(color: Color(0xFF6C7086)),
+        labelStyle: const TextStyle(color: Color(0xFF6B6B80)),
+        hintStyle: const TextStyle(color: Color(0xFF9E9EAF)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -116,29 +115,29 @@ class MyApp extends StatelessWidget {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFFCDD6F4),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+          foregroundColor: const Color(0xFF1C1B1F),
+          side: BorderSide(color: Colors.black.withValues(alpha: 0.15)),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.black.withValues(alpha: 0.08),
         thickness: 1,
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: const Color(0xFF1E1E2E),
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         titleTextStyle: const TextStyle(
-          color: Color(0xFFCDD6F4),
+          color: Color(0xFF1C1B1F),
           fontSize: 18,
           fontWeight: FontWeight.w600,
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: const Color(0xFF313244),
-        contentTextStyle: const TextStyle(color: Color(0xFFCDD6F4)),
+        contentTextStyle: const TextStyle(color: Colors.white),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         behavior: SnackBarBehavior.floating,
       ),
