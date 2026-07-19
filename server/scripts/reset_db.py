@@ -18,6 +18,8 @@ conn = psycopg2.connect(DATABASE_URL)
 conn.autocommit = True
 cur = conn.cursor()
 
+SKIP_TABLES = {"users", "roles"}
+
 cur.execute("""
 SELECT tablename
 FROM pg_tables
@@ -27,8 +29,11 @@ WHERE schemaname='public';
 tables = cur.fetchall()
 
 for (table,) in tables:
-    print("Dropping", table)
-    cur.execute(f'DROP TABLE IF EXISTS public."{table}" CASCADE;')
+    if table in SKIP_TABLES:
+        print(f"Skipping  {table}")
+        continue
+    print(f"Truncating {table}")
+    cur.execute(f'TRUNCATE TABLE public."{table}" CASCADE;')
 
 cur.close()
 conn.close()

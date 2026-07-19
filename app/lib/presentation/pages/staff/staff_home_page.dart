@@ -5,6 +5,7 @@ import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/domain/entities/type_entity.dart';
 import 'package:cncc_portal/presentation/pages/shared/create_request_dialog.dart';
 import 'package:cncc_portal/presentation/pages/shared/my_requests_page.dart';
+import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
 import 'package:cncc_portal/presentation/pages/staff/assigned_to_me_page.dart';
 import 'package:cncc_portal/presentation/pages/staff/in_progress_page.dart';
 import 'package:cncc_portal/presentation/pages/staff/completed_by_me_page.dart';
@@ -17,6 +18,7 @@ enum _StaffPage {
   completed,
   storeRequests,
   myRequests,
+  profile,
 }
 
 // ── Sidebar item model ────────────────────────────────────────────────────────
@@ -45,6 +47,7 @@ const _sections = [
     title: 'Personal',
     items: [
       _SidebarItem(_StaffPage.myRequests, Icons.person_rounded, 'My Requests'),
+      _SidebarItem(_StaffPage.profile, Icons.account_circle_rounded, 'Profile'),
     ],
   ),
 ];
@@ -147,6 +150,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
         return const MyStoreRequestsPage();
       case _StaffPage.myRequests:
         return MyRequestsPage(key: _myRequestsKey);
+      case _StaffPage.profile:
+        return const ProfilePage();
     }
   }
 }

@@ -19,6 +19,8 @@ class RequestTable(Base):
     main_type_id = Column(Integer, ForeignKey("main_types.id"), nullable=False)
     sub_type_id = Column(Integer, ForeignKey("sub_types.id"), nullable=False)
     description = Column(Text, nullable=False)
+    room_no = Column(String, nullable=False)
+    phone_no = Column(String(10), nullable=False)
     status = Column(String, default="RAISED", nullable=False, index=True)
     is_active = Column(String, default="true", nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -43,6 +45,8 @@ class Request(BaseModel):
     main_type_id: int = Field()
     sub_type_id: int = Field()
     description: str = Field()
+    room_no: str = Field()
+    phone_no: str = Field()
     status: str = Field(default="RAISED")
     is_active: str = Field(default="true")
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -60,6 +64,8 @@ class Request(BaseModel):
             main_type_id=int(request_table.main_type_id),
             sub_type_id=int(request_table.sub_type_id),
             description=str(request_table.description),
+            room_no=str(request_table.room_no),
+            phone_no=str(request_table.phone_no),
             status=str(request_table.status),
             is_active=str(request_table.is_active),
             created_at=request_table.created_at,

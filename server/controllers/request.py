@@ -33,6 +33,25 @@ class RequestController:
                 raise HTTPException(
                     status_code=400, detail="Sub type does not belong to main type")
 
+            # Validate room_no and phone_no
+            room_no = data.get("room_no", "").strip()
+            phone_no = data.get("phone_no", "").strip()
+
+            if not room_no:
+                raise HTTPException(
+                    status_code=400, detail="room_no is required")
+
+            if not phone_no:
+                raise HTTPException(
+                    status_code=400, detail="phone_no is required")
+
+            if len(phone_no) != 10 or not phone_no.isdigit():
+                raise HTTPException(
+                    status_code=400, detail="phone_no must be exactly 10 digits")
+
+            data["room_no"] = room_no
+            data["phone_no"] = phone_no
+
             # Extract role before passing data to the model (not a table column)
             raised_by_role = data.pop("raised_by_role", "USER")
 

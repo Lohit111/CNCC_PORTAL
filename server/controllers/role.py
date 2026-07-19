@@ -170,6 +170,13 @@ class RoleController:
         try:
             logger.info(f"Deleting role: {email}")
 
+            exists = Role.get(db, {"email": email})
+            if not exists:
+                raise HTTPException(status_code=404, detail="Role not found")
+
+            # Block the delete if user has any pending/active work
+            RoleController._check_user_pending_work(db, email)
+
             deleted = Role.delete(db, {"email": email})
             if not deleted:
                 raise HTTPException(status_code=404, detail="Role not found")

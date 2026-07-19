@@ -5,6 +5,7 @@ import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/domain/entities/type_entity.dart';
 import 'package:cncc_portal/presentation/pages/shared/create_request_dialog.dart';
 import 'package:cncc_portal/presentation/pages/shared/my_requests_page.dart';
+import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/raised_requests_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/replied_requests_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/assigned_requests_page.dart';
@@ -21,6 +22,7 @@ enum _AdminPage {
   manageRoles,
   manageTypes,
   myRequests,
+  profile,
 }
 
 // ── Sidebar item model ────────────────────────────────────────────────────────
@@ -54,6 +56,7 @@ const _sections = [
   ]),
   _SidebarSection('Personal', [
     _SidebarItem(_AdminPage.myRequests, Icons.person_rounded, 'My Requests'),
+    _SidebarItem(_AdminPage.profile, Icons.account_circle_rounded, 'Profile'),
   ]),
 ];
 
@@ -157,6 +160,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
         return const ManageTypesPage();
       case _AdminPage.myRequests:
         return MyRequestsPage(key: _myRequestsKey);
+      case _AdminPage.profile:
+        return const ProfilePage();
     }
   }
 }

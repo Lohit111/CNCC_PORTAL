@@ -114,6 +114,55 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
     );
   }
 
+  Future<void> _deleteRole(Role role) async {
+    // Confirm first
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Role'),
+        content: Text(
+          'Are you sure you want to delete the role for ${role.email}?\n\nThis cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF38BA8),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _networkClient.delete('/roles/${role.email}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Role deleted for ${role.email}')),
+        );
+        _loadRoles();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      String message = 'Failed to delete role.';
+      if (e is DioException && e.response?.data != null) {
+        final detail = e.response!.data['detail'];
+        if (detail != null) message = detail.toString();
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
   void _showUpdateRoleDialog(Role role) {
     String selectedRole = role.role;
     bool isUpdating = false;
@@ -322,10 +371,25 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
                                       ],
                                     ),
                                   ),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete_rounded,
+                                            size: 16, color: Color(0xFFF38BA8)),
+                                        SizedBox(width: 8),
+                                        Text('Delete',
+                                            style: TextStyle(
+                                                color: Color(0xFFF38BA8))),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                                 onSelected: (value) {
                                   if (value == 'edit') {
                                     _showUpdateRoleDialog(role);
+                                  } else if (value == 'delete') {
+                                    _deleteRole(role);
                                   }
                                 },
                               ),

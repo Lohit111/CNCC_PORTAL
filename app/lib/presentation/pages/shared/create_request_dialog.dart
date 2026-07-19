@@ -16,6 +16,8 @@ class CreateRequestDialog extends StatefulWidget {
 class _CreateRequestDialogState extends State<CreateRequestDialog> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
+  final _roomNoController = TextEditingController();
+  final _phoneNoController = TextEditingController();
   final _networkClient = NetworkClient();
 
   MainType? _selectedMainType;
@@ -47,6 +49,8 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
         'main_type_id': _selectedMainType!.id,
         'sub_type_id': _selectedSubType!.id,
         'description': _descriptionController.text,
+        'room_no': _roomNoController.text.trim(),
+        'phone_no': _phoneNoController.text.trim(),
       });
 
       if (mounted) {
@@ -125,6 +129,40 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
                   return null;
                 },
               ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _roomNoController,
+                decoration: const InputDecoration(
+                  labelText: 'Room No',
+                  hintText: 'e.g. A-101',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a room number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _phoneNoController,
+                decoration: const InputDecoration(
+                  labelText: 'Phone No',
+                  hintText: '10-digit phone number',
+                ),
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a phone number';
+                  }
+                  if (value.trim().length != 10 ||
+                      !RegExp(r'^\d{10}$').hasMatch(value.trim())) {
+                    return 'Phone number must be exactly 10 digits';
+                  }
+                  return null;
+                },
+              ),
             ],
           ),
         ),
@@ -152,6 +190,8 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
   @override
   void dispose() {
     _descriptionController.dispose();
+    _roomNoController.dispose();
+    _phoneNoController.dispose();
     super.dispose();
   }
 }
