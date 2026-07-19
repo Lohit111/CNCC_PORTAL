@@ -126,9 +126,8 @@ class _FulfilledRejectedPageState extends State<FulfilledRejectedPage> {
       itemBuilder: (context, index) {
         final request = list[index];
         final isFulfilled = request.status == 'FULFILLED';
-        final color = isFulfilled
-            ? const Color(0xFFA6E3A1)
-            : const Color(0xFFF38BA8);
+        final color =
+            isFulfilled ? const Color(0xFFA6E3A1) : const Color(0xFFF38BA8);
         final cs = Theme.of(context).colorScheme;
 
         return Padding(
@@ -198,8 +197,8 @@ class _FulfilledRejectedPageState extends State<FulfilledRejectedPage> {
                                   _formatDate(request.updatedAt),
                                   style: TextStyle(
                                       fontSize: 11,
-                                      color: cs.onSurface
-                                          .withValues(alpha: 0.4)),
+                                      color:
+                                          cs.onSurface.withValues(alpha: 0.4)),
                                 ),
                               ],
                             ),
@@ -231,8 +230,7 @@ class _FulfilledRejectedPageState extends State<FulfilledRejectedPage> {
                               request.responseComment!,
                               style: TextStyle(
                                   fontSize: 12,
-                                  color: cs.onSurface
-                                      .withValues(alpha: 0.7)),
+                                  color: cs.onSurface.withValues(alpha: 0.7)),
                             ),
                           ),
                         ],
@@ -242,8 +240,7 @@ class _FulfilledRejectedPageState extends State<FulfilledRejectedPage> {
                 ],
                 if (isFulfilled) ...[
                   Divider(
-                      height: 1,
-                      color: cs.onSurface.withValues(alpha: 0.06)),
+                      height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                     child: OutlinedButton.icon(
@@ -271,8 +268,7 @@ class _FulfilledRejectedPageState extends State<FulfilledRejectedPage> {
     );
   }
 
-  String _formatDate(DateTime date) =>
-      '${date.day}/${date.month}/${date.year}';
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 }
 
 class _FilterPill extends StatelessWidget {
@@ -303,7 +299,7 @@ class _FilterPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? activeColor.withValues(alpha: 0.18)
-              : const Color(0xFF313244),
+              : const Color.fromARGB(255, 234, 249, 248),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected
@@ -318,8 +314,7 @@ class _FilterPill extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 12,
-                fontWeight:
-                    selected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 color: selected
                     ? activeColor
                     : cs.onSurface.withValues(alpha: 0.6),
@@ -328,8 +323,7 @@ class _FilterPill extends StatelessWidget {
             if (count > 0) ...[
               const SizedBox(width: 6),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
                   color: selected
                       ? activeColor.withValues(alpha: 0.25)

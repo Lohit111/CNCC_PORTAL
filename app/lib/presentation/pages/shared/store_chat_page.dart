@@ -212,7 +212,7 @@ class _StoreChatPageState extends State<StoreChatPage> {
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: const Color(0xFF313244),
+                fillColor: const Color.fromARGB(255, 234, 249, 248),
               ),
               maxLines: null,
             ),
@@ -263,8 +263,9 @@ class _ChatBubble extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     const storeColor = Color(0xFFA6E3A1);
     const staffColor = Color(0xFF89B4FA);
-    final bubbleColor =
-        isMe ? cs.primary.withValues(alpha: 0.25) : const Color(0xFF313244);
+    final bubbleColor = isMe
+        ? cs.primary.withValues(alpha: 0.25)
+        : const Color.fromARGB(255, 234, 249, 248);
     final roleColor = senderRole == 'STORE' ? storeColor : staffColor;
 
     return Padding(

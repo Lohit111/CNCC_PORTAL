@@ -65,7 +65,7 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
               DropdownButtonFormField<String>(
                 initialValue: selectedRole,
                 decoration: const InputDecoration(labelText: 'Role'),
-                dropdownColor: const Color(0xFF313244),
+                dropdownColor: const Color.fromARGB(255, 234, 249, 248),
                 items: const [
                   DropdownMenuItem(value: 'USER', child: Text('USER')),
                   DropdownMenuItem(value: 'ADMIN', child: Text('ADMIN')),
@@ -141,7 +141,7 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
               DropdownButtonFormField<String>(
                 initialValue: selectedRole,
                 decoration: const InputDecoration(labelText: 'Role'),
-                dropdownColor: const Color(0xFF313244),
+                dropdownColor: const Color.fromARGB(255, 234, 249, 248),
                 items: const [
                   DropdownMenuItem(value: 'USER', child: Text('USER')),
                   DropdownMenuItem(value: 'ADMIN', child: Text('ADMIN')),
@@ -310,7 +310,7 @@ class _ManageRolesPageState extends State<ManageRolesPage> {
                                 ),
                               ),
                               PopupMenuButton<String>(
-                                color: const Color(0xFF313244),
+                                color: const Color.fromARGB(255, 234, 249, 248),
                                 itemBuilder: (context) => [
                                   const PopupMenuItem(
                                     value: 'edit',

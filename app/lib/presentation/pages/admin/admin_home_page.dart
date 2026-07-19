@@ -176,7 +176,7 @@ class _AdminDrawer extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Drawer(
-      backgroundColor: const Color(0xFF1E1E2E),
+      backgroundColor: cs.surfaceContainerLow,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,7 +237,7 @@ class _AdminDrawer extends StatelessWidget {
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.2,
-                          color: cs.onSurface.withValues(alpha: 0.35),
+                          color: cs.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ),

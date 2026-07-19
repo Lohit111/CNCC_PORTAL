@@ -136,7 +136,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: const Color(0xFF313244),
+        backgroundColor: const Color.fromARGB(255, 234, 249, 248),
         contentTextStyle: const TextStyle(color: Colors.white),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         behavior: SnackBarBehavior.floating,

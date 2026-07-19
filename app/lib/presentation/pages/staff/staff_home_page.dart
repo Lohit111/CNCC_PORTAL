@@ -166,7 +166,7 @@ class _StaffDrawer extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Drawer(
-      backgroundColor: const Color(0xFF1E1E2E),
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

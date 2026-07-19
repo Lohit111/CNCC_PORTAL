@@ -77,7 +77,7 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
             children: [
               DropdownButtonFormField<MainType>(
                 decoration: const InputDecoration(labelText: 'Category'),
-                dropdownColor: const Color(0xFF313244),
+                dropdownColor: const Color.fromARGB(255, 234, 249, 248),
                 items: widget.mainTypes.map((type) {
                   return DropdownMenuItem(
                     value: type,
@@ -96,7 +96,7 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
               const SizedBox(height: 14),
               DropdownButtonFormField<SubType>(
                 decoration: const InputDecoration(labelText: 'Sub-category'),
-                dropdownColor: const Color(0xFF313244),
+                dropdownColor: const Color.fromARGB(255, 234, 249, 248),
                 items: _subTypes.map((type) {
                   return DropdownMenuItem(
                     value: type,

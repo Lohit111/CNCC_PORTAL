@@ -258,12 +258,11 @@ class _FilterPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? activeColor.withValues(alpha: 0.18)
-              : const Color(0xFF313244),
+              : const Color(0xFFF5F5F5),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected
-                ? activeColor.withValues(alpha: 0.5)
-                : Colors.transparent,
+            color:
+                selected ? activeColor.withValues(alpha: 0.5) : Colors.blueGrey,
           ),
         ),
         child: Row(
