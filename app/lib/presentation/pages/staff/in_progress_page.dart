@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/core/utils/error_handler.dart';
 import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/domain/entities/type_entity.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 
 class InProgressPage extends ConsumerStatefulWidget {
@@ -16,6 +17,8 @@ class InProgressPage extends ConsumerStatefulWidget {
 class _InProgressPageState extends ConsumerState<InProgressPage> {
   final _networkClient = NetworkClient();
   List<Request> _requests = [];
+  final Map<int, String> _mainTypeNames = {};
+  final Map<int, String> _subTypeNames = {};
   bool _isLoading = true;
 
   @override
@@ -43,18 +46,37 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
 
       final assignedRequestIds =
           assignments.map((a) => a['request_id']).toSet();
+      final filtered = allRequests
+          .where((req) =>
+              assignedRequestIds.contains(req.id) &&
+              req.status == 'IN_PROGRESS' &&
+              req.isActive == 'true')
+          .toList();
+      await _loadTypeNames(filtered);
       setState(() {
-        _requests = allRequests
-            .where((req) =>
-                assignedRequestIds.contains(req.id) &&
-                req.status == 'IN_PROGRESS' &&
-                req.isActive == 'true')
-            .toList();
+        _requests = filtered;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _loadTypeNames(List<Request> requests) async {
+    try {
+      final mainRes = await _networkClient.get('/types/main');
+      for (final j in (mainRes.data as List)) {
+        final mt = MainType.fromJson(j);
+        _mainTypeNames[mt.id] = mt.name;
+      }
+      for (final mainId in requests.map((r) => r.mainTypeId).toSet()) {
+        final subRes = await _networkClient.get('/types/main/$mainId/sub');
+        for (final j in (subRes.data as List)) {
+          final st = SubType.fromJson(j);
+          _subTypeNames[st.id] = st.name;
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -105,6 +127,8 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
         final request = _requests[index];
         return _InProgressCard(
           request: request,
+          mainTypeName: _mainTypeNames[request.mainTypeId] ?? '—',
+          subTypeName: _subTypeNames[request.subTypeId] ?? '—',
           onViewStaff: () => _viewAssignedStaff(request),
           onRequestEquipment: () => _showCreateStoreRequestDialog(request),
           onMarkComplete: () => _showCompleteDialog(request),
@@ -438,23 +462,85 @@ class _InProgressPageState extends ConsumerState<InProgressPage> {
   }
 }
 
-class _InProgressCard extends StatelessWidget {
+class _InProgressCard extends StatefulWidget {
   final Request request;
+  final String mainTypeName;
+  final String subTypeName;
   final VoidCallback onViewStaff;
   final VoidCallback onRequestEquipment;
   final VoidCallback onMarkComplete;
 
   const _InProgressCard({
     required this.request,
+    required this.mainTypeName,
+    required this.subTypeName,
     required this.onViewStaff,
     required this.onRequestEquipment,
     required this.onMarkComplete,
   });
 
   @override
+  State<_InProgressCard> createState() => _InProgressCardState();
+}
+
+class _InProgressCardState extends State<_InProgressCard> {
+  final _networkClient = NetworkClient();
+  String? _startedByEmail;
+  String? _startedByRole;
+  List<String> _assignedToEmails = [];
+  bool _extraLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExtra();
+  }
+
+  Future<void> _loadExtra() async {
+    try {
+      final trackRes =
+          await _networkClient.get('/requests/${widget.request.id}/timeline');
+      final tracks = trackRes.data as List;
+      if (tracks.isNotEmpty) {
+        final lastTrack = tracks.last;
+        _startedByRole = lastTrack['performed_by_role'] as String?;
+        final performedById = lastTrack['performed_by'] as String?;
+        if (performedById != null) {
+          try {
+            final emailRes =
+                await _networkClient.get('/users/emails?ids=$performedById');
+            if (emailRes.data is Map) {
+              _startedByEmail =
+                  (emailRes.data as Map)[performedById]?.toString();
+            }
+          } catch (_) {}
+        }
+      }
+      final assignRes =
+          await _networkClient.get('/assignments/request/${widget.request.id}');
+      final active = (assignRes.data as List)
+          .where((a) => a['is_active'] == true)
+          .toList();
+      final ids = active.map((a) => a['staff_id'] as String).toSet().toList();
+      if (ids.isNotEmpty) {
+        try {
+          final q = ids.map((id) => 'ids=$id').join('&');
+          final res = await _networkClient.get('/users/emails?$q');
+          if (res.data is Map) {
+            _assignedToEmails =
+                (res.data as Map).values.map((v) => v.toString()).toList();
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _extraLoading = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     const accent = Color(0xFFF9E2AF);
+    final request = widget.request;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -469,24 +555,25 @@ class _InProgressCard extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child:
-                        const Icon(Icons.work_rounded, color: accent, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.work_rounded,
+                            color: accent, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
                           request.description,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -495,16 +582,42 @@ class _InProgressCard extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                               color: cs.onSurface),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '${request.createdAt.day}/${request.createdAt.month}/${request.createdAt.year}',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurface.withValues(alpha: 0.4)),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 10),
+                  _InfoRow(label: 'Main Type', value: widget.mainTypeName),
+                  const SizedBox(height: 3),
+                  _InfoRow(label: 'Sub Type', value: widget.subTypeName),
+                  const SizedBox(height: 3),
+                  _InfoRow(label: 'Updated at', value: _fmt(request.updatedAt)),
+                  if (_extraLoading) ...[
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 12,
+                      width: 12,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: cs.onSurface.withValues(alpha: 0.3)),
+                    ),
+                  ] else ...[
+                    if (_startedByRole != null || _startedByEmail != null) ...[
+                      const SizedBox(height: 3),
+                      _InfoRow(
+                        label: 'Started by',
+                        value: [
+                          if (_startedByRole != null) _startedByRole!,
+                          if (_startedByEmail != null) _startedByEmail!,
+                        ].join(' · '),
+                      ),
+                    ],
+                    if (_assignedToEmails.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      _InfoRow(
+                          label: 'Assigned to',
+                          value: _assignedToEmails.join(', ')),
+                    ],
+                  ],
                 ],
               ),
             ),
@@ -515,14 +628,14 @@ class _InProgressCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: onViewStaff,
+                    onPressed: widget.onViewStaff,
                     icon: const Icon(Icons.people_rounded, size: 16),
                     label: const Text('View Assigned Staff',
                         style: TextStyle(fontSize: 13)),
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
-                    onPressed: onRequestEquipment,
+                    onPressed: widget.onRequestEquipment,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF89B4FA),
                       side: const BorderSide(
@@ -534,7 +647,7 @@ class _InProgressCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton.icon(
-                    onPressed: onMarkComplete,
+                    onPressed: widget.onMarkComplete,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFA6E3A1),
                       foregroundColor: Colors.black87,
@@ -549,6 +662,37 @@ class _InProgressCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  String _fmt(DateTime date) => '${date.day}/${date.month}/${date.year} '
+      '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _InfoRow({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 82,
+          child: Text('$label:',
+              style: TextStyle(
+                  fontSize: 11, color: cs.onSurface.withValues(alpha: 0.45))),
+        ),
+        Expanded(
+          child: Text(value,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: cs.onSurface.withValues(alpha: 0.8))),
+        ),
+      ],
     );
   }
 }

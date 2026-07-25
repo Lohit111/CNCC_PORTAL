@@ -13,7 +13,7 @@ router = APIRouter()
 @router.get("/request/{request_id}", response_model=List[Assignment])
 async def get_assignments_by_request(
     request_id: str,
-    auth_data: dict = Depends(require_role("ADMIN", "STAFF")),
+    auth_data: dict = Depends(require_role("ADMIN", "STAFF", "USER")),
     db: Session = Depends(get_db)
 ):
     """Get all assignments for a request"""

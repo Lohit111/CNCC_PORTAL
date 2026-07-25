@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/domain/entities/request_entity.dart';
 import 'package:cncc_portal/domain/entities/track_entity.dart';
+import 'package:cncc_portal/domain/entities/type_entity.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 
 class CompletedByMePage extends ConsumerStatefulWidget {
@@ -15,6 +16,8 @@ class CompletedByMePage extends ConsumerStatefulWidget {
 class _CompletedByMePageState extends ConsumerState<CompletedByMePage> {
   final _networkClient = NetworkClient();
   List<Request> _requests = [];
+  final Map<int, String> _mainTypeNames = {};
+  final Map<int, String> _subTypeNames = {};
   bool _isLoading = true;
 
   @override
@@ -42,17 +45,35 @@ class _CompletedByMePageState extends ConsumerState<CompletedByMePage> {
 
       final assignedRequestIds =
           assignments.map((a) => a['request_id']).toSet();
+      final filtered = allRequests
+          .where((req) =>
+              assignedRequestIds.contains(req.id) && req.status == 'COMPLETED')
+          .toList();
+      await _loadTypeNames(filtered);
       setState(() {
-        _requests = allRequests
-            .where((req) =>
-                assignedRequestIds.contains(req.id) &&
-                req.status == 'COMPLETED')
-            .toList();
+        _requests = filtered;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _loadTypeNames(List<Request> requests) async {
+    try {
+      final mainRes = await _networkClient.get('/types/main');
+      for (final j in (mainRes.data as List)) {
+        final mt = MainType.fromJson(j);
+        _mainTypeNames[mt.id] = mt.name;
+      }
+      for (final mainId in requests.map((r) => r.mainTypeId).toSet()) {
+        final subRes = await _networkClient.get('/types/main/$mainId/sub');
+        for (final j in (subRes.data as List)) {
+          final st = SubType.fromJson(j);
+          _subTypeNames[st.id] = st.name;
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -103,6 +124,8 @@ class _CompletedByMePageState extends ConsumerState<CompletedByMePage> {
         final request = _requests[index];
         return _CompletedCard(
           request: request,
+          mainTypeName: _mainTypeNames[request.mainTypeId] ?? '—',
+          subTypeName: _subTypeNames[request.subTypeId] ?? '—',
           onViewTimeline: () => _viewTimeline(request),
         );
       },
@@ -258,16 +281,64 @@ class _CompletedByMePageState extends ConsumerState<CompletedByMePage> {
   }
 }
 
-class _CompletedCard extends StatelessWidget {
+class _CompletedCard extends StatefulWidget {
   final Request request;
+  final String mainTypeName;
+  final String subTypeName;
   final VoidCallback onViewTimeline;
 
-  const _CompletedCard({required this.request, required this.onViewTimeline});
+  const _CompletedCard({
+    required this.request,
+    required this.mainTypeName,
+    required this.subTypeName,
+    required this.onViewTimeline,
+  });
+
+  @override
+  State<_CompletedCard> createState() => _CompletedCardState();
+}
+
+class _CompletedCardState extends State<_CompletedCard> {
+  final _networkClient = NetworkClient();
+  String? _closedByEmail;
+  String? _closedByRole;
+  bool _extraLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExtra();
+  }
+
+  Future<void> _loadExtra() async {
+    try {
+      final trackRes =
+          await _networkClient.get('/requests/${widget.request.id}/timeline');
+      final tracks = trackRes.data as List;
+      if (tracks.isNotEmpty) {
+        final lastTrack = tracks.last;
+        _closedByRole = lastTrack['performed_by_role'] as String?;
+        final performedById = lastTrack['performed_by'] as String?;
+        if (performedById != null) {
+          try {
+            final emailRes =
+                await _networkClient.get('/users/emails?ids=$performedById');
+            if (emailRes.data is Map) {
+              _closedByEmail =
+                  (emailRes.data as Map)[performedById]?.toString();
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _extraLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     const accent = Color(0xFFA6E3A1);
+    final request = widget.request;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -282,24 +353,25 @@ class _CompletedCard extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.check_circle_rounded,
-                        color: accent, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.check_circle_rounded,
+                            color: accent, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
                           request.description,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -308,25 +380,37 @@ class _CompletedCard extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                               color: cs.onSurface),
                         ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '${request.updatedAt.day}/${request.updatedAt.month}/${request.updatedAt.year}',
-                            style: const TextStyle(
-                                fontSize: 11,
-                                color: accent,
-                                fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 10),
+                  _InfoRow(label: 'Main Type', value: widget.mainTypeName),
+                  const SizedBox(height: 3),
+                  _InfoRow(label: 'Sub Type', value: widget.subTypeName),
+                  const SizedBox(height: 3),
+                  _InfoRow(label: 'Updated at', value: _fmt(request.updatedAt)),
+                  const SizedBox(height: 3),
+                  _InfoRow(label: 'Created at', value: _fmt(request.createdAt)),
+                  if (_extraLoading) ...[
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 12,
+                      width: 12,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: cs.onSurface.withValues(alpha: 0.3)),
+                    ),
+                  ] else if (_closedByRole != null ||
+                      _closedByEmail != null) ...[
+                    const SizedBox(height: 3),
+                    _InfoRow(
+                      label: 'Closed by',
+                      value: [
+                        if (_closedByRole != null) _closedByRole!,
+                        if (_closedByEmail != null) _closedByEmail!,
+                      ].join(' · '),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -336,7 +420,7 @@ class _CompletedCard extends StatelessWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: onViewTimeline,
+                  onPressed: widget.onViewTimeline,
                   icon: const Icon(Icons.timeline_rounded, size: 16),
                   label: const Text('View Timeline',
                       style: TextStyle(fontSize: 13)),
@@ -346,6 +430,37 @@ class _CompletedCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  String _fmt(DateTime date) => '${date.day}/${date.month}/${date.year} '
+      '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _InfoRow({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 82,
+          child: Text('$label:',
+              style: TextStyle(
+                  fontSize: 11, color: cs.onSurface.withValues(alpha: 0.45))),
+        ),
+        Expanded(
+          child: Text(value,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: cs.onSurface.withValues(alpha: 0.8))),
+        ),
+      ],
     );
   }
 }

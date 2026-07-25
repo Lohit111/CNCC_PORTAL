@@ -114,7 +114,7 @@ class _RaisedRequestsPageState extends State<RaisedRequestsPage> {
   }
 }
 
-class _RaisedCard extends StatelessWidget {
+class _RaisedCard extends StatefulWidget {
   final Request request;
   final String mainTypeName;
   final String subTypeName;
@@ -126,6 +126,46 @@ class _RaisedCard extends StatelessWidget {
     required this.subTypeName,
     required this.onRefresh,
   });
+
+  @override
+  State<_RaisedCard> createState() => _RaisedCardState();
+}
+
+class _RaisedCardState extends State<_RaisedCard> {
+  final _networkClient = NetworkClient();
+  String? _createdByEmail;
+  String? _createdByRole;
+  bool _extraLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExtra();
+  }
+
+  Future<void> _loadExtra() async {
+    try {
+      final trackRes =
+          await _networkClient.get('/requests/${widget.request.id}/timeline');
+      final tracks = trackRes.data as List;
+      if (tracks.isNotEmpty) {
+        final lastTrack = tracks.last;
+        _createdByRole = lastTrack['performed_by_role'] as String?;
+        final performedById = lastTrack['performed_by'] as String?;
+        if (performedById != null) {
+          try {
+            final emailRes =
+                await _networkClient.get('/users/emails?ids=$performedById');
+            if (emailRes.data is Map) {
+              _createdByEmail =
+                  (emailRes.data as Map)[performedById]?.toString();
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _extraLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -149,30 +189,43 @@ class _RaisedCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      _TypeBadge(label: mainTypeName, color: cs.primary),
-                      const SizedBox(width: 6),
-                      _TypeBadge(
-                          label: subTypeName,
-                          color: cs.onSurface.withValues(alpha: 0.5)),
-                      const Spacer(),
-                      Text(
-                        _formatDate(request.updatedAt),
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: cs.onSurface.withValues(alpha: 0.4)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+                  // Description
                   Text(
-                    request.description,
+                    widget.request.description,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                         fontSize: 14, color: cs.onSurface, height: 1.4),
                   ),
+                  const SizedBox(height: 10),
+                  // Info rows
+                  _InfoRow(label: 'Main Type', value: widget.mainTypeName),
+                  const SizedBox(height: 3),
+                  _InfoRow(label: 'Sub Type', value: widget.subTypeName),
+                  const SizedBox(height: 3),
+                  _InfoRow(
+                      label: 'Updated at',
+                      value: _formatDate(widget.request.updatedAt)),
+                  if (_extraLoading) ...[
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 12,
+                      width: 12,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: cs.onSurface.withValues(alpha: 0.3)),
+                    ),
+                  ] else if (_createdByEmail != null ||
+                      _createdByRole != null) ...[
+                    const SizedBox(height: 3),
+                    _InfoRow(
+                      label: 'Created by',
+                      value: [
+                        if (_createdByRole != null) _createdByRole!,
+                        if (_createdByEmail != null) _createdByEmail!,
+                      ].join(' · '),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -185,7 +238,7 @@ class _RaisedCard extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () =>
-                          _showActionDialog(context, request, 'REPLY'),
+                          _showActionDialog(context, widget.request, 'REPLY'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFAB387),
                         foregroundColor: Colors.black87,
@@ -199,7 +252,7 @@ class _RaisedCard extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () =>
-                          _showActionDialog(context, request, 'REJECT'),
+                          _showActionDialog(context, widget.request, 'REJECT'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF38BA8),
                         foregroundColor: Colors.black87,
@@ -212,7 +265,8 @@ class _RaisedCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _showAssignDialog(context, request),
+                      onPressed: () =>
+                          _showAssignDialog(context, widget.request),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFA6E3A1),
                         foregroundColor: Colors.black87,
@@ -297,7 +351,7 @@ class _RaisedCard extends StatelessWidget {
             SnackBar(
                 content: Text(isReply ? 'Reply sent' : 'Request rejected')),
           );
-          onRefresh();
+          widget.onRefresh();
         }
       } catch (e) {
         if (context.mounted) {
@@ -423,7 +477,7 @@ class _RaisedCard extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('${selectedIds.length} staff assigned')),
           );
-          onRefresh();
+          widget.onRefresh();
         }
       }
     } catch (e) {
@@ -437,6 +491,40 @@ class _RaisedCard extends StatelessWidget {
 
   String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year} '
       '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 82,
+          child: Text(
+            '$label:',
+            style: TextStyle(
+                fontSize: 11, color: cs.onSurface.withValues(alpha: 0.45)),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: cs.onSurface.withValues(alpha: 0.8)),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _TypeBadge extends StatelessWidget {

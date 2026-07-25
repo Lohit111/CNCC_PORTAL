@@ -17,6 +17,9 @@ class _CompletedRequestsUserPageState extends State<CompletedRequestsUserPage> {
   bool _isLoading = true;
   String _filter = 'ALL';
 
+  Map<int, String> _mainTypeNames = {};
+  Map<int, String> _subTypeNames = {};
+
   @override
   void initState() {
     super.initState();
@@ -26,14 +29,38 @@ class _CompletedRequestsUserPageState extends State<CompletedRequestsUserPage> {
   Future<void> _loadRequests() async {
     setState(() => _isLoading = true);
     try {
-      final response = await _networkClient.get('/users/requests');
-      final data = response.data;
+      final results = await Future.wait([
+        _networkClient.get('/users/requests'),
+        _networkClient.get('/types/main'),
+      ]);
+
+      final requestData = results[0].data;
+      final mainTypes = results[1].data as List;
+
+      final mainTypeNames = <int, String>{
+        for (final t in mainTypes) (t['id'] as int): t['name'] as String,
+      };
+
+      final filtered = (requestData['items'] as List)
+          .map((json) => Request.fromJson(json))
+          .where((req) => req.status == 'COMPLETED' || req.status == 'REJECTED')
+          .toList();
+
+      final subTypeNames = <int, String>{};
+      final mainTypeIds = filtered.map((r) => r.mainTypeId).toSet().toList();
+      await Future.wait(mainTypeIds.map((mid) async {
+        try {
+          final res = await _networkClient.get('/types/main/$mid/sub');
+          for (final s in res.data as List) {
+            subTypeNames[s['id'] as int] = s['name'] as String;
+          }
+        } catch (_) {}
+      }));
+
       setState(() {
-        _requests = (data['items'] as List)
-            .map((json) => Request.fromJson(json))
-            .where(
-                (req) => req.status == 'COMPLETED' || req.status == 'REJECTED')
-            .toList();
+        _requests = filtered;
+        _mainTypeNames = mainTypeNames;
+        _subTypeNames = subTypeNames;
         _isLoading = false;
       });
     } catch (e) {
@@ -132,106 +159,245 @@ class _CompletedRequestsUserPageState extends State<CompletedRequestsUserPage> {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       itemCount: filtered.length,
-      itemBuilder: (context, index) {
-        final request = filtered[index];
-        final isCompleted = request.status == 'COMPLETED';
-        final color =
-            isCompleted ? const Color(0xFFA6E3A1) : const Color(0xFFF38BA8);
-        final cs = Theme.of(context).colorScheme;
+      itemBuilder: (context, index) => _CompletedCard(
+        request: filtered[index],
+        mainTypeName: _mainTypeNames[filtered[index].mainTypeId] ?? '—',
+        subTypeName: _subTypeNames[filtered[index].subTypeId] ?? '—',
+      ),
+    );
+  }
+}
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Material(
-            color: cs.surface,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => RequestDetailPage(requestId: request.id),
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        isCompleted
-                            ? Icons.check_circle_rounded
-                            : Icons.cancel_rounded,
-                        color: color,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            request.description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: cs.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  request.statusDisplayText,
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: color,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                _formatDate(request.updatedAt),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: cs.onSurface.withValues(alpha: 0.4),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(Icons.chevron_right_rounded,
-                        color: cs.onSurface.withValues(alpha: 0.25), size: 20),
-                  ],
-                ),
-              ),
+// ── Card ──────────────────────────────────────────────────────────────────────
+
+class _CompletedCard extends StatefulWidget {
+  final Request request;
+  final String mainTypeName;
+  final String subTypeName;
+
+  const _CompletedCard({
+    required this.request,
+    required this.mainTypeName,
+    required this.subTypeName,
+  });
+
+  @override
+  State<_CompletedCard> createState() => _CompletedCardState();
+}
+
+class _CompletedCardState extends State<_CompletedCard> {
+  final _networkClient = NetworkClient();
+
+  String? _closedByEmail;
+  String? _closedByRole;
+  bool _extraLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExtra();
+  }
+
+  Future<void> _loadExtra() async {
+    try {
+      final trackRes =
+          await _networkClient.get('/requests/${widget.request.id}/timeline');
+      final tracks = trackRes.data as List;
+      if (tracks.isNotEmpty) {
+        final lastTrack = tracks.last;
+        final performedById = lastTrack['performed_by'] as String?;
+        _closedByRole = lastTrack['performed_by_role'] as String?;
+        if (performedById != null) {
+          try {
+            final emailRes =
+                await _networkClient.get('/users/emails?ids=$performedById');
+            if (emailRes.data is Map) {
+              _closedByEmail =
+                  (emailRes.data as Map)[performedById]?.toString();
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _extraLoading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final request = widget.request;
+    final isCompleted = request.status == 'COMPLETED';
+    final color =
+        isCompleted ? const Color(0xFFA6E3A1) : const Color(0xFFF38BA8);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => RequestDetailPage(requestId: request.id),
             ),
           ),
-        );
-      },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Status icon
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isCompleted
+                        ? Icons.check_circle_rounded
+                        : Icons.cancel_rounded,
+                    color: color,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Description
+                      Text(
+                        request.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Info rows
+                      _InfoRow(label: 'Main Type', value: widget.mainTypeName),
+                      const SizedBox(height: 2),
+                      _InfoRow(label: 'Sub Type', value: widget.subTypeName),
+                      const SizedBox(height: 2),
+                      _InfoRow(
+                          label: 'Created',
+                          value: _formatDateTime(request.createdAt)),
+                      const SizedBox(height: 2),
+                      _InfoRow(
+                          label: 'Updated',
+                          value: _formatDateTime(request.updatedAt)),
+
+                      // Closed by — async
+                      if (_extraLoading) ...[
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          height: 12,
+                          width: 12,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: cs.onSurface.withValues(alpha: 0.3)),
+                        ),
+                      ] else ...[
+                        if (_closedByRole != null ||
+                            _closedByEmail != null) ...[
+                          const SizedBox(height: 2),
+                          _InfoRow(
+                            label: 'Closed by',
+                            value: [
+                              if (_closedByRole != null) _closedByRole!,
+                              if (_closedByEmail != null) _closedByEmail!,
+                            ].join(' · '),
+                          ),
+                        ],
+                      ],
+
+                      const SizedBox(height: 8),
+
+                      // Status badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          request.statusDisplayText,
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: color,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.chevron_right_rounded,
+                    color: cs.onSurface.withValues(alpha: 0.25), size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+  String _formatDateTime(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${date.day}/${date.month}/${date.year} '
+        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 82,
+          child: Text(
+            '$label:',
+            style: TextStyle(
+              fontSize: 11,
+              color: cs.onSurface.withValues(alpha: 0.45),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurface.withValues(alpha: 0.75),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

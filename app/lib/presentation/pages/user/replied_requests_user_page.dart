@@ -16,6 +16,9 @@ class _RepliedRequestsUserPageState extends State<RepliedRequestsUserPage> {
   List<Request> _requests = [];
   bool _isLoading = true;
 
+  Map<int, String> _mainTypeNames = {};
+  Map<int, String> _subTypeNames = {};
+
   @override
   void initState() {
     super.initState();
@@ -25,13 +28,38 @@ class _RepliedRequestsUserPageState extends State<RepliedRequestsUserPage> {
   Future<void> _loadRequests() async {
     setState(() => _isLoading = true);
     try {
-      final response = await _networkClient.get('/users/requests');
-      final data = response.data;
+      final results = await Future.wait([
+        _networkClient.get('/users/requests'),
+        _networkClient.get('/types/main'),
+      ]);
+
+      final requestData = results[0].data;
+      final mainTypes = results[1].data as List;
+
+      final mainTypeNames = <int, String>{
+        for (final t in mainTypes) (t['id'] as int): t['name'] as String,
+      };
+
+      final filtered = (requestData['items'] as List)
+          .map((json) => Request.fromJson(json))
+          .where((req) => req.status == 'REPLIED' && req.isActive == 'true')
+          .toList();
+
+      final subTypeNames = <int, String>{};
+      final mainTypeIds = filtered.map((r) => r.mainTypeId).toSet().toList();
+      await Future.wait(mainTypeIds.map((mid) async {
+        try {
+          final res = await _networkClient.get('/types/main/$mid/sub');
+          for (final s in res.data as List) {
+            subTypeNames[s['id'] as int] = s['name'] as String;
+          }
+        } catch (_) {}
+      }));
+
       setState(() {
-        _requests = (data['items'] as List)
-            .map((json) => Request.fromJson(json))
-            .where((req) => req.status == 'REPLIED' && req.isActive == 'true')
-            .toList();
+        _requests = filtered;
+        _mainTypeNames = mainTypeNames;
+        _subTypeNames = subTypeNames;
         _isLoading = false;
       });
     } catch (e) {
@@ -106,6 +134,8 @@ class _RepliedRequestsUserPageState extends State<RepliedRequestsUserPage> {
         final request = _requests[index];
         return _RepliedCard(
           request: request,
+          mainTypeName: _mainTypeNames[request.mainTypeId] ?? '—',
+          subTypeName: _subTypeNames[request.subTypeId] ?? '—',
           onViewConversation: () => _viewConversation(request),
           onRespond: () => _showRespondDialog(request),
         );
@@ -322,21 +352,66 @@ class _RepliedRequestsUserPageState extends State<RepliedRequestsUserPage> {
   }
 }
 
-class _RepliedCard extends StatelessWidget {
+class _RepliedCard extends StatefulWidget {
   final Request request;
+  final String mainTypeName;
+  final String subTypeName;
   final VoidCallback onViewConversation;
   final VoidCallback onRespond;
 
   const _RepliedCard({
     required this.request,
+    required this.mainTypeName,
+    required this.subTypeName,
     required this.onViewConversation,
     required this.onRespond,
   });
 
   @override
+  State<_RepliedCard> createState() => _RepliedCardState();
+}
+
+class _RepliedCardState extends State<_RepliedCard> {
+  final _networkClient = NetworkClient();
+  String? _repliedByEmail;
+  String? _lastTrackComment;
+  bool _extraLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExtra();
+  }
+
+  Future<void> _loadExtra() async {
+    try {
+      final trackRes =
+          await _networkClient.get('/requests/${widget.request.id}/timeline');
+      final tracks = trackRes.data as List;
+      if (tracks.isNotEmpty) {
+        final lastTrack = tracks.last;
+        final performedById = lastTrack['performed_by'] as String?;
+        _lastTrackComment = lastTrack['comment'] as String?;
+        if (performedById != null) {
+          try {
+            final emailRes =
+                await _networkClient.get('/users/emails?ids=$performedById');
+            if (emailRes.data is Map) {
+              _repliedByEmail =
+                  (emailRes.data as Map)[performedById]?.toString();
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _extraLoading = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     const accent = Color(0xFFFAB387);
+    final request = widget.request;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -380,24 +455,72 @@ class _RepliedCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
+
+            // Info rows
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  _InfoRow(label: 'Main Type', value: widget.mainTypeName),
+                  const SizedBox(height: 2),
+                  _InfoRow(label: 'Sub Type', value: widget.subTypeName),
+                  const SizedBox(height: 2),
+                  _InfoRow(
+                      label: 'Updated',
+                      value: _formatDateTime(request.updatedAt)),
+                  const SizedBox(height: 2),
+                  _InfoRow(
+                      label: 'Created',
+                      value: _formatDateTime(request.createdAt)),
+                  if (_extraLoading) ...[
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 12,
+                      width: 12,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: cs.onSurface.withValues(alpha: 0.3)),
+                    ),
+                  ] else if (_repliedByEmail != null) ...[
+                    const SizedBox(height: 2),
+                    _InfoRow(label: 'Replied by', value: _repliedByEmail!),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Admin comment / action-required badge
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  'Admin replied — your response needed',
-                  style: TextStyle(
-                      fontSize: 11, color: accent, fontWeight: FontWeight.w600),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.reply_rounded, size: 13, color: accent),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Admin replied — ${(_lastTrackComment != null && _lastTrackComment!.trim().isNotEmpty) ? _lastTrackComment!.trim() : 'your response needed'}',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: accent,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
             const SizedBox(height: 12),
             Divider(height: 1, color: cs.onSurface.withValues(alpha: 0.06)),
+
             // Actions
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -405,7 +528,7 @@ class _RepliedCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: onViewConversation,
+                      onPressed: widget.onViewConversation,
                       icon: const Icon(Icons.chat_bubble_outline_rounded,
                           size: 16),
                       label: const Text('View Thread',
@@ -415,7 +538,7 @@ class _RepliedCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: onRespond,
+                      onPressed: widget.onRespond,
                       style: ElevatedButton.styleFrom(
                           backgroundColor: accent,
                           foregroundColor: Colors.black87),
@@ -430,6 +553,53 @@ class _RepliedCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  String _formatDateTime(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${date.day}/${date.month}/${date.year} '
+        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 82,
+          child: Text(
+            '$label:',
+            style: TextStyle(
+              fontSize: 11,
+              color: cs.onSurface.withValues(alpha: 0.45),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurface.withValues(alpha: 0.75),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

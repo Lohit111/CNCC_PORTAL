@@ -2,14 +2,9 @@ services:
   cncc-portal:
     build:
       context: ./app
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
     restart: unless-stopped
-    environment:
-      - FLUTTER_WEB_USE_SKIA=true
-    volumes:
-      - flutter_pub_cache:/root/.pub-cache
+    ports:
+      - "3000:80"
 
   api:
     build:
@@ -47,5 +42,3 @@ services:
 volumes:
   postgres_data:
     name: ticket_db_postgres_data
-
-  flutter_pub_cache:

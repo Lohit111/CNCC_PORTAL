@@ -20,6 +20,8 @@ class _AdminRequestDetailPageState
   Request? _request;
   List<Track> _tracks = [];
   final Map<String, String> _performerEmails = {};
+  String _mainTypeName = '—';
+  String _subTypeName = '—';
   bool _isLoading = true;
 
   @override
@@ -31,16 +33,38 @@ class _AdminRequestDetailPageState
   Future<void> _loadRequestDetails() async {
     setState(() => _isLoading = true);
     try {
-      final requestResponse =
-          await _networkClient.get('/requests/${widget.requestId}');
-      final tracksResponse =
-          await _networkClient.get('/requests/${widget.requestId}/timeline');
+      final results = await Future.wait([
+        _networkClient.get('/requests/${widget.requestId}'),
+        _networkClient.get('/requests/${widget.requestId}/timeline'),
+        _networkClient.get('/types/main'),
+      ]);
+
+      final request = Request.fromJson(results[0].data);
+      final tracks = (results[1].data as List)
+          .map((json) => Track.fromJson(json))
+          .toList();
+      final mainTypes = results[2].data as List;
+
+      final mainTypeMap = <int, String>{
+        for (final t in mainTypes) (t['id'] as int): t['name'] as String,
+      };
+      String mainTypeName = mainTypeMap[request.mainTypeId] ?? '—';
+      String subTypeName = '—';
+      try {
+        final subRes =
+            await _networkClient.get('/types/main/${request.mainTypeId}/sub');
+        final subMap = <int, String>{
+          for (final s in subRes.data as List)
+            (s['id'] as int): s['name'] as String,
+        };
+        subTypeName = subMap[request.subTypeId] ?? '—';
+      } catch (_) {}
 
       setState(() {
-        _request = Request.fromJson(requestResponse.data);
-        _tracks = (tracksResponse.data as List)
-            .map((json) => Track.fromJson(json))
-            .toList();
+        _request = request;
+        _tracks = tracks;
+        _mainTypeName = mainTypeName;
+        _subTypeName = subTypeName;
         _isLoading = false;
       });
       await _fetchPerformerEmails();
@@ -165,28 +189,14 @@ class _AdminRequestDetailPageState
           ),
           const SizedBox(height: 10),
           Divider(color: cs.onSurface.withValues(alpha: 0.06)),
+          const SizedBox(height: 6),
+          _InfoRow(label: 'Main Type', value: _mainTypeName),
           const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(Icons.calendar_today_rounded,
-                  size: 12, color: cs.onSurface.withValues(alpha: 0.35)),
-              const SizedBox(width: 5),
-              Text(
-                'Created ${_formatDate(_request!.createdAt)}',
-                style: TextStyle(
-                    fontSize: 11, color: cs.onSurface.withValues(alpha: 0.4)),
-              ),
-              const SizedBox(width: 12),
-              Icon(Icons.update_rounded,
-                  size: 12, color: cs.onSurface.withValues(alpha: 0.35)),
-              const SizedBox(width: 5),
-              Text(
-                'Updated ${_formatDate(_request!.updatedAt)}',
-                style: TextStyle(
-                    fontSize: 11, color: cs.onSurface.withValues(alpha: 0.4)),
-              ),
-            ],
-          ),
+          _InfoRow(label: 'Sub Type', value: _subTypeName),
+          const SizedBox(height: 4),
+          _InfoRow(label: 'Created', value: _formatDate(_request!.createdAt)),
+          const SizedBox(height: 4),
+          _InfoRow(label: 'Updated', value: _formatDate(_request!.updatedAt)),
         ],
       ),
     );
@@ -319,29 +329,28 @@ class _AdminRequestDetailPageState
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _performerEmails[track.performedBy] ?? 'Unknown',
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: cs.onSurface.withValues(alpha: 0.5)),
+                  const SizedBox(height: 8),
+                  _InfoRow(
+                    label: _performerLabel(track.actionType),
+                    value: _performerEmails[track.performedBy] ?? '…',
                   ),
-                  Text(
-                    _formatDate(track.createdAt),
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: cs.onSurface.withValues(alpha: 0.35)),
+                  const SizedBox(height: 3),
+                  _InfoRow(
+                    label: 'Updated at',
+                    value: _formatDate(track.createdAt),
                   ),
-                  if (track.comment != null && track.comment!.isNotEmpty) ...[
+                  if (track.comment != null &&
+                      track.comment!.trim().isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Container(
+                      width: double.infinity,
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: cs.onSurface.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        track.comment!,
+                        track.comment!.trim(),
                         style: TextStyle(
                             fontSize: 12,
                             color: cs.onSurface.withValues(alpha: 0.8),
@@ -464,8 +473,62 @@ class _AdminRequestDetailPageState
     }
   }
 
+  String _performerLabel(String actionType) {
+    switch (actionType) {
+      case 'RAISED':
+        return 'Created by';
+      case 'REPLIED':
+        return 'Replied by';
+      case 'ASSIGNED':
+        return 'Assigned by';
+      case 'IN_PROGRESS':
+        return 'Started by';
+      case 'REASSIGN_REQUESTED':
+        return 'Requested by';
+      case 'COMPLETED':
+      case 'REJECTED':
+        return 'Closed by';
+      default:
+        return 'Performed by';
+    }
+  }
+
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} '
         '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 90,
+          child: Text(
+            '$label:',
+            style: TextStyle(
+                fontSize: 11, color: cs.onSurface.withValues(alpha: 0.45)),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: cs.onSurface.withValues(alpha: 0.8)),
+          ),
+        ),
+      ],
+    );
   }
 }

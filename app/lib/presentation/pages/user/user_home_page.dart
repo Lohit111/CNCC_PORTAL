@@ -55,6 +55,24 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
   final _networkClient = NetworkClient();
   _UserPage _currentPage = _UserPage.active;
   final _activeRequestsKey = GlobalKey<ActiveRequestsPageState>();
+  int _repliedCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshRepliedCount();
+  }
+
+  Future<void> _refreshRepliedCount() async {
+    try {
+      final response = await _networkClient.get('/users/requests');
+      final items = response.data['items'] as List;
+      final count = items
+          .where((r) => r['status'] == 'REPLIED' && r['is_active'] == 'true')
+          .length;
+      if (mounted) setState(() => _repliedCount = count);
+    } catch (_) {}
+  }
 
   String get _currentTitle {
     for (final section in _sections) {
@@ -68,6 +86,8 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
   void _navigate(_UserPage page) {
     setState(() => _currentPage = page);
     Navigator.pop(context); // close drawer
+    // Refresh count when navigating away from replied page
+    _refreshRepliedCount();
   }
 
   void _showCreateRequestDialog() async {
@@ -82,6 +102,7 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
     if (result == true && mounted) {
       setState(() => _currentPage = _UserPage.active);
       _activeRequestsKey.currentState?.refresh();
+      _refreshRepliedCount();
     }
   }
 
@@ -101,6 +122,30 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_currentTitle),
+        leading: Builder(
+          builder: (context) => Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.menu_rounded),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+              if (_repliedCount > 0)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFAB387),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded),
@@ -113,6 +158,7 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
       ),
       drawer: _UserDrawer(
         currentPage: _currentPage,
+        repliedCount: _repliedCount,
         onNavigate: _navigate,
       ),
       body: _buildBody(),
@@ -142,10 +188,12 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
 // ── Drawer ────────────────────────────────────────────────────────────────────
 class _UserDrawer extends StatelessWidget {
   final _UserPage currentPage;
+  final int repliedCount;
   final void Function(_UserPage) onNavigate;
 
   const _UserDrawer({
     required this.currentPage,
+    required this.repliedCount,
     required this.onNavigate,
   });
 
@@ -223,6 +271,10 @@ class _UserDrawer extends StatelessWidget {
                       _DrawerTile(
                         item: item,
                         isSelected: currentPage == item.page,
+                        badge:
+                            item.page == _UserPage.replied && repliedCount > 0
+                                ? repliedCount
+                                : null,
                         onTap: () => onNavigate(item.page),
                       ),
                   ],
@@ -239,17 +291,20 @@ class _UserDrawer extends StatelessWidget {
 class _DrawerTile extends StatelessWidget {
   final _SidebarItem item;
   final bool isSelected;
+  final int? badge;
   final VoidCallback onTap;
 
   const _DrawerTile({
     required this.item,
     required this.isSelected,
     required this.onTap,
+    this.badge,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    const badgeColor = Color(0xFFFAB387); // orange — matches REPLIED accent
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
@@ -286,7 +341,25 @@ class _DrawerTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isSelected)
+                if (badge != null) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: badgeColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$badge',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ] else if (isSelected) ...[
                   Container(
                     width: 4,
                     height: 4,
@@ -295,6 +368,7 @@ class _DrawerTile extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                   ),
+                ],
               ],
             ),
           ),

@@ -15,45 +15,73 @@ class RequestDetailPage extends ConsumerStatefulWidget {
 
 class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
   final _networkClient = NetworkClient();
+
   Request? _request;
   List<Track> _tracks = [];
   final Map<String, String> _performerEmails = {};
+
+  String _mainTypeName = '—';
+  String _subTypeName = '—';
+
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadRequestDetails();
+    _load();
   }
 
-  Future<void> _loadRequestDetails() async {
+  Future<void> _load() async {
     setState(() => _isLoading = true);
     try {
-      final requestResponse =
-          await _networkClient.get('/requests/${widget.requestId}');
-      final tracksResponse =
-          await _networkClient.get('/requests/${widget.requestId}/timeline');
+      final results = await Future.wait([
+        _networkClient.get('/requests/${widget.requestId}'),
+        _networkClient.get('/requests/${widget.requestId}/timeline'),
+        _networkClient.get('/types/main'),
+      ]);
+
+      final request = Request.fromJson(results[0].data);
+      final tracks = (results[1].data as List)
+          .map((json) => Track.fromJson(json))
+          .toList();
+      final mainTypes = results[2].data as List;
+
+      // Resolve main type name
+      final mainTypeMap = <int, String>{
+        for (final t in mainTypes) (t['id'] as int): t['name'] as String,
+      };
+      String mainTypeName = mainTypeMap[request.mainTypeId] ?? '—';
+      String subTypeName = '—';
+      try {
+        final subRes =
+            await _networkClient.get('/types/main/${request.mainTypeId}/sub');
+        final subMap = <int, String>{
+          for (final s in subRes.data as List)
+            (s['id'] as int): s['name'] as String,
+        };
+        subTypeName = subMap[request.subTypeId] ?? '—';
+      } catch (_) {}
 
       setState(() {
-        _request = Request.fromJson(requestResponse.data);
-        _tracks = (tracksResponse.data as List)
-            .map((json) => Track.fromJson(json))
-            .toList();
+        _request = request;
+        _tracks = tracks;
+        _mainTypeName = mainTypeName;
+        _subTypeName = subTypeName;
         _isLoading = false;
       });
-      await _fetchPerformerEmails();
+
+      await _fetchPerformerEmails(tracks);
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
 
-  Future<void> _fetchPerformerEmails() async {
-    final ids = _tracks.map((t) => t.performedBy).toSet().toList();
+  Future<void> _fetchPerformerEmails(List<Track> tracks) async {
+    final ids = tracks.map((t) => t.performedBy).toSet().toList();
     if (ids.isEmpty) return;
     try {
       final queryParams = ids.map((id) => 'ids=$id').join('&');
@@ -67,6 +95,8 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
     if (mounted) setState(() {});
   }
 
+  // ── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -77,7 +107,7 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: _loadRequestDetails,
+            onPressed: _load,
           ),
         ],
       ),
@@ -87,19 +117,30 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
               ? const Center(child: Text('Request not found'))
               : Column(
                   children: [
-                    _buildHeaderCard(cs),
-                    _buildTimelineHeader(cs),
-                    Expanded(child: _buildTimeline(cs)),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                        children: [
+                          _buildHeaderCard(cs),
+                          const SizedBox(height: 16),
+                          _buildTimelineSection(cs),
+                        ],
+                      ),
+                    ),
                     if (_request!.status == 'REPLIED') _buildRespondBar(cs),
                   ],
                 ),
     );
   }
 
+  // ── Header card ────────────────────────────────────────────────────────────
+  // Only: description, main type, sub type, created at
+
   Widget _buildHeaderCard(ColorScheme cs) {
-    final statusColor = _statusColor(_request!.status);
+    final req = _request!;
+    final statusColor = _statusColor(req.status);
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: cs.surface,
@@ -109,110 +150,97 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(_statusIcon(_request!.status),
-                        size: 13, color: statusColor),
-                    const SizedBox(width: 5),
-                    Text(
-                      _request!.statusDisplayText,
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: statusColor),
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              Text(
-                _formatDate(_request!.updatedAt),
-                style: TextStyle(
-                    fontSize: 11, color: cs.onSurface.withValues(alpha: 0.4)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _request!.description,
-            style: TextStyle(fontSize: 15, color: cs.onSurface, height: 1.5),
-          ),
-          const SizedBox(height: 10),
-          Divider(color: cs.onSurface.withValues(alpha: 0.06)),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(Icons.calendar_today_rounded,
-                  size: 12, color: cs.onSurface.withValues(alpha: 0.35)),
-              const SizedBox(width: 5),
-              Text(
-                'Created ${_formatDate(_request!.createdAt)}',
-                style: TextStyle(
-                    fontSize: 11, color: cs.onSurface.withValues(alpha: 0.4)),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimelineHeader(ColorScheme cs) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
-      child: Row(
-        children: [
-          Text(
-            'Timeline',
-            style: TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w600, color: cs.onSurface),
-          ),
-          const SizedBox(width: 8),
+          // Status badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.2),
+              color: statusColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              '${_tracks.length}',
-              style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w700, color: cs.primary),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(_statusIcon(req.status), size: 13, color: statusColor),
+                const SizedBox(width: 5),
+                Text(
+                  req.statusDisplayText,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor),
+                ),
+              ],
             ),
           ),
+          const SizedBox(height: 12),
+
+          // Description
+          Text(
+            req.description,
+            style: TextStyle(fontSize: 15, color: cs.onSurface, height: 1.5),
+          ),
+          const SizedBox(height: 12),
+          Divider(color: cs.onSurface.withValues(alpha: 0.06)),
+          const SizedBox(height: 8),
+
+          _InfoRow(label: 'Main Type', value: _mainTypeName),
+          const SizedBox(height: 4),
+          _InfoRow(label: 'Sub Type', value: _subTypeName),
+          const SizedBox(height: 4),
+          _InfoRow(label: 'Created', value: _formatDate(req.createdAt)),
         ],
       ),
     );
   }
 
-  Widget _buildTimeline(ColorScheme cs) {
-    if (_tracks.isEmpty) {
-      return Center(
-        child: Text('No activity yet',
-            style: TextStyle(color: cs.onSurface.withValues(alpha: 0.4))),
-      );
-    }
+  // ── Timeline ───────────────────────────────────────────────────────────────
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      itemCount: _tracks.length,
-      itemBuilder: (context, index) =>
-          _buildTrackItem(_tracks[index], index == _tracks.length - 1, cs),
+  Widget _buildTimelineSection(ColorScheme cs) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Timeline',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: cs.primary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${_tracks.length}',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: cs.primary),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_tracks.isEmpty)
+          Text('No activity yet',
+              style: TextStyle(color: cs.onSurface.withValues(alpha: 0.4)))
+        else
+          ...List.generate(
+            _tracks.length,
+            (i) => _buildTrackTile(_tracks[i], i == _tracks.length - 1, cs),
+          ),
+      ],
     );
   }
 
-  Widget _buildTrackItem(Track track, bool isLast, ColorScheme cs) {
+  Widget _buildTrackTile(Track track, bool isLast, ColorScheme cs) {
     final actionColor = _actionColor(track.actionType);
+    final performerLabel = _performerLabel(track.actionType);
+    final performerEmail = _performerEmails[track.performedBy] ?? '…';
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -253,86 +281,71 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(bottom: isLast ? 0 : 4),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: cs.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          track.actionDisplayText,
-                          style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                              color: cs.onSurface),
-                        ),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: cs.onSurface.withValues(alpha: 0.06)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Row 1: action label + role badge
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        track.actionDisplayText,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: cs.onSurface),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: _roleColor(track.performedByRole)
-                              .withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          track.performedByRole,
-                          style: TextStyle(
-                              color: _roleColor(track.performedByRole),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _performerEmails[track.performedBy] ?? 'Unknown',
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: cs.onSurface.withValues(alpha: 0.5)),
-                  ),
-                  Text(
-                    _formatDate(track.createdAt),
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: cs.onSurface.withValues(alpha: 0.35)),
-                  ),
-                  if (track.comment != null && track.comment!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
+                    ),
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: cs.onSurface.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(8),
+                        color: _roleColor(track.performedByRole)
+                            .withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(
-                        track.comment!,
+                        track.performedByRole,
                         style: TextStyle(
-                            fontSize: 12,
-                            color: cs.onSurface.withValues(alpha: 0.8),
-                            height: 1.4),
+                            color: _roleColor(track.performedByRole),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+
+                // Performer label + email
+                _InfoRow(label: performerLabel, value: performerEmail),
+                const SizedBox(height: 3),
+                // Timestamp
+                _InfoRow(
+                    label: 'Updated at', value: _formatDate(track.createdAt)),
+
+                // Comment
+                if (track.comment != null &&
+                    track.comment!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _CommentBox(comment: track.comment!.trim()),
                 ],
-              ),
+              ],
             ),
           ),
         ),
       ],
     );
   }
+
+  // ── Respond bar ────────────────────────────────────────────────────────────
 
   Widget _buildRespondBar(ColorScheme cs) {
     return Container(
@@ -394,7 +407,7 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
                 controller: commentController,
                 decoration: const InputDecoration(
                   labelText: 'Additional Comment',
-                  hintText: 'Explain what you updated...',
+                  hintText: 'Explain what you updated…',
                 ),
                 maxLines: 3,
               ),
@@ -425,13 +438,12 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Response sent successfully')),
           );
-          _loadRequestDetails();
+          _load();
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error sending response: $e')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Error: $e')));
         }
       } finally {
         descriptionController.dispose();
@@ -443,10 +455,31 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
     }
   }
 
-  // ── helpers ──────────────────────────────────────────────────────────────
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
-  Color _statusColor(String status) {
-    switch (status) {
+  /// Returns a contextual "performed by" label based on action type.
+  String _performerLabel(String actionType) {
+    switch (actionType) {
+      case 'RAISED':
+        return 'Created by';
+      case 'REPLIED':
+        return 'Replied by';
+      case 'ASSIGNED':
+        return 'Assigned by';
+      case 'IN_PROGRESS':
+        return 'Started by';
+      case 'REASSIGN_REQUESTED':
+        return 'Requested by';
+      case 'COMPLETED':
+      case 'REJECTED':
+        return 'Closed by';
+      default:
+        return 'Performed by';
+    }
+  }
+
+  Color _statusColor(String s) {
+    switch (s) {
       case 'RAISED':
         return const Color(0xFF89B4FA);
       case 'REPLIED':
@@ -466,8 +499,8 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
     }
   }
 
-  IconData _statusIcon(String status) {
-    switch (status) {
+  IconData _statusIcon(String s) {
+    switch (s) {
       case 'RAISED':
         return Icons.fiber_new_rounded;
       case 'REPLIED':
@@ -487,8 +520,8 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
     }
   }
 
-  Color _actionColor(String actionType) {
-    switch (actionType) {
+  Color _actionColor(String s) {
+    switch (s) {
       case 'RAISED':
         return const Color(0xFF89B4FA);
       case 'REPLIED':
@@ -508,8 +541,8 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
     }
   }
 
-  IconData _actionIcon(String actionType) {
-    switch (actionType) {
+  IconData _actionIcon(String s) {
+    switch (s) {
       case 'RAISED':
         return Icons.add_circle_rounded;
       case 'REPLIED':
@@ -549,8 +582,68 @@ class _RequestDetailPageState extends ConsumerState<RequestDetailPage> {
     }
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} '
-        '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year} '
+      '${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+}
+
+// ── Shared widgets ─────────────────────────────────────────────────────────────
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 90,
+          child: Text(
+            '$label:',
+            style: TextStyle(
+                fontSize: 11, color: cs.onSurface.withValues(alpha: 0.45)),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: cs.onSurface.withValues(alpha: 0.8)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CommentBox extends StatelessWidget {
+  final String comment;
+
+  const _CommentBox({required this.comment});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: cs.onSurface.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        comment,
+        style: TextStyle(
+            fontSize: 12,
+            color: cs.onSurface.withValues(alpha: 0.8),
+            height: 1.4),
+      ),
+    );
   }
 }
