@@ -1,89 +1,86 @@
-"""User Endpoints"""
-from fastapi import APIRouter, Request, Depends, Query
+"""User API Endpoints"""
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from typing import List
-from config.database import get_db
-from middleware.auth import require_role, get_current_user
-from controllers.user import UserController
+from pydantic import BaseModel
 from models.user import User
+from models.enums import UserRole
+from middleware.auth import get_current_user, require_role
+from controllers.user import get_users, create_user, update_user_role, update_user_name, deactivate_user
+from config.database import get_db
 
-router = APIRouter()
+router = APIRouter(prefix="/users", tags=["Users"])
 
+
+# --- Request Schemas ---
+
+class CreateUserRequest(BaseModel):
+    email: str
+    role: UserRole
+
+
+class UpdateRoleRequest(BaseModel):
+    role: UserRole
+
+
+class UpdateNameRequest(BaseModel):
+    name: str
+
+
+# --- Endpoints ---
 
 @router.get("/me")
-async def get_current_user_profile(
-    auth_data: dict = Depends(get_current_user),
+async def me(user: User = Depends(get_current_user)):
+    """Get the currently authenticated user"""
+    return user
+
+
+@router.put("/me/name")
+async def update_name(
+    body: UpdateNameRequest,
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get current authenticated user's profile"""
-    user = auth_data["user"]
-    role = auth_data["role"]
-
-    return {
-        "id": user.id,
-        "email": user.email,
-        "role": role,
-        "is_active": user.is_active,
-        "created_at": user.created_at.isoformat()
-    }
+    """Update the current user's name"""
+    return update_user_name(db, user_id=user.id, name=body.name)
 
 
-@router.get("/requests", response_model=dict)
-async def get_current_user_requests(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-    auth_data: dict = Depends(get_current_user),
+@router.get("/")
+async def list_users(
+    page: int = 1,
+    user: User = Depends(require_role(UserRole.ADMIN)),
     db: Session = Depends(get_db)
 ):
-    """Get current user's requests with pagination"""
-    from controllers.request import RequestController
-    user_id = auth_data["user"].id
-    return RequestController.get_by_user(db, user_id, skip=skip, limit=limit)
+    """Get all active users paginated (50 per page)"""
+    return get_users(db, page=page)
 
 
-@router.get("/", response_model=dict)
-async def get_all_users(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    auth_data: dict = Depends(require_role("ADMIN")),
+@router.post("/")
+async def create(
+    body: CreateUserRequest,
+    user: User = Depends(require_role(UserRole.ADMIN)),
     db: Session = Depends(get_db)
 ):
-    """Get all users (ADMIN only)"""
-    return UserController.get_all(db, skip=skip, limit=limit)
+    """Create a new user with email and role"""
+    return create_user(db, email=body.email, role=body.role)
 
 
-@router.get("/emails")
-async def get_user_emails_bulk(
-    ids: List[str] = Query(default=[]),
-    auth_data: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Bulk-fetch emails for a list of user IDs (any authenticated user).
-    Returns a dict mapping user_id -> email."""
-    if not ids:
-        return {}
-    from models.user import UserTable
-    rows = db.query(UserTable.id, UserTable.email).filter(UserTable.id.in_(ids)).all()
-    return {row.id: row.email for row in rows}
-
-
-@router.get("/{user_id}", response_model=User)
-async def get_user_by_id(
+@router.put("/{user_id}/update-role")
+async def update_role(
     user_id: str,
-    auth_data: dict = Depends(require_role("ADMIN")),
+    body: UpdateRoleRequest,
+    user: User = Depends(require_role(UserRole.ADMIN)),
     db: Session = Depends(get_db)
 ):
-    """Get user by ID (ADMIN only)"""
-    return UserController.get_by_id(db, user_id)
+    """Update a user's role"""
+    return update_user_role(db, user_id=user_id, role=body.role)
 
 
-@router.put("/{user_id}", response_model=User)
-async def update_user(
+@router.delete("/{user_id}")
+async def delete_user(
     user_id: str,
-    request: Request,
-    auth_data: dict = Depends(require_role("ADMIN")),
+    user: User = Depends(require_role(UserRole.ADMIN)),
     db: Session = Depends(get_db)
 ):
-    """Update user (ADMIN only)"""
-    data = await request.json()
-    return UserController.update(db, user_id, data)
+    """Deactivate a user (soft delete)"""
+    deactivate_user(db, user_id=user_id)
+    return {"message": "User deactivated successfully"}

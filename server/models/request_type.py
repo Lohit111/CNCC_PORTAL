@@ -1,8 +1,7 @@
 """Request Type Models"""
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime
+from sqlalchemy import Column, String, Integer, ForeignKey
 from sqlalchemy.orm import relationship, Session
 from models.base import Base
 
@@ -13,12 +12,9 @@ class MainTypeTable(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False, unique=True)
-    created_by = Column(String, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     sub_types = relationship(
         "SubTypeTable", back_populates="main_type", cascade="all, delete-orphan")
-    requests = relationship("RequestTable", back_populates="main_type")
 
 
 class SubTypeTable(Base):
@@ -31,14 +27,11 @@ class SubTypeTable(Base):
         "main_types.id"), nullable=False, index=True)
 
     main_type = relationship("MainTypeTable", back_populates="sub_types")
-    requests = relationship("RequestTable", back_populates="sub_type")
 
 
 class MainType(BaseModel):
     id: Optional[int] = Field(default=None)
     name: str = Field()
-    created_by: str = Field()
-    created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
         from_attributes = True
@@ -48,18 +41,15 @@ class MainType(BaseModel):
         """Convert SQLAlchemy model to Pydantic model"""
         return MainType(
             id=int(main_type_table.id) if main_type_table.id else None,
-            name=str(main_type_table.name),
-            created_by=str(main_type_table.created_by),
-            created_at=main_type_table.created_at
+            name=str(main_type_table.name)
         )
 
     @staticmethod
     def create(db: Session, data: dict) -> "MainType":
-        """Create a new main type"""
+        """Stage a new main type (caller must commit)"""
         main_type_table = MainTypeTable(**data)
         db.add(main_type_table)
-        db.commit()
-        db.refresh(main_type_table)
+        db.flush()
         return MainType.from_orm(main_type_table)
 
     @staticmethod
@@ -93,23 +83,19 @@ class MainType(BaseModel):
 
     @staticmethod
     def update(db: Session, filter: dict, data: dict) -> bool:
-        """Update main type"""
+        """Stage an update (caller must commit)"""
         query = db.query(MainTypeTable)
         for key, value in filter.items():
             query = query.filter(getattr(MainTypeTable, key) == value)
-        result = query.update(data)
-        db.commit()
-        return result > 0
+        return query.update(data) > 0
 
     @staticmethod
     def delete(db: Session, filter: dict) -> bool:
-        """Delete main type"""
+        """Stage a delete (caller must commit)"""
         query = db.query(MainTypeTable)
         for key, value in filter.items():
             query = query.filter(getattr(MainTypeTable, key) == value)
-        result = query.delete()
-        db.commit()
-        return result > 0
+        return query.delete() > 0
 
     @staticmethod
     def count(db: Session, filter: Optional[dict] = None) -> int:
@@ -140,11 +126,10 @@ class SubType(BaseModel):
 
     @staticmethod
     def create(db: Session, data: dict) -> "SubType":
-        """Create a new sub type"""
+        """Stage a new sub type (caller must commit)"""
         sub_type_table = SubTypeTable(**data)
         db.add(sub_type_table)
-        db.commit()
-        db.refresh(sub_type_table)
+        db.flush()
         return SubType.from_orm(sub_type_table)
 
     @staticmethod
@@ -178,33 +163,27 @@ class SubType(BaseModel):
 
     @staticmethod
     def update(db: Session, filter: dict, data: dict) -> bool:
-        """Update sub type"""
+        """Stage an update (caller must commit)"""
         query = db.query(SubTypeTable)
         for key, value in filter.items():
             query = query.filter(getattr(SubTypeTable, key) == value)
-        result = query.update(data)
-        db.commit()
-        return result > 0
+        return query.update(data) > 0
 
     @staticmethod
     def delete(db: Session, filter: dict) -> bool:
-        """Delete sub type"""
+        """Stage a delete (caller must commit)"""
         query = db.query(SubTypeTable)
         for key, value in filter.items():
             query = query.filter(getattr(SubTypeTable, key) == value)
-        result = query.delete()
-        db.commit()
-        return result > 0
+        return query.delete() > 0
 
     @staticmethod
     def delete_all(db: Session, filter: dict) -> int:
-        """Delete multiple sub types"""
+        """Stage bulk delete (caller must commit)"""
         query = db.query(SubTypeTable)
         for key, value in filter.items():
             query = query.filter(getattr(SubTypeTable, key) == value)
-        result = query.delete()
-        db.commit()
-        return result
+        return query.delete()
 
     @staticmethod
     def count(db: Session, filter: Optional[dict] = None) -> int:

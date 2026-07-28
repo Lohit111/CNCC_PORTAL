@@ -1,10 +1,11 @@
-"""Track Model - Replaces Comment Model for Request Timeline"""
+"""Track Model"""
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text
+from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text, Enum as SAEnum
 from sqlalchemy.orm import relationship, Session
 from models.base import Base
+from models.enums import TrackEventType, UserRole
 
 
 class RequestTrackTable(Base):
@@ -13,27 +14,29 @@ class RequestTrackTable(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     request_id = Column(String, ForeignKey("requests.id"),
-                        nullable=True, index=True)
+                        nullable=False, index=True)
     store_request_id = Column(String, ForeignKey("store_requests.id"),
                               nullable=True, index=True)
-    action_type = Column(String, nullable=False, index=True)
+    event_type = Column(SAEnum(TrackEventType), nullable=False, index=True)
     performed_by = Column(String, ForeignKey("users.id"), nullable=False)
-    performed_by_role = Column(String, nullable=False)
+    performed_by_role = Column(SAEnum(UserRole), nullable=False)
     comment = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow,
+                        nullable=False, index=True)
 
     request = relationship("RequestTable", back_populates="tracks")
     store_request = relationship("StoreRequestTable", back_populates="tracks")
     performer = relationship("UserTable", back_populates="tracks")
+    assignments = relationship("AssignmentTable", back_populates="track")
 
 
 class RequestTrack(BaseModel):
     id: Optional[int] = Field(default=None)
-    request_id: Optional[str] = Field(default=None)
+    request_id: str = Field()
     store_request_id: Optional[str] = Field(default=None)
-    action_type: str = Field()
+    event_type: TrackEventType = Field()
     performed_by: str = Field()
-    performed_by_role: str = Field()
+    performed_by_role: UserRole = Field()
     comment: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -45,22 +48,22 @@ class RequestTrack(BaseModel):
         """Convert SQLAlchemy model to Pydantic model"""
         return RequestTrack(
             id=int(track_table.id) if track_table.id else None,
-            request_id=str(track_table.request_id) if track_table.request_id else None,
-            store_request_id=str(track_table.store_request_id) if track_table.store_request_id else None,
-            action_type=str(track_table.action_type),
+            request_id=str(track_table.request_id),
+            store_request_id=str(
+                track_table.store_request_id) if track_table.store_request_id else None,
+            event_type=track_table.event_type,
             performed_by=str(track_table.performed_by),
-            performed_by_role=str(track_table.performed_by_role),
+            performed_by_role=track_table.performed_by_role,
             comment=str(track_table.comment) if track_table.comment else None,
             created_at=track_table.created_at
         )
 
     @staticmethod
     def create(db: Session, data: dict) -> "RequestTrack":
-        """Create a new track"""
+        """Stage a new track (caller must commit)"""
         track_table = RequestTrackTable(**data)
         db.add(track_table)
-        db.commit()
-        db.refresh(track_table)
+        db.flush()
         return RequestTrack.from_orm(track_table)
 
     @staticmethod
@@ -87,8 +90,6 @@ class RequestTrack(BaseModel):
         if filter:
             for key, value in filter.items():
                 query = query.filter(getattr(RequestTrackTable, key) == value)
-        
-        # Order by created_at ascending (chronological timeline)
         query = query.order_by(getattr(RequestTrackTable, order_by).asc())
         query = query.offset(skip)
         if limit:
@@ -97,33 +98,27 @@ class RequestTrack(BaseModel):
 
     @staticmethod
     def update(db: Session, filter: dict, data: dict) -> bool:
-        """Update track"""
+        """Stage an update (caller must commit)"""
         query = db.query(RequestTrackTable)
         for key, value in filter.items():
             query = query.filter(getattr(RequestTrackTable, key) == value)
-        result = query.update(data)
-        db.commit()
-        return result > 0
+        return query.update(data) > 0
 
     @staticmethod
     def delete(db: Session, filter: dict) -> bool:
-        """Delete track"""
+        """Stage a delete (caller must commit)"""
         query = db.query(RequestTrackTable)
         for key, value in filter.items():
             query = query.filter(getattr(RequestTrackTable, key) == value)
-        result = query.delete()
-        db.commit()
-        return result > 0
+        return query.delete() > 0
 
     @staticmethod
     def delete_all(db: Session, filter: dict) -> int:
-        """Delete multiple tracks"""
+        """Stage bulk delete (caller must commit)"""
         query = db.query(RequestTrackTable)
         for key, value in filter.items():
             query = query.filter(getattr(RequestTrackTable, key) == value)
-        result = query.delete()
-        db.commit()
-        return result
+        return query.delete()
 
     @staticmethod
     def count(db: Session, filter: Optional[dict] = None) -> int:

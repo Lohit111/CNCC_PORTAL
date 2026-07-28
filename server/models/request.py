@@ -3,9 +3,10 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 import uuid
-from sqlalchemy import Column, String, Integer, ForeignKey, DateTime, Text
+from sqlalchemy import Column, String, ForeignKey, DateTime, Text, Enum as SAEnum
 from sqlalchemy.orm import relationship, Session
 from models.base import Base
+from models.enums import RequestStatus
 
 
 class RequestTable(Base):
@@ -16,21 +17,18 @@ class RequestTable(Base):
                 default=lambda: str(uuid.uuid4()), index=True)
     raised_by = Column(String, ForeignKey("users.id"),
                        nullable=False, index=True)
-    main_type_id = Column(Integer, ForeignKey("main_types.id"), nullable=False)
-    sub_type_id = Column(Integer, ForeignKey("sub_types.id"), nullable=False)
+    main_type = Column(String, nullable=False)
+    sub_type = Column(String, nullable=False)
     description = Column(Text, nullable=False)
     room_no = Column(String, nullable=False)
     phone_no = Column(String(10), nullable=False)
-    status = Column(String, default="RAISED", nullable=False, index=True)
-    is_active = Column(String, default="true", nullable=False, index=True)
+    status = Column(SAEnum(RequestStatus), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow, nullable=False)
 
     raiser = relationship(
         "UserTable", back_populates="raised_requests", foreign_keys=[raised_by])
-    main_type = relationship("MainTypeTable", back_populates="requests")
-    sub_type = relationship("SubTypeTable", back_populates="requests")
     tracks = relationship(
         "RequestTrackTable", back_populates="request", cascade="all, delete-orphan")
     assignments = relationship(
@@ -42,13 +40,12 @@ class RequestTable(Base):
 class Request(BaseModel):
     id: Optional[str] = Field(default=None)
     raised_by: str = Field()
-    main_type_id: int = Field()
-    sub_type_id: int = Field()
+    main_type: str = Field()
+    sub_type: str = Field()
     description: str = Field()
     room_no: str = Field()
     phone_no: str = Field()
-    status: str = Field(default="RAISED")
-    is_active: str = Field(default="true")
+    status: RequestStatus = Field()
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -61,26 +58,24 @@ class Request(BaseModel):
         return Request(
             id=str(request_table.id) if request_table.id else None,
             raised_by=str(request_table.raised_by),
-            main_type_id=int(request_table.main_type_id),
-            sub_type_id=int(request_table.sub_type_id),
+            main_type=str(request_table.main_type),
+            sub_type=str(request_table.sub_type),
             description=str(request_table.description),
             room_no=str(request_table.room_no),
             phone_no=str(request_table.phone_no),
-            status=str(request_table.status),
-            is_active=str(request_table.is_active),
+            status=request_table.status,
             created_at=request_table.created_at,
             updated_at=request_table.updated_at
         )
 
     @staticmethod
     def create(db: Session, data: dict) -> "Request":
-        """Create a new request"""
+        """Stage a new request (caller must commit)"""
         if "id" not in data:
             data["id"] = str(uuid.uuid4())
         request_table = RequestTable(**data)
         db.add(request_table)
-        db.commit()
-        db.refresh(request_table)
+        db.flush()
         return Request.from_orm(request_table)
 
     @staticmethod
@@ -114,34 +109,28 @@ class Request(BaseModel):
 
     @staticmethod
     def update(db: Session, filter: dict, data: dict) -> bool:
-        """Update request"""
+        """Stage an update (caller must commit)"""
         query = db.query(RequestTable)
         for key, value in filter.items():
             query = query.filter(getattr(RequestTable, key) == value)
         data["updated_at"] = datetime.utcnow()
-        result = query.update(data)
-        db.commit()
-        return result > 0
+        return query.update(data) > 0
 
     @staticmethod
     def delete(db: Session, filter: dict) -> bool:
-        """Delete request"""
+        """Stage a delete (caller must commit)"""
         query = db.query(RequestTable)
         for key, value in filter.items():
             query = query.filter(getattr(RequestTable, key) == value)
-        result = query.delete()
-        db.commit()
-        return result > 0
+        return query.delete() > 0
 
     @staticmethod
     def delete_all(db: Session, filter: dict) -> int:
-        """Delete multiple requests"""
+        """Stage bulk delete (caller must commit)"""
         query = db.query(RequestTable)
         for key, value in filter.items():
             query = query.filter(getattr(RequestTable, key) == value)
-        result = query.delete()
-        db.commit()
-        return result
+        return query.delete()
 
     @staticmethod
     def count(db: Session, filter: Optional[dict] = None) -> int:

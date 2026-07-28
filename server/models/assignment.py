@@ -16,20 +16,22 @@ class AssignmentTable(Base):
                         nullable=False, index=True)
     staff_id = Column(String, ForeignKey("users.id"),
                       nullable=False, index=True)
-    assigned_by = Column(String, ForeignKey("users.id"), nullable=False)
+    track_id = Column(Integer, ForeignKey("request_tracks.id"),
+                      nullable=False, index=True)
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     request = relationship("RequestTable", back_populates="assignments")
     staff = relationship(
         "UserTable", back_populates="assignments", foreign_keys=[staff_id])
+    track = relationship("RequestTrackTable", back_populates="assignments")
 
 
 class Assignment(BaseModel):
     id: Optional[int] = Field(default=None)
     request_id: str = Field()
     staff_id: str = Field()
-    assigned_by: str = Field()
+    track_id: int = Field()
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -43,18 +45,17 @@ class Assignment(BaseModel):
             id=int(assignment_table.id) if assignment_table.id else None,
             request_id=str(assignment_table.request_id),
             staff_id=str(assignment_table.staff_id),
-            assigned_by=str(assignment_table.assigned_by),
+            track_id=int(assignment_table.track_id),
             is_active=bool(assignment_table.is_active),
             created_at=assignment_table.created_at
         )
 
     @staticmethod
     def create(db: Session, data: dict) -> "Assignment":
-        """Create a new assignment"""
+        """Stage a new assignment (caller must commit)"""
         assignment_table = AssignmentTable(**data)
         db.add(assignment_table)
-        db.commit()
-        db.refresh(assignment_table)
+        db.flush()
         return Assignment.from_orm(assignment_table)
 
     @staticmethod
@@ -88,33 +89,27 @@ class Assignment(BaseModel):
 
     @staticmethod
     def update(db: Session, filter: dict, data: dict) -> bool:
-        """Update assignment"""
+        """Stage an update (caller must commit)"""
         query = db.query(AssignmentTable)
         for key, value in filter.items():
             query = query.filter(getattr(AssignmentTable, key) == value)
-        result = query.update(data)
-        db.commit()
-        return result > 0
+        return query.update(data) > 0
 
     @staticmethod
     def delete(db: Session, filter: dict) -> bool:
-        """Delete assignment"""
+        """Stage a delete (caller must commit)"""
         query = db.query(AssignmentTable)
         for key, value in filter.items():
             query = query.filter(getattr(AssignmentTable, key) == value)
-        result = query.delete()
-        db.commit()
-        return result > 0
+        return query.delete() > 0
 
     @staticmethod
     def delete_all(db: Session, filter: dict) -> int:
-        """Delete multiple assignments"""
+        """Stage bulk delete (caller must commit)"""
         query = db.query(AssignmentTable)
         for key, value in filter.items():
             query = query.filter(getattr(AssignmentTable, key) == value)
-        result = query.delete()
-        db.commit()
-        return result
+        return query.delete()
 
     @staticmethod
     def count(db: Session, filter: Optional[dict] = None) -> int:

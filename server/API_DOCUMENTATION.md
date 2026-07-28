@@ -1,762 +1,486 @@
-﻿# API Documentation
+﻿# CNCC Portal - Model Summary
 
-Complete API reference for the Request Management System with track-based timeline.
+## Enums (`models/enums.py`)
 
-**Base URL:** http://localhost:8000
+### `UserRole`
 
-**Authentication:** All endpoints require Firebase Authentication token in header:
-Authorization: Bearer <firebase_token>
+| Value   | Description                        |
+| ------- | ---------------------------------- |
+| `USER`  | Regular user raising requests      |
+| `ADMIN` | Administrator managing requests    |
+| `STAFF` | Staff member assigned to requests  |
+| `STORE` | Store user handling store requests |
 
----
+### `RequestStatus`
 
-## Table of Contents
-1. Users API
-2. Roles API  
-3. Requests API
-4. Request Types API
-5. Assignments API
-6. Store Requests API
-7. Data Models
-8. Error Responses
+| Value                |
+| -------------------- |
+| `RAISED`             |
+| `REPLIED`            |
+| `ASSIGNED`           |
+| `IN_PROGRESS`        |
+| `REASSIGN_REQUESTED` |
+| `COMPLETED`          |
+| `REJECTED`           |
 
----
+### `TrackEventType`
 
-## Users API
+| Value                     |
+| ------------------------- |
+| `RAISED`                  |
+| `ASSIGNED`                |
+| `IN_PROGRESS`             |
+| `REASSIGN_REQUESTED`      |
+| `COMPLETED`               |
+| `REJECTED`                |
+| `STORE_REQUEST_CREATED`   |
+| `STORE_REQUEST_APPROVED`  |
+| `STORE_REQUEST_REJECTED`  |
+| `STORE_REQUEST_FULFILLED` |
+| `REPLIED`                 |
 
-### GET /api/v1/users/me
-Get current authenticated user profile.
+### `StoreRequestStatus`
 
-**Access:** All authenticated users
-
-**Response:** User object with id, email, role, is_active, created_at
-
-**Database Effects:** None (read-only)
-
----
-
-### GET /api/v1/users/requests
-Get current user requests with pagination.
-
-**Access:** All authenticated users
-
-**Query Parameters:** skip (default: 0), limit (default: 20, max: 100)
-
-**Response:** Paginated list of request objects
-
-**Database Effects:** None (read-only)
-
----
-
-### GET /api/v1/users/
-Get all users (paginated).
-
-**Access:** ADMIN only
-
-**Query Parameters:** skip (default: 0), limit (default: 100, max: 1000)
-
-**Response:** Paginated list of user objects
-
-**Database Effects:** None (read-only)
+| Value       |
+| ----------- |
+| `PENDING`   |
+| `APPROVED`  |
+| `REJECTED`  |
+| `FULFILLED` |
 
 ---
 
-### GET /api/v1/users/{user_id}
-Get user by ID.
+## Tables
 
-**Access:** ADMIN only
+### `users`
 
-**Response:** Single user object
+| Column       | Type           | Constraints            |
+| ------------ | -------------- | ---------------------- |
+| `id`         | String (UUID)  | PK, auto-generated     |
+| `email`      | String         | unique, not null       |
+| `name`       | String         | nullable               |
+| `role`       | Enum(UserRole) | not null               |
+| `is_active`  | Boolean        | not null, default=true |
+| `created_at` | DateTime       | not null, default=now  |
 
-**Database Effects:** None (read-only)
+**Relationships**
 
----
-
-### PUT /api/v1/users/{user_id}
-Update user.
-
-**Access:** ADMIN only
-
-**Request Body:** is_active field
-
-**Response:** Updated user object
-
-**Database Effects:** Updates users table, can activate/deactivate users
-
----
-
-## Roles API
-
-### GET /api/v1/roles/
-Get all role assignments.
-
-**Access:** ADMIN only
-
-**Query Parameters:** skip (default: 0), limit (default: 100, max: 1000)
-
-**Response:** Paginated list of role objects
-
-**Database Effects:** None (read-only)
+- → `requests` (raised_requests) via `requests.raised_by`
+- → `request_tracks` (tracks) via `request_tracks.performed_by`
+- → `assignments` via `assignments.staff_id`
+- → `store_requests` (store_requests) via `store_requests.requested_by`
+- → `store_requests` (responded_store_requests) via `store_requests.responded_by`
+- → `store_chats` via `store_chats.sender_id`
 
 ---
 
-### GET /api/v1/roles/{email}
-Get role by email.
+### `main_types`
 
-**Access:** ADMIN only
+| Column | Type    | Constraints      |
+| ------ | ------- | ---------------- |
+| `id`   | Integer | PK               |
+| `name` | String  | unique, not null |
 
-**Response:** Single role object
+**Relationships**
 
-**Database Effects:** None (read-only)
-
----
-
-### POST /api/v1/roles/
-Create a new role assignment.
-
-**Access:** ADMIN only
-
-**Request Body:** email, role (USER/ADMIN/STAFF/STORE)
-
-**Response:** Created role object
-
-**Database Effects:** Inserts into roles table, sets timestamps, user can now authenticate
-
-**Errors:** 409 if role already exists for email
+- → `sub_types` (cascade delete-orphan)
 
 ---
 
-### PUT /api/v1/roles/{email}
-Update role assignment.
+### `sub_types`
 
-**Access:** ADMIN only
+| Column         | Type    | Constraints                    |
+| -------------- | ------- | ------------------------------ |
+| `id`           | Integer | PK                             |
+| `name`         | String  | not null                       |
+| `main_type_id` | Integer | FK → `main_types.id`, not null |
 
-**Request Body:** role field
+**Relationships**
 
-**Response:** Updated role object
-
-**Database Effects:** Updates roles table, updates timestamp, changes permissions immediately
-
----
-
-### DELETE /api/v1/roles/{email}
-Delete role assignment.
-
-**Access:** ADMIN only
-
-**Response:** Success message
-
-**Database Effects:** Deletes from roles table, user can no longer authenticate, does NOT delete user data
+- → `main_types`
 
 ---
 
-### POST /api/v1/roles/bulk
-Bulk create or update roles.
+### `requests`
 
-**Access:** ADMIN only
+| Column        | Type                | Constraints                         |
+| ------------- | ------------------- | ----------------------------------- |
+| `id`          | String (UUID)       | PK                                  |
+| `raised_by`   | String              | FK → `users.id`, not null           |
+| `main_type`   | String              | not null (snapshot at creation)     |
+| `sub_type`    | String              | not null (snapshot at creation)     |
+| `description` | Text                | not null                            |
+| `room_no`     | String              | not null                            |
+| `phone_no`    | String(10)          | not null                            |
+| `status`      | Enum(RequestStatus) | not null                            |
+| `created_at`  | DateTime            | not null, default=now               |
+| `updated_at`  | DateTime            | not null, default=now, onupdate=now |
 
-**Request Body:** Array of role objects
+**Relationships**
 
-**Response:** Summary of created and updated roles
-
-**Database Effects:** Creates new roles or updates existing ones in single transaction
-
----
-
-## Requests API
-
-### POST /api/v1/requests/
-Create a new request.
-
-**Access:** USER only
-
-**Request Body:** main_type_id, sub_type_id, description
-
-**Response:** Created request object with auto-generated ID
-
-**Database Effects:**
-1. Inserts into requests table (UUID, raised_by, status=RAISED, is_active=true, timestamps)
-2. Inserts into request_tracks table (action_type=RAISED, performed_by, performed_by_role=USER, metadata)
-
-**Validations:** main_type_id and sub_type_id must exist and be related
+- → `users` (raiser)
+- → `request_tracks` (cascade delete-orphan)
+- → `assignments` (cascade delete-orphan)
+- → `store_requests` (cascade delete-orphan)
 
 ---
 
-### GET /api/v1/requests/
-Get all requests (paginated).
+### `request_tracks`
 
-**Access:** ADMIN, STAFF
+| Column              | Type                 | Constraints                        |
+| ------------------- | -------------------- | ---------------------------------- |
+| `id`                | Integer              | PK                                 |
+| `request_id`        | String               | FK → `requests.id`, not null       |
+| `store_request_id`  | String               | FK → `store_requests.id`, nullable |
+| `event_type`        | Enum(TrackEventType) | not null                           |
+| `performed_by`      | String               | FK → `users.id`, not null          |
+| `performed_by_role` | Enum(UserRole)       | not null                           |
+| `comment`           | Text                 | nullable                           |
+| `created_at`        | DateTime             | not null, default=now              |
 
-**Query Parameters:** skip (default: 0), limit (default: 20, max: 100)
+**Relationships**
 
-**Response:** Paginated list of request objects
-
-**Database Effects:** None (read-only)
-
----
-
-### GET /api/v1/requests/{request_id}
-Get request by ID.
-
-**Access:** USER, ADMIN, STAFF, STORE (all roles)
-
-**Response:** Single request object
-
-**Database Effects:** None (read-only)
+- → `requests`
+- → `store_requests`
+- → `users` (performer)
+- → `assignments`
 
 ---
 
-### PUT /api/v1/requests/{request_id}
-Update request.
+### `assignments`
 
-**Access:** ADMIN, STAFF
+| Column       | Type     | Constraints                        |
+| ------------ | -------- | ---------------------------------- |
+| `id`         | Integer  | PK                                 |
+| `request_id` | String   | FK → `requests.id`, not null       |
+| `staff_id`   | String   | FK → `users.id`, not null          |
+| `track_id`   | Integer  | FK → `request_tracks.id`, not null |
+| `created_at` | DateTime | not null, default=now              |
 
-**Request Body:** status, description (optional)
+**Purpose**: Groups multiple staff assignments under a single `ASSIGNED` status change track entry.
 
-**Valid Status Values:** RAISED, REPLIED, REJECTED, ASSIGNED, IN_PROGRESS, REASSIGN_REQUESTED, COMPLETED
+**Relationships**
 
-**Response:** Updated request object
-
-**Database Effects:** Updates requests table, updates timestamp
-
-**Note:** Does NOT automatically create tracks. Use POST /comments endpoint separately.
-
----
-
-### DELETE /api/v1/requests/{request_id}
-Delete request and all related data.
-
-**Access:** ADMIN only
-
-**Response:** Success message
-
-**Database Effects (CASCADE DELETE):**
-1. Deletes from request_tracks where request_id matches
-2. Deletes from assignments where request_id matches
-3. Deletes from store_requests where parent_request_id matches (also deletes store_chats and related tracks)
-4. Deletes from requests table
-
-**Warning:** Permanent deletion, cannot be undone
+- → `requests`
+- → `users` (staff)
+- → `request_tracks` (track)
 
 ---
 
-### POST /api/v1/requests/{request_id}/comments
-Add a track entry to request timeline.
+### `store_requests`
 
-**Access:** USER, ADMIN, STAFF, STORE (all roles)
+| Column              | Type                     | Constraints                         |
+| ------------------- | ------------------------ | ----------------------------------- |
+| `id`                | String (UUID)            | PK                                  |
+| `parent_request_id` | String                   | FK → `requests.id`, not null        |
+| `requested_by`      | String                   | FK → `users.id`, not null           |
+| `description`       | Text                     | not null                            |
+| `status`            | Enum(StoreRequestStatus) | not null                            |
+| `responded_by`      | String                   | FK → `users.id`, nullable           |
+| `created_at`        | DateTime                 | not null, default=now               |
+| `updated_at`        | DateTime                 | not null, default=now, onupdate=now |
 
-**Request Body:** action_type, comment (optional), metadata (optional)
+**Relationships**
 
-**Common Action Types:** RAISED, REPLIED, REJECTED, ASSIGNED, REASSIGN_REQUESTED, IN_PROGRESS, COMPLETED
-
-**Response:** Created track object
-
-**Database Effects:** Inserts into request_tracks table with sender_id, sender_role, timestamp
-
-**Note:** Creates track entry. Status changes done via PUT /requests/{request_id}
-
----
-
-### GET /api/v1/requests/{request_id}/comments
-Get all tracks for a request (timeline view).
-
-**Access:** USER, ADMIN, STAFF, STORE (all roles)
-
-**Response:** Array of track objects ordered by created_at ASC (chronological)
-
-**Database Effects:** None (read-only)
+- → `requests` (parent_request)
+- → `users` (requester) via `requested_by`
+- → `users` (responder) via `responded_by`
+- → `request_tracks` (cascade delete-orphan)
+- → `store_chats` (cascade delete-orphan)
 
 ---
 
-## Request Types API
+### `store_chats`
 
-### GET /api/v1/types/main
-Get all main types.
+| Column             | Type     | Constraints                        |
+| ------------------ | -------- | ---------------------------------- |
+| `id`               | Integer  | PK                                 |
+| `store_request_id` | String   | FK → `store_requests.id`, not null |
+| `sender_id`        | String   | FK → `users.id`, not null          |
+| `message`          | Text     | not null                           |
+| `created_at`       | DateTime | not null, default=now              |
 
-**Access:** USER, ADMIN, STAFF, STORE (all roles)
+**Relationships**
 
-**Response:** Array of main type objects
-
-**Database Effects:** None (read-only)
-
----
-
-### GET /api/v1/types/main/{main_type_id}
-Get main type by ID.
-
-**Access:** USER, ADMIN, STAFF, STORE (all roles)
-
-**Response:** Single main type object
-
-**Database Effects:** None (read-only)
+- → `store_requests`
+- → `users` (sender)
 
 ---
 
-### POST /api/v1/types/main
-Create a new main type.
+# API Reference
 
-**Access:** ADMIN only
+All endpoints are prefixed with `/api/v1`. Authentication is via Firebase Bearer token in the `Authorization` header.
 
-**Request Body:** name
+## Response Shape — Request Detail
 
-**Response:** Created main type object with auto-generated ID
+Most GET endpoints return individual requests in this shape:
 
-**Database Effects:** Inserts into main_types table, sets created_by and timestamp
+```json
+{
+  "request": { ... },
+  "timeline": [ ... ],
+  "assignments": [ ... ],
+  "store_requests": [ ... ],
+  "users": { "uid": { user document } }
+}
+```
 
-**Errors:** 409 if main type with same name already exists
+## Response Shape — Store Request Detail
 
----
+Store endpoints return items in this shape:
 
-### PUT /api/v1/types/main/{main_type_id}
-Update main type.
+```json
+{
+  "store_request": { ... },
+  "parent_request": {
+    "request": { ... },
+    "timeline": [ ... ],
+    "assignments": [ ... ],
+    "users": { "uid": { user document } }
+  }
+}
+```
 
-**Access:** ADMIN only
+## Pagination
 
-**Request Body:** name
+All list endpoints accept a `page` query parameter (default: 1).
 
-**Response:** Updated main type object
+- User lists: 50 per page
+- All others: 30 per page
 
-**Database Effects:** Updates main_types table
+Response shape:
 
----
-
-### DELETE /api/v1/types/main/{main_type_id}
-Delete main type.
-
-**Access:** ADMIN only
-
-**Response:** Success message
-
-**Database Effects (CASCADE):** Deletes from main_types table, deletes all sub_types where main_type_id matches
-
----
-
-### GET /api/v1/types/main/{main_type_id}/sub
-Get all sub types for a main type.
-
-**Access:** USER, ADMIN, STAFF, STORE (all roles)
-
-**Response:** Array of sub type objects
-
-**Database Effects:** None (read-only)
-
----
-
-### GET /api/v1/types/sub/{sub_type_id}
-Get sub type by ID.
-
-**Access:** USER, ADMIN, STAFF, STORE (all roles)
-
-**Response:** Single sub type object
-
-**Database Effects:** None (read-only)
+```json
+{ "requests": [...], "total": 120, "page": 2, "pages": 4 }
+```
 
 ---
 
-### POST /api/v1/types/sub
-Create a new sub type.
+## Users `/users`
 
-**Access:** ADMIN only
+| Method   | Path                           | Auth  | Description                               |
+| -------- | ------------------------------ | ----- | ----------------------------------------- |
+| `GET`    | `/users/me`                    | Any   | Get current authenticated user            |
+| `PUT`    | `/users/me/name`               | Any   | Update current user's name                |
+| `GET`    | `/users/?page=`                | ADMIN | Get all active users (50/page)            |
+| `POST`   | `/users/`                      | ADMIN | Create a user                             |
+| `PUT`    | `/users/{user_id}/update-role` | ADMIN | Update a user's role                      |
+| `DELETE` | `/users/{user_id}`             | ADMIN | Soft-delete a user (sets is_active=false) |
 
-**Request Body:** name, main_type_id
+**POST /users/ body:**
 
-**Response:** Created sub type object with auto-generated ID
+```json
+{ "email": "user@vnrvjiet.in", "role": "STAFF" }
+```
 
-**Database Effects:** Inserts into sub_types table, validates main_type_id exists
+**PUT /users/{id}/update-role body:**
 
-**Errors:** 404 if main type not found
+```json
+{ "role": "ADMIN" }
+```
 
----
+**PUT /users/me/name body:**
 
-### PUT /api/v1/types/sub/{sub_type_id}
-Update sub type.
-
-**Access:** ADMIN only
-
-**Request Body:** name
-
-**Response:** Updated sub type object
-
-**Database Effects:** Updates sub_types table
-
----
-
-### DELETE /api/v1/types/sub/{sub_type_id}
-Delete sub type.
-
-**Access:** ADMIN only
-
-**Response:** Success message
-
-**Database Effects:** Deletes from sub_types table
+```json
+{ "name": "John Doe" }
+```
 
 ---
 
-## Assignments API
+## Types `/types`
 
-### GET /api/v1/assignments/request/{request_id}
-Get all assignments for a request.
+| Method   | Path                    | Auth  | Description                              |
+| -------- | ----------------------- | ----- | ---------------------------------------- |
+| `GET`    | `/types/main`           | Any   | Get all main types                       |
+| `GET`    | `/types/{main_id}/sub`  | Any   | Get sub types for a main type            |
+| `POST`   | `/types/main`           | ADMIN | Create a main type                       |
+| `POST`   | `/types/{main_id}/sub`  | ADMIN | Create a sub type                        |
+| `PUT`    | `/types/main/{main_id}` | ADMIN | Update main type name                    |
+| `PUT`    | `/types/sub/{sub_id}`   | ADMIN | Update sub type name                     |
+| `DELETE` | `/types/main/{main_id}` | ADMIN | Delete main type (cascades to sub types) |
+| `DELETE` | `/types/sub/{sub_id}`   | ADMIN | Delete sub type                          |
 
-**Access:** ADMIN, STAFF
+**POST body (all create/update):**
 
-**Response:** Array of assignment objects (includes inactive assignments)
-
-**Database Effects:** None (read-only)
-
----
-
-### GET /api/v1/assignments/staff/{staff_id}
-Get all assignments for a staff member.
-
-**Access:** ADMIN, STAFF
-
-**Query Parameters:** active_only (default: true)
-
-**Response:** Array of assignment objects
-
-**Database Effects:** None (read-only)
+```json
+{ "name": "Electrical" }
+```
 
 ---
 
-### GET /api/v1/assignments/{assignment_id}
-Get assignment by ID.
+## My Requests `/my-requests`
 
-**Access:** ADMIN, STAFF
+Restricted to: `USER`, `ADMIN`, `STAFF`
 
-**Response:** Single assignment object
+| Method | Path                              | Auth             | Description                                            |
+| ------ | --------------------------------- | ---------------- | ------------------------------------------------------ |
+| `POST` | `/my-requests/`                   | USER/ADMIN/STAFF | Raise a new request                                    |
+| `GET`  | `/my-requests/raised?page=`       | USER/ADMIN/STAFF | My requests in RAISED status                           |
+| `GET`  | `/my-requests/replied?page=`      | USER/ADMIN/STAFF | My requests in REPLIED status                          |
+| `GET`  | `/my-requests/inprogress?page=`   | USER/ADMIN/STAFF | My requests in ASSIGNED/IN_PROGRESS/REASSIGN_REQUESTED |
+| `GET`  | `/my-requests/archive?page=`      | USER/ADMIN/STAFF | My requests in COMPLETED/REJECTED                      |
+| `PUT`  | `/my-requests/reply/{request_id}` | USER/ADMIN/STAFF | Reply to admin on a REPLIED request                    |
 
-**Database Effects:** None (read-only)
+**POST /my-requests/ body:**
 
----
+```json
+{
+  "main_type": "Electrical",
+  "sub_type": "Lighting",
+  "description": "Ceiling light not working in room 204",
+  "room_no": "204",
+  "phone_no": "9876543210"
+}
+```
 
-### POST /api/v1/assignments/
-Create a new assignment.
+Creates request with `RAISED` status and an initial `RAISED` track entry.
 
-**Access:** ADMIN only
+**PUT /my-requests/reply/{request_id} body:**
 
-**Request Body:** request_id, staff_id
+```json
+{
+  "comment": "Here is the updated info",
+  "description": "Updated description of the issue"
+}
+```
 
-**Response:** Created assignment object
-
-**Database Effects:**
-1. Deactivates all previous assignments for this request (sets is_active=false)
-2. Inserts into assignments table (assigned_by, is_active=true, timestamp)
-
-**Note:** Only one active assignment per request at a time
-
-**Validations:** Request and staff user must exist
-
-**Errors:** 404 if request or staff not found
-
----
-
-### PUT /api/v1/assignments/{assignment_id}
-Update assignment.
-
-**Access:** ADMIN only
-
-**Request Body:** is_active field
-
-**Response:** Updated assignment object
-
-**Database Effects:** Updates assignments table
+Sets request status back to `RAISED` and updates the description.
 
 ---
 
-### DELETE /api/v1/assignments/{assignment_id}
-Delete assignment.
+## Admin `/admin`
 
-**Access:** ADMIN only
+Restricted to: `ADMIN`
 
-**Response:** Success message
+### GET Endpoints
 
-**Database Effects:** Deletes from assignments table (permanent)
+| Method | Path                              | Description                     |
+| ------ | --------------------------------- | ------------------------------- |
+| `GET`  | `/admin/raised?page=`             | All RAISED requests             |
+| `GET`  | `/admin/replied?page=`            | All REPLIED requests            |
+| `GET`  | `/admin/assigned?page=`           | All ASSIGNED requests           |
+| `GET`  | `/admin/reassign-requested?page=` | All REASSIGN_REQUESTED requests |
+| `GET`  | `/admin/inprogress?page=`         | All IN_PROGRESS requests        |
+| `GET`  | `/admin/archive?page=`            | All COMPLETED/REJECTED requests |
 
----
+### Action Endpoints
 
-## Store Requests API
+| Method   | Path                                      | Description                                          |
+| -------- | ----------------------------------------- | ---------------------------------------------------- |
+| `PUT`    | `/admin/reply/{request_id}`               | Set status → REPLIED, create track                   |
+| `PUT`    | `/admin/assign/{request_id}`              | Assign to staff, set status → ASSIGNED, create track |
+| `PUT`    | `/admin/reject/{request_id}`              | Set status → REJECTED, create track                  |
+| `DELETE` | `/admin/request/{request_id}`             | Delete request and all related data                  |
+| `DELETE` | `/admin/store-request/{store_request_id}` | Delete store request and chats                       |
 
-### POST /api/v1/store-requests/
-Create a new store request.
+**PUT /admin/reply/{id} body:**
 
-**Access:** STAFF only
+```json
+{ "comment": "Please provide more details about the issue" }
+```
 
-**Request Body:** parent_request_id, description
+**PUT /admin/assign/{id} body:**
 
-**Response:** Created store request object
+```json
+{ "staff_ids": ["uid1", "uid2"] }
+```
 
-**Database Effects:**
-1. Inserts into store_requests table (UUID, requested_by, status=PENDING, timestamps)
-2. Inserts into request_tracks table (action_type=STORE_REQUEST_CREATED, comment=description, metadata)
+**PUT /admin/reject/{id} body:**
 
-**Validations:** Parent request must exist
-
-**Errors:** 404 if parent request not found
-
----
-
-### GET /api/v1/store-requests/
-Get all store requests (paginated).
-
-**Access:** STORE, ADMIN
-
-**Query Parameters:** skip (default: 0), limit (default: 20, max: 100)
-
-**Response:** Paginated list of store request objects
-
-**Database Effects:** None (read-only)
-
----
-
-### GET /api/v1/store-requests/status/{status}
-Get store requests by status (paginated).
-
-**Access:** STORE, ADMIN
-
-**Path Parameters:** status (PENDING/APPROVED/REJECTED/FULFILLED)
-
-**Query Parameters:** skip (default: 0), limit (default: 20, max: 100)
-
-**Response:** Paginated filtered list of store request objects
-
-**Database Effects:** None (read-only)
+```json
+{ "comment": "Request outside scope of service" }
+```
 
 ---
 
-### GET /api/v1/store-requests/parent/{parent_request_id}
-Get all store requests for a parent request.
+## Staff `/staff`
 
-**Access:** STAFF, STORE, ADMIN
+Restricted to: `STAFF`
 
-**Response:** Array of store request objects
+### GET Endpoints
 
-**Database Effects:** None (read-only)
+| Method | Path                             | Description                                     |
+| ------ | -------------------------------- | ----------------------------------------------- |
+| `GET`  | `/staff/assigned?page=`          | Requests actively assigned to this staff        |
+| `GET`  | `/staff/inprogress?page=`        | In-progress requests taken by this staff        |
+| `GET`  | `/staff/archive?page=`           | Completed/rejected requests this staff finished |
+| `GET`  | `/staff/chat/{store_request_id}` | Get all chat messages for a store request       |
 
----
+### Action Endpoints
 
-### GET /api/v1/store-requests/{store_request_id}
-Get store request by ID.
+| Method | Path                                       | Description                                                           |
+| ------ | ------------------------------------------ | --------------------------------------------------------------------- |
+| `PUT`  | `/staff/start-request/{request_id}`        | Set status → IN_PROGRESS, create track                                |
+| `PUT`  | `/staff/request-reassignment/{request_id}` | Set status → REASSIGN_REQUESTED, deactivate assignments, create track |
+| `PUT`  | `/staff/finish-request/{request_id}`       | Set status → COMPLETED, deactivate assignments, create track          |
+| `PUT`  | `/staff/create-store-request/{request_id}` | Create store request with PENDING status, create track                |
 
-**Access:** STAFF, STORE, ADMIN
+**PUT /staff/request-reassignment/{id} body:**
 
-**Response:** Single store request object
+```json
+{ "comment": "Requires specialist equipment I don't have access to" }
+```
 
-**Database Effects:** None (read-only)
+**PUT /staff/create-store-request/{id} body:**
 
----
-
-### PUT /api/v1/store-requests/{store_request_id}
-Update store request.
-
-**Access:** STORE, ADMIN
-
-**Request Body:** status, response_comment
-
-**Response:** Updated store request object
-
-**Database Effects:** Updates store_requests table, updates timestamp
-
-**Note:** For status changes with track creation, use POST /respond endpoint instead
-
----
-
-### POST /api/v1/store-requests/{store_request_id}/respond
-Respond to a store request (approve/reject/fulfill).
-
-**Access:** STORE only
-
-**Request Body:** status (APPROVED/REJECTED/FULFILLED), response_comment (optional)
-
-**Response:** Updated store request object
-
-**Database Effects:**
-1. Updates store_requests table (status, responded_by, response_comment, timestamp)
-2. Inserts into request_tracks table (action_type=STORE_REQUEST_APPROVED/REJECTED/FULFILLED, comment, metadata)
-
-**Errors:** 400 if invalid status, 404 if store request not found
+```json
+{ "description": "Need 2x replacement light fittings, model XYZ-100" }
+```
 
 ---
 
-### DELETE /api/v1/store-requests/{store_request_id}
-Delete store request.
+## Store `/store`
 
-**Access:** ADMIN only
+Restricted to: `STORE`
 
-**Response:** Success message
+### GET Endpoints
 
-**Database Effects (CASCADE):** Deletes from store_chats, request_tracks, and store_requests tables
+| Method | Path                    | Description                                |
+| ------ | ----------------------- | ------------------------------------------ |
+| `GET`  | `/store/pending?page=`  | All PENDING store requests                 |
+| `GET`  | `/store/approved?page=` | Store requests approved by this store user |
+| `GET`  | `/store/archive?page=`  | All REJECTED/FULFILLED store requests      |
 
----
+### Action Endpoints
 
-### POST /api/v1/store-requests/{store_request_id}/chat
-Add a chat message to an APPROVED store request.
+| Method | Path                                | Description                                        |
+| ------ | ----------------------------------- | -------------------------------------------------- |
+| `PUT`  | `/store/approve/{store_request_id}` | Set store request status → APPROVED, create track  |
+| `PUT`  | `/store/reject/{store_request_id}`  | Set store request status → REJECTED, create track  |
+| `PUT`  | `/store/fulfil/{store_request_id}`  | Set store request status → FULFILLED, create track |
+| `POST` | `/store/chat/{store_request_id}`    | Send a chat message                                |
 
-**Access:** STAFF, STORE
+**PUT /store/reject/{id} body:**
 
-**Request Body:** message
+```json
+{ "comment": "Item not available in stock" }
+```
 
-**Response:** Created chat message object
+**POST /store/chat/{id} body:**
 
-**Database Effects:** Inserts into store_chats table (sender_id, sender_role, timestamp)
-
-**Validations:** Store request must exist and status must be APPROVED
-
-**Errors:** 404 if not found, 400 if status is not APPROVED
-
----
-
-### GET /api/v1/store-requests/{store_request_id}/chat
-Get all chat messages for a store request.
-
-**Access:** STAFF, STORE, ADMIN
-
-**Response:** Array of chat message objects ordered by created_at ASC (chronological)
-
-**Database Effects:** None (read-only)
+```json
+{ "message": "Can you clarify the quantity needed?" }
+```
 
 ---
 
-## Data Models
+## Status Transition Rules
 
-### User Object
-- id (firebase-uid)
-- email
-- is_active (boolean)
-- created_at (timestamp)
+| From                     | Action         | To                   | Who              |
+| ------------------------ | -------------- | -------------------- | ---------------- |
+| `RAISED`                 | Admin reply    | `REPLIED`            | ADMIN            |
+| `RAISED`                 | Admin assign   | `ASSIGNED`           | ADMIN            |
+| `RAISED`                 | Admin reject   | `REJECTED`           | ADMIN            |
+| `REPLIED`                | User reply     | `RAISED`             | USER/ADMIN/STAFF |
+| `ASSIGNED`               | Staff start    | `IN_PROGRESS`        | STAFF            |
+| `ASSIGNED`/`IN_PROGRESS` | Staff reassign | `REASSIGN_REQUESTED` | STAFF            |
+| `REASSIGN_REQUESTED`     | Admin assign   | `ASSIGNED`           | ADMIN            |
+| `IN_PROGRESS`            | Staff finish   | `COMPLETED`          | STAFF            |
 
-### Role Object
-- email
-- role (USER/ADMIN/STAFF/STORE)
-- created_at (timestamp)
-- updated_at (timestamp)
+## Store Request Status Transitions
 
-### Request Object
-- id (uuid)
-- raised_by (user id)
-- main_type_id (integer)
-- sub_type_id (integer)
-- description (text)
-- status (string)
-- is_active (string: "true"/"false")
-- created_at (timestamp)
-- updated_at (timestamp)
-
-### Track Object
-- id (integer)
-- request_id (uuid, nullable)
-- store_request_id (uuid, nullable)
-- action_type (string)
-- performed_by (user id)
-- performed_by_role (string)
-- comment (text, nullable)
-- metadata (JSON, nullable)
-- created_at (timestamp)
-
-### Assignment Object
-- id (integer)
-- request_id (uuid)
-- staff_id (user id)
-- assigned_by (user id)
-- is_active (boolean)
-- created_at (timestamp)
-
-### Store Request Object
-- id (uuid)
-- parent_request_id (uuid)
-- requested_by (user id)
-- description (text)
-- status (string)
-- responded_by (user id, nullable)
-- response_comment (text, nullable)
-- created_at (timestamp)
-- updated_at (timestamp)
-
-### Store Chat Object
-- id (integer)
-- store_request_id (uuid)
-- sender_id (user id)
-- sender_role (string)
-- message (text)
-- created_at (timestamp)
-
-### Main Type Object
-- id (integer)
-- name (string)
-- created_by (user id)
-- created_at (timestamp)
-
-### Sub Type Object
-- id (integer)
-- name (string)
-- main_type_id (integer)
-
----
-
-## Error Responses
-
-### 400 Bad Request
-Invalid data format, business logic validation failed, invalid status value
-
-### 401 Unauthorized
-Missing or invalid authentication token
-
-### 403 Forbidden
-User doesn't have required role, no role assigned to email
-
-### 404 Not Found
-Requested resource doesn't exist
-
-### 409 Conflict
-Duplicate creation attempt
-
-### 500 Internal Server Error
-Server-side error, database connection issues
-
----
-
-## Database Schema Summary
-
-### Tables
-1. users - User profiles
-2. roles - Role assignments (email to role mapping)
-3. requests - Main requests/tickets
-4. request_tracks - Timeline entries for requests and store requests
-5. assignments - Staff assignments to requests
-6. store_requests - Equipment/supply requests
-7. store_chats - Chat messages for APPROVED store requests
-8. main_types - Main request categories
-9. sub_types - Sub-categories under main types
-
-### Key Relationships
-- requests.raised_by -> users.id
-- requests.main_type_id -> main_types.id
-- requests.sub_type_id -> sub_types.id
-- request_tracks.request_id -> requests.id (nullable)
-- request_tracks.store_request_id -> store_requests.id (nullable)
-- request_tracks.performed_by -> users.id
-- assignments.request_id -> requests.id
-- assignments.staff_id -> users.id
-- assignments.assigned_by -> users.id
-- store_requests.parent_request_id -> requests.id
-- store_requests.requested_by -> users.id
-- store_requests.responded_by -> users.id (nullable)
-- store_chats.store_request_id -> store_requests.id
-- store_chats.sender_id -> users.id
-- sub_types.main_type_id -> main_types.id
-
-### Cascade Deletes
-- Delete request -> deletes tracks, assignments, store requests (and their chats/tracks)
-- Delete main type -> deletes all sub types
-- Delete store request -> deletes chats and tracks
-
----
-
-## Notes
-
-- All timestamps are in UTC
-- UUIDs are auto-generated for requests and store requests
-- Integer IDs are auto-incremented for tracks, assignments, chats, and types
-- Tracks are ordered chronologically (created_at ASC) for timeline view
-- Only one active assignment per request at a time
-- Store chat only available for APPROVED store requests
-- Multiple staff can be assigned to same request (atomic operations)
-- is_active field on requests allows marking old requests as inactive
+| From       | Action        | To          | Who   |
+| ---------- | ------------- | ----------- | ----- |
+| `PENDING`  | Store approve | `APPROVED`  | STORE |
+| `PENDING`  | Store reject  | `REJECTED`  | STORE |
+| `APPROVED` | Store fulfil  | `FULFILLED` | STORE |

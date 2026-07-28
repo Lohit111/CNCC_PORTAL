@@ -1,7 +1,6 @@
 """Models Package - Import all models to ensure SQLAlchemy discovers relationships"""
 from models.base import Base
 from models.user import User, UserTable
-from models.role import Role, RoleTable
 from models.request import Request, RequestTable
 from models.request_type import MainType, MainTypeTable, SubType, SubTypeTable
 from models.track import RequestTrack, RequestTrackTable
@@ -13,8 +12,6 @@ __all__ = [
     "Base",
     "User",
     "UserTable",
-    "Role",
-    "RoleTable",
     "Request",
     "RequestTable",
     "MainType",
