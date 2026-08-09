@@ -1,58 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:cncc_portal/core/network/network_client.dart';
-import 'package:cncc_portal/domain/entities/type_entity.dart';
-import 'package:cncc_portal/presentation/pages/shared/create_request_dialog.dart';
-import 'package:cncc_portal/presentation/pages/shared/my_requests_page.dart';
+import 'package:cncc_portal/presentation/providers/auth_provider.dart';
+import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
+import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
-import 'package:cncc_portal/presentation/pages/staff/assigned_to_me_page.dart';
-import 'package:cncc_portal/presentation/pages/staff/in_progress_page.dart';
-import 'package:cncc_portal/presentation/pages/staff/completed_by_me_page.dart';
-import 'package:cncc_portal/presentation/pages/staff/my_store_requests_page.dart';
+import 'package:cncc_portal/presentation/pages/staff/staff_assigned_page.dart';
+import 'package:cncc_portal/presentation/pages/staff/staff_inprogress_page.dart';
+import 'package:cncc_portal/presentation/pages/staff/staff_archive_page.dart';
+import 'package:cncc_portal/presentation/pages/user/user_raised_page.dart';
+import 'package:cncc_portal/presentation/pages/user/user_replied_page.dart';
+import 'package:cncc_portal/presentation/pages/user/user_inprogress_page.dart';
+import 'package:cncc_portal/presentation/pages/user/user_archive_page.dart';
 
-// ── Page IDs ──────────────────────────────────────────────────────────────────
-enum _StaffPage {
+enum _StaffTab {
   assigned,
-  inProgress,
-  completed,
-  storeRequests,
-  myRequests,
+  inprogress,
+  archive,
+  myRaised,
+  myReplied,
+  myInProgress,
+  myArchive,
   profile,
 }
 
-// ── Sidebar item model ────────────────────────────────────────────────────────
-class _SidebarItem {
-  final _StaffPage page;
-  final IconData icon;
-  final String label;
-
-  const _SidebarItem(this.page, this.icon, this.label);
-}
-
-const _sections = [
-  (
-    title: 'Work',
-    items: [
-      _SidebarItem(
-          _StaffPage.assigned, Icons.assignment_ind_rounded, 'Assigned to Me'),
-      _SidebarItem(_StaffPage.inProgress, Icons.work_rounded, 'In Progress'),
-      _SidebarItem(
-          _StaffPage.completed, Icons.check_circle_rounded, 'Completed'),
-      _SidebarItem(_StaffPage.storeRequests, Icons.inventory_2_rounded,
-          'Store Requests'),
-    ],
-  ),
-  (
-    title: 'Personal',
-    items: [
-      _SidebarItem(_StaffPage.myRequests, Icons.person_rounded, 'My Requests'),
-      _SidebarItem(_StaffPage.profile, Icons.account_circle_rounded, 'Profile'),
-    ],
-  ),
-];
-
-// ── Home page ─────────────────────────────────────────────────────────────────
 class StaffHomePage extends ConsumerStatefulWidget {
   const StaffHomePage({super.key});
 
@@ -61,108 +31,104 @@ class StaffHomePage extends ConsumerStatefulWidget {
 }
 
 class _StaffHomePageState extends ConsumerState<StaffHomePage> {
-  final _networkClient = NetworkClient();
-  _StaffPage _currentPage = _StaffPage.assigned;
-  final _myRequestsKey = GlobalKey<MyRequestsPageState>();
+  _StaffTab _tab = _StaffTab.assigned;
 
-  String get _currentTitle {
-    for (final section in _sections) {
-      for (final item in section.items) {
-        if (item.page == _currentPage) return item.label;
-      }
-    }
-    return 'Staff';
-  }
-
-  void _navigate(_StaffPage page) {
-    setState(() => _currentPage = page);
-    Navigator.pop(context); // close drawer
-  }
-
-  void _showCreateRequestDialog() async {
-    final mainTypes = await _loadMainTypes();
-    if (!mounted) return;
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => CreateRequestDialog(mainTypes: mainTypes),
-    );
-
-    if (result == true && mounted) {
-      setState(() => _currentPage = _StaffPage.myRequests);
-      _myRequestsKey.currentState?.refresh();
-    }
-  }
-
-  Future<List<MainType>> _loadMainTypes() async {
-    try {
-      final response = await _networkClient.get('/types/main');
-      return (response.data as List)
-          .map((json) => MainType.fromJson(json))
-          .toList();
-    } catch (e) {
-      return [];
+  String get _title {
+    switch (_tab) {
+      case _StaffTab.assigned:
+        return 'Assigned to Me';
+      case _StaffTab.inprogress:
+        return 'In Progress';
+      case _StaffTab.archive:
+        return 'My Archive';
+      case _StaffTab.myRaised:
+        return 'My Raised';
+      case _StaffTab.myReplied:
+        return 'Needs Response';
+      case _StaffTab.myInProgress:
+        return 'My In Progress';
+      case _StaffTab.myArchive:
+        return 'My Archive';
+      case _StaffTab.profile:
+        return 'Profile';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authProvider).user;
+    final userName = user?.name ?? user?.email ?? '';
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_currentTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Sign out',
-            onPressed: () async {
-              await fb.FirebaseAuth.instance.signOut();
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(_title)),
       drawer: _StaffDrawer(
-        currentPage: _currentPage,
-        onNavigate: _navigate,
+        currentTab: _tab,
+        userName: userName,
+        onNavigate: (tab) {
+          setState(() => _tab = tab);
+          Navigator.pop(context);
+        },
       ),
       body: _buildBody(),
-      floatingActionButton: _currentPage == _StaffPage.myRequests
+      floatingActionButton: _isMyRequestsTab
           ? FloatingActionButton.extended(
-              onPressed: _showCreateRequestDialog,
+              onPressed: () => _showNewRequestDialog(context),
               icon: const Icon(Icons.add_rounded),
-              label: const Text(
-                'New Request',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
+              label: const Text('New Request',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
             )
           : null,
     );
   }
 
+  bool get _isMyRequestsTab => [
+        _StaffTab.myRaised,
+        _StaffTab.myReplied,
+        _StaffTab.myInProgress,
+        _StaffTab.myArchive,
+      ].contains(_tab);
+
   Widget _buildBody() {
-    switch (_currentPage) {
-      case _StaffPage.assigned:
-        return const AssignedToMePage();
-      case _StaffPage.inProgress:
-        return const InProgressPage();
-      case _StaffPage.completed:
-        return const CompletedByMePage();
-      case _StaffPage.storeRequests:
-        return const MyStoreRequestsPage();
-      case _StaffPage.myRequests:
-        return MyRequestsPage(key: _myRequestsKey);
-      case _StaffPage.profile:
+    switch (_tab) {
+      case _StaffTab.assigned:
+        return const StaffAssignedPage();
+      case _StaffTab.inprogress:
+        return const StaffInProgressPage();
+      case _StaffTab.archive:
+        return const StaffArchivePage();
+      case _StaffTab.myRaised:
+        return const UserRaisedPage();
+      case _StaffTab.myReplied:
+        return const UserRepliedPage();
+      case _StaffTab.myInProgress:
+        return const UserInProgressPage();
+      case _StaffTab.myArchive:
+        return const UserArchivePage();
+      case _StaffTab.profile:
         return const ProfilePage();
     }
+  }
+
+  void _showNewRequestDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => _StaffNewRequestDialog(
+        onSuccess: () => ref.invalidate(myRequestsProvider('raised')),
+      ),
+    );
   }
 }
 
 // ── Drawer ────────────────────────────────────────────────────────────────────
+
 class _StaffDrawer extends StatelessWidget {
-  final _StaffPage currentPage;
-  final void Function(_StaffPage) onNavigate;
+  final _StaffTab currentTab;
+  final String userName;
+  final void Function(_StaffTab) onNavigate;
 
   const _StaffDrawer({
-    required this.currentPage,
+    required this.currentTab,
+    required this.userName,
     required this.onNavigate,
   });
 
@@ -170,77 +136,96 @@ class _StaffDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
+    final sections = [
+      (
+        title: 'ASSIGNED WORK',
+        items: [
+          (_StaffTab.assigned, Icons.assignment_ind_rounded, 'Assigned to Me'),
+          (_StaffTab.inprogress, Icons.pending_rounded, 'In Progress'),
+          (_StaffTab.archive, Icons.task_alt_rounded, 'Archive'),
+        ]
+      ),
+      (
+        title: 'MY REQUESTS',
+        items: [
+          (_StaffTab.myRaised, Icons.inbox_rounded, 'Raised'),
+          (_StaffTab.myReplied, Icons.reply_all_rounded, 'Needs Response'),
+          (
+            _StaffTab.myInProgress,
+            Icons.pending_actions_rounded,
+            'In Progress'
+          ),
+          (_StaffTab.myArchive, Icons.archive_rounded, 'Archive'),
+        ]
+      ),
+      (
+        title: 'ACCOUNT',
+        items: [
+          (_StaffTab.profile, Icons.account_circle_rounded, 'Profile'),
+        ]
+      ),
+    ];
+
     return Drawer(
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+      backgroundColor: cs.surfaceContainerLow,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Row(
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: cs.primary.withValues(alpha: 0.15),
+                    child: Text(
+                      userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, color: cs.primary),
                     ),
-                    child: Icon(Icons.engineering_rounded,
-                        color: cs.primary, size: 22),
                   ),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'CNCC Portal',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: cs.onSurface,
-                        ),
-                      ),
-                      Text(
-                        'Staff',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.45),
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('CNCC Portal',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: cs.onSurface)),
+                        Text('Staff',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: cs.onSurface.withValues(alpha: 0.45))),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
             Divider(color: cs.onSurface.withValues(alpha: 0.08)),
-            const SizedBox(height: 4),
-
-            // Sections
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
-                  for (final section in _sections) ...[
+                  for (final section in sections) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
-                      child: Text(
-                        section.title.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                          color: cs.onSurface.withValues(alpha: 0.35),
-                        ),
-                      ),
+                      child: Text(section.title,
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                              color: cs.onSurface.withValues(alpha: 0.5))),
                     ),
                     for (final item in section.items)
                       _DrawerTile(
-                        item: item,
-                        isSelected: currentPage == item.page,
-                        onTap: () => onNavigate(item.page),
+                        icon: item.$2,
+                        label: item.$3,
+                        isSelected: currentTab == item.$1,
+                        onTap: () => onNavigate(item.$1),
                       ),
                   ],
                 ],
@@ -254,12 +239,14 @@ class _StaffDrawer extends StatelessWidget {
 }
 
 class _DrawerTile extends StatelessWidget {
-  final _SidebarItem item;
+  final IconData icon;
+  final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _DrawerTile({
-    required this.item,
+    required this.icon,
+    required this.label,
     required this.isSelected,
     required this.onTap,
   });
@@ -267,12 +254,11 @@ class _DrawerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Material(
         color: isSelected
-            ? cs.primary.withValues(alpha: 0.15)
+            ? cs.primary.withValues(alpha: 0.12)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
@@ -282,41 +268,188 @@ class _DrawerTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                Icon(
-                  item.icon,
-                  size: 20,
-                  color: isSelected
-                      ? cs.primary
-                      : cs.onSurface.withValues(alpha: 0.55),
-                ),
+                Icon(icon,
+                    size: 20,
+                    color: isSelected
+                        ? cs.primary
+                        : cs.onSurface.withValues(alpha: 0.55)),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    item.label,
+                Text(label,
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w400,
-                      color: isSelected
-                          ? cs.primary
-                          : cs.onSurface.withValues(alpha: 0.8),
-                    ),
-                  ),
-                ),
-                if (isSelected)
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: cs.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                        fontSize: 14,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w400,
+                        color: isSelected
+                            ? cs.primary
+                            : cs.onSurface.withValues(alpha: 0.8))),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+// ── New Request Dialog ────────────────────────────────────────────────────────
+
+class _StaffNewRequestDialog extends ConsumerStatefulWidget {
+  final VoidCallback onSuccess;
+  const _StaffNewRequestDialog({required this.onSuccess});
+
+  @override
+  ConsumerState<_StaffNewRequestDialog> createState() =>
+      _StaffNewRequestDialogState();
+}
+
+class _StaffNewRequestDialogState
+    extends ConsumerState<_StaffNewRequestDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _descController = TextEditingController();
+  final _roomController = TextEditingController();
+  final _phoneController = TextEditingController();
+  int? _selectedMainId;
+  int? _selectedSubId;
+  String? _selectedMainName;
+  String? _selectedSubName;
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _descController.dispose();
+    _roomController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mainTypesAsync = ref.watch(mainTypesProvider);
+    return AlertDialog(
+      title: const Text('New Request'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                mainTypesAsync.when(
+                  loading: () => const CircularProgressIndicator(),
+                  error: (e, _) => Text('Error: $e'),
+                  data: (mainTypes) => DropdownButtonFormField<int>(
+                    decoration: const InputDecoration(labelText: 'Main Type'),
+                    value: _selectedMainId,
+                    items: mainTypes
+                        .map((t) =>
+                            DropdownMenuItem(value: t.id, child: Text(t.name)))
+                        .toList(),
+                    onChanged: (val) {
+                      final mt = mainTypes.firstWhere((t) => t.id == val);
+                      setState(() {
+                        _selectedMainId = val;
+                        _selectedMainName = mt.name;
+                        _selectedSubId = null;
+                        _selectedSubName = null;
+                      });
+                    },
+                    validator: (v) => v == null ? 'Select a main type' : null,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (_selectedMainId != null)
+                  Consumer(builder: (_, ref, __) {
+                    final subAsync =
+                        ref.watch(subTypesProvider(_selectedMainId!));
+                    return subAsync.when(
+                      loading: () => const CircularProgressIndicator(),
+                      error: (e, _) => Text('Error: $e'),
+                      data: (subs) => DropdownButtonFormField<int>(
+                        decoration:
+                            const InputDecoration(labelText: 'Sub Type'),
+                        value: _selectedSubId,
+                        items: subs
+                            .map((t) => DropdownMenuItem(
+                                value: t.id, child: Text(t.name)))
+                            .toList(),
+                        onChanged: (val) {
+                          final st = subs.firstWhere((t) => t.id == val);
+                          setState(() {
+                            _selectedSubId = val;
+                            _selectedSubName = st.name;
+                          });
+                        },
+                        validator: (v) =>
+                            v == null ? 'Select a sub type' : null,
+                      ),
+                    );
+                  }),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _descController,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                  maxLines: 3,
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _roomController,
+                  decoration: const InputDecoration(labelText: 'Room No'),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone No'),
+                  keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v.trim().length != 10) return '10 digits required';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: _isSubmitting ? null : _submit,
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
+              : const Text('Submit'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedMainName == null || _selectedSubName == null) return;
+    setState(() => _isSubmitting = true);
+    final success =
+        await ref.read(myRequestsProvider('raised').notifier).createRequest(
+              mainType: _selectedMainName!,
+              subType: _selectedSubName!,
+              description: _descController.text.trim(),
+              roomNo: _roomController.text.trim(),
+              phoneNo: _phoneController.text.trim(),
+            );
+    if (mounted) {
+      Navigator.pop(context);
+      if (success) widget.onSuccess();
+    }
   }
 }

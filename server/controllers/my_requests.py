@@ -116,8 +116,7 @@ def reply_to_request(db: Session, user_id: str, request_id: str, comment: str, d
         "request_id": request_id,
         "event_type": TrackEventType.REPLIED,
         "performed_by": user_id,
-        # pyright: ignore[reportOptionalMemberAccess]
-        "performed_by_role": user.role,
+        "performed_by_role": user.role, # pyright: ignore[reportOptionalMemberAccess]
         "comment": comment
     })
     db.commit()
@@ -141,7 +140,7 @@ def create_request(db: Session, user_id: str, main_type: str, sub_type: str, des
         "request_id": request.id,
         "event_type": TrackEventType.RAISED,
         "performed_by": user_id,
-        "performed_by_role": user.role,
+        "performed_by_role": user.role, # pyright: ignore[reportOptionalMemberAccess]
         "comment": None
     })
     db.commit()

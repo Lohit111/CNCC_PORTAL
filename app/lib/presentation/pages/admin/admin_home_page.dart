@@ -1,66 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb;
-import 'package:cncc_portal/core/network/network_client.dart';
-import 'package:cncc_portal/domain/entities/type_entity.dart';
-import 'package:cncc_portal/presentation/pages/shared/create_request_dialog.dart';
-import 'package:cncc_portal/presentation/pages/shared/my_requests_page.dart';
+import 'package:cncc_portal/presentation/providers/auth_provider.dart';
+import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
+import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
-import 'package:cncc_portal/presentation/pages/admin/raised_requests_page.dart';
-import 'package:cncc_portal/presentation/pages/admin/replied_requests_page.dart';
-import 'package:cncc_portal/presentation/pages/admin/assigned_requests_page.dart';
-import 'package:cncc_portal/presentation/pages/admin/completed_requests_page.dart';
-import 'package:cncc_portal/presentation/pages/admin/manage_roles_page.dart';
-import 'package:cncc_portal/presentation/pages/admin/manage_types_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_raised_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_replied_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_assigned_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_reassign_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_inprogress_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_archive_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_users_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_types_page.dart';
+import 'package:cncc_portal/presentation/pages/user/user_raised_page.dart';
+import 'package:cncc_portal/presentation/pages/user/user_replied_page.dart';
+import 'package:cncc_portal/presentation/pages/user/user_inprogress_page.dart';
+import 'package:cncc_portal/presentation/pages/user/user_archive_page.dart';
 
-// ── Page IDs ─────────────────────────────────────────────────────────────────
-enum _AdminPage {
+enum _AdminTab {
   raised,
   replied,
   assigned,
-  completed,
-  manageRoles,
+  reassignRequested,
+  inprogress,
+  archive,
+  manageUsers,
   manageTypes,
-  myRequests,
+  myRaised,
+  myReplied,
+  myInProgress,
+  myArchive,
   profile,
 }
 
-// ── Sidebar item model ────────────────────────────────────────────────────────
-class _SidebarItem {
-  final _AdminPage page;
-  final IconData icon;
-  final String label;
-
-  const _SidebarItem(this.page, this.icon, this.label);
-}
-
-// ── Section model ─────────────────────────────────────────────────────────────
-class _SidebarSection {
-  final String title;
-  final List<_SidebarItem> items;
-
-  const _SidebarSection(this.title, this.items);
-}
-
-const _sections = [
-  _SidebarSection('Requests', [
-    _SidebarItem(_AdminPage.raised, Icons.fiber_new_rounded, 'Raised'),
-    _SidebarItem(_AdminPage.replied, Icons.reply_rounded, 'Replied'),
-    _SidebarItem(_AdminPage.assigned, Icons.assignment_ind_rounded, 'Assigned'),
-    _SidebarItem(_AdminPage.completed, Icons.task_alt_rounded, 'Archive'),
-  ]),
-  _SidebarSection('Management', [
-    _SidebarItem(
-        _AdminPage.manageRoles, Icons.manage_accounts_rounded, 'Roles'),
-    _SidebarItem(_AdminPage.manageTypes, Icons.category_rounded, 'Types'),
-  ]),
-  _SidebarSection('Personal', [
-    _SidebarItem(_AdminPage.myRequests, Icons.person_rounded, 'My Requests'),
-    _SidebarItem(_AdminPage.profile, Icons.account_circle_rounded, 'Profile'),
-  ]),
-];
-
-// ── Home page ─────────────────────────────────────────────────────────────────
 class AdminHomePage extends ConsumerStatefulWidget {
   const AdminHomePage({super.key});
 
@@ -69,73 +41,58 @@ class AdminHomePage extends ConsumerStatefulWidget {
 }
 
 class _AdminHomePageState extends ConsumerState<AdminHomePage> {
-  final _networkClient = NetworkClient();
-  _AdminPage _currentPage = _AdminPage.raised;
-  final _myRequestsKey = GlobalKey<MyRequestsPageState>();
+  _AdminTab _tab = _AdminTab.raised;
 
-  String get _currentTitle {
-    for (final section in _sections) {
-      for (final item in section.items) {
-        if (item.page == _currentPage) return item.label;
-      }
-    }
-    return 'Admin';
-  }
-
-  void _navigate(_AdminPage page) {
-    setState(() => _currentPage = page);
-    Navigator.pop(context); // close drawer
-  }
-
-  void _showCreateRequestDialog() async {
-    final mainTypes = await _loadMainTypes();
-    if (!mounted) return;
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => CreateRequestDialog(mainTypes: mainTypes),
-    );
-
-    if (result == true && mounted) {
-      setState(() => _currentPage = _AdminPage.myRequests);
-      _myRequestsKey.currentState?.refresh();
-    }
-  }
-
-  Future<List<MainType>> _loadMainTypes() async {
-    try {
-      final response = await _networkClient.get('/types/main');
-      return (response.data as List)
-          .map((json) => MainType.fromJson(json))
-          .toList();
-    } catch (e) {
-      return [];
+  String get _title {
+    switch (_tab) {
+      case _AdminTab.raised:
+        return 'Raised Requests';
+      case _AdminTab.replied:
+        return 'Replied Requests';
+      case _AdminTab.assigned:
+        return 'Assigned Requests';
+      case _AdminTab.reassignRequested:
+        return 'Reassign Requested';
+      case _AdminTab.inprogress:
+        return 'In Progress';
+      case _AdminTab.archive:
+        return 'Archive';
+      case _AdminTab.manageUsers:
+        return 'Manage Users';
+      case _AdminTab.manageTypes:
+        return 'Manage Types';
+      case _AdminTab.myRaised:
+        return 'My Raised';
+      case _AdminTab.myReplied:
+        return 'My Needs Response';
+      case _AdminTab.myInProgress:
+        return 'My In Progress';
+      case _AdminTab.myArchive:
+        return 'My Archive';
+      case _AdminTab.profile:
+        return 'Profile';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authProvider).user;
+    final userName = user?.name ?? user?.email ?? '';
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_currentTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Sign out',
-            onPressed: () async {
-              await fb.FirebaseAuth.instance.signOut();
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(_title)),
       drawer: _AdminDrawer(
-        currentPage: _currentPage,
-        onNavigate: _navigate,
+        currentTab: _tab,
+        userName: userName,
+        onNavigate: (tab) {
+          setState(() => _tab = tab);
+          Navigator.pop(context);
+        },
       ),
       body: _buildBody(),
-      floatingActionButton: _currentPage == _AdminPage.myRequests
+      floatingActionButton: _isMyRequestsTab
           ? FloatingActionButton.extended(
-              onPressed: _showCreateRequestDialog,
+              onPressed: () => _showNewRequestDialog(context),
               icon: const Icon(Icons.add_rounded),
               label: const Text('New Request',
                   style: TextStyle(fontWeight: FontWeight.w600)),
@@ -144,35 +101,64 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
     );
   }
 
+  bool get _isMyRequestsTab => [
+        _AdminTab.myRaised,
+        _AdminTab.myReplied,
+        _AdminTab.myInProgress,
+        _AdminTab.myArchive,
+      ].contains(_tab);
+
   Widget _buildBody() {
-    switch (_currentPage) {
-      case _AdminPage.raised:
-        return const RaisedRequestsPage();
-      case _AdminPage.replied:
-        return const RepliedRequestsPage();
-      case _AdminPage.assigned:
-        return const AssignedRequestsPage();
-      case _AdminPage.completed:
-        return const CompletedRequestsPage();
-      case _AdminPage.manageRoles:
-        return const ManageRolesPage();
-      case _AdminPage.manageTypes:
-        return const ManageTypesPage();
-      case _AdminPage.myRequests:
-        return MyRequestsPage(key: _myRequestsKey);
-      case _AdminPage.profile:
+    switch (_tab) {
+      case _AdminTab.raised:
+        return const AdminRaisedPage();
+      case _AdminTab.replied:
+        return const AdminRepliedPage();
+      case _AdminTab.assigned:
+        return const AdminAssignedPage();
+      case _AdminTab.reassignRequested:
+        return const AdminReassignPage();
+      case _AdminTab.inprogress:
+        return const AdminInProgressPage();
+      case _AdminTab.archive:
+        return const AdminArchivePage();
+      case _AdminTab.manageUsers:
+        return const AdminUsersPage();
+      case _AdminTab.manageTypes:
+        return const AdminTypesPage();
+      case _AdminTab.myRaised:
+        return const UserRaisedPage();
+      case _AdminTab.myReplied:
+        return const UserRepliedPage();
+      case _AdminTab.myInProgress:
+        return const UserInProgressPage();
+      case _AdminTab.myArchive:
+        return const UserArchivePage();
+      case _AdminTab.profile:
         return const ProfilePage();
     }
+  }
+
+  void _showNewRequestDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => _AdminNewRequestDialog(
+        onSuccess: () => ref.invalidate(myRequestsProvider('raised')),
+      ),
+    );
   }
 }
 
 // ── Drawer ────────────────────────────────────────────────────────────────────
+
 class _AdminDrawer extends StatelessWidget {
-  final _AdminPage currentPage;
-  final void Function(_AdminPage) onNavigate;
+  final _AdminTab currentTab;
+  final String userName;
+  final void Function(_AdminTab) onNavigate;
 
   const _AdminDrawer({
-    required this.currentPage,
+    required this.currentTab,
+    required this.userName,
     required this.onNavigate,
   });
 
@@ -180,77 +166,110 @@ class _AdminDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
+    final sections = [
+      (
+        title: 'ALL REQUESTS',
+        items: [
+          (_AdminTab.raised, Icons.fiber_new_rounded, 'Raised'),
+          (_AdminTab.replied, Icons.reply_rounded, 'Replied'),
+          (_AdminTab.assigned, Icons.assignment_ind_rounded, 'Assigned'),
+          (
+            _AdminTab.reassignRequested,
+            Icons.swap_horiz_rounded,
+            'Reassign Requested'
+          ),
+          (_AdminTab.inprogress, Icons.pending_rounded, 'In Progress'),
+          (_AdminTab.archive, Icons.task_alt_rounded, 'Archive'),
+        ]
+      ),
+      (
+        title: 'MANAGEMENT',
+        items: [
+          (_AdminTab.manageUsers, Icons.manage_accounts_rounded, 'Users'),
+          (_AdminTab.manageTypes, Icons.category_rounded, 'Types'),
+        ]
+      ),
+      (
+        title: 'MY REQUESTS',
+        items: [
+          (_AdminTab.myRaised, Icons.inbox_rounded, 'Raised'),
+          (_AdminTab.myReplied, Icons.reply_all_rounded, 'Needs Response'),
+          (
+            _AdminTab.myInProgress,
+            Icons.pending_actions_rounded,
+            'In Progress'
+          ),
+          (_AdminTab.myArchive, Icons.archive_rounded, 'Archive'),
+        ]
+      ),
+      (
+        title: 'ACCOUNT',
+        items: [
+          (_AdminTab.profile, Icons.account_circle_rounded, 'Profile'),
+        ]
+      ),
+    ];
+
     return Drawer(
       backgroundColor: cs.surfaceContainerLow,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Row(
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: cs.primary.withValues(alpha: 0.15),
+                    child: Text(
+                      userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, color: cs.primary),
                     ),
-                    child: Icon(Icons.admin_panel_settings_rounded,
-                        color: cs.primary, size: 22),
                   ),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'CNCC Portal',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: cs.onSurface,
-                        ),
-                      ),
-                      Text(
-                        'Admin',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.45),
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('CNCC Portal',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: cs.onSurface)),
+                        Text('Admin',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: cs.onSurface.withValues(alpha: 0.45))),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
             Divider(color: cs.onSurface.withValues(alpha: 0.08)),
-            const SizedBox(height: 4),
-
-            // Sections
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
-                  for (final section in _sections) ...[
+                  for (final section in sections) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
-                      child: Text(
-                        section.title.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                          color: cs.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
+                      child: Text(section.title,
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                              color: cs.onSurface.withValues(alpha: 0.5))),
                     ),
                     for (final item in section.items)
                       _DrawerTile(
-                        item: item,
-                        isSelected: currentPage == item.page,
-                        onTap: () => onNavigate(item.page),
+                        icon: item.$2,
+                        label: item.$3,
+                        isSelected: currentTab == item.$1,
+                        onTap: () => onNavigate(item.$1),
                       ),
                   ],
                 ],
@@ -264,12 +283,14 @@ class _AdminDrawer extends StatelessWidget {
 }
 
 class _DrawerTile extends StatelessWidget {
-  final _SidebarItem item;
+  final IconData icon;
+  final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _DrawerTile({
-    required this.item,
+    required this.icon,
+    required this.label,
     required this.isSelected,
     required this.onTap,
   });
@@ -277,12 +298,11 @@ class _DrawerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Material(
         color: isSelected
-            ? cs.primary.withValues(alpha: 0.15)
+            ? cs.primary.withValues(alpha: 0.12)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
@@ -292,40 +312,193 @@ class _DrawerTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                Icon(
-                  item.icon,
-                  size: 20,
-                  color: isSelected
-                      ? cs.primary
-                      : cs.onSurface.withValues(alpha: 0.55),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  item.label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                Icon(icon,
+                    size: 20,
                     color: isSelected
                         ? cs.primary
-                        : cs.onSurface.withValues(alpha: 0.8),
-                  ),
+                        : cs.onSurface.withValues(alpha: 0.55)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(label,
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
+                          color: isSelected
+                              ? cs.primary
+                              : cs.onSurface.withValues(alpha: 0.8))),
                 ),
-                if (isSelected) ...[
-                  const Spacer(),
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: cs.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+// ── New Request Dialog (reuses user dialog logic) ─────────────────────────────
+
+class _AdminNewRequestDialog extends ConsumerStatefulWidget {
+  final VoidCallback onSuccess;
+  const _AdminNewRequestDialog({required this.onSuccess});
+
+  @override
+  ConsumerState<_AdminNewRequestDialog> createState() =>
+      _AdminNewRequestDialogState();
+}
+
+class _AdminNewRequestDialogState
+    extends ConsumerState<_AdminNewRequestDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _descController = TextEditingController();
+  final _roomController = TextEditingController();
+  final _phoneController = TextEditingController();
+  int? _selectedMainId;
+  int? _selectedSubId;
+  String? _selectedMainName;
+  String? _selectedSubName;
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _descController.dispose();
+    _roomController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mainTypesAsync = ref.watch(mainTypesProvider);
+    return AlertDialog(
+      title: const Text('New Request'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                mainTypesAsync.when(
+                  loading: () => const CircularProgressIndicator(),
+                  error: (e, _) => Text('Error: $e'),
+                  data: (mainTypes) => DropdownButtonFormField<int>(
+                    decoration: const InputDecoration(labelText: 'Main Type'),
+                    value: _selectedMainId,
+                    items: mainTypes
+                        .map((t) =>
+                            DropdownMenuItem(value: t.id, child: Text(t.name)))
+                        .toList(),
+                    onChanged: (val) {
+                      final mt = mainTypes.firstWhere((t) => t.id == val);
+                      setState(() {
+                        _selectedMainId = val;
+                        _selectedMainName = mt.name;
+                        _selectedSubId = null;
+                        _selectedSubName = null;
+                      });
+                    },
+                    validator: (v) => v == null ? 'Select a main type' : null,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (_selectedMainId != null)
+                  Consumer(builder: (_, ref, __) {
+                    final subAsync =
+                        ref.watch(subTypesProvider(_selectedMainId!));
+                    return subAsync.when(
+                      loading: () => const CircularProgressIndicator(),
+                      error: (e, _) => Text('Error: $e'),
+                      data: (subs) => DropdownButtonFormField<int>(
+                        decoration:
+                            const InputDecoration(labelText: 'Sub Type'),
+                        value: _selectedSubId,
+                        items: subs
+                            .map((t) => DropdownMenuItem(
+                                value: t.id, child: Text(t.name)))
+                            .toList(),
+                        onChanged: (val) {
+                          final st = subs.firstWhere((t) => t.id == val);
+                          setState(() {
+                            _selectedSubId = val;
+                            _selectedSubName = st.name;
+                          });
+                        },
+                        validator: (v) =>
+                            v == null ? 'Select a sub type' : null,
+                      ),
+                    );
+                  }),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _descController,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                  maxLines: 3,
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _roomController,
+                  decoration: const InputDecoration(labelText: 'Room No'),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone No'),
+                  keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  validator: (v) {
+                    final phone = v?.trim() ?? '';
+                    if (phone.isEmpty) return 'Required';
+                    if (!RegExp(r'^\d{10}$').hasMatch(phone)) {
+                      return '10 digits required';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: _isSubmitting ? null : _submit,
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
+              : const Text('Submit'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedMainName == null || _selectedSubName == null) return;
+    setState(() => _isSubmitting = true);
+    final success =
+        await ref.read(myRequestsProvider('raised').notifier).createRequest(
+              mainType: _selectedMainName!,
+              subType: _selectedSubName!,
+              description: _descController.text.trim(),
+              roomNo: _roomController.text.trim(),
+              phoneNo: _phoneController.text.trim(),
+            );
+    if (mounted) {
+      Navigator.pop(context);
+      if (success) widget.onSuccess();
+    }
   }
 }

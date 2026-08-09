@@ -1,46 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
-import 'package:cncc_portal/presentation/pages/store/pending_store_requests_page.dart';
-import 'package:cncc_portal/presentation/pages/store/approved_store_requests_page.dart';
-import 'package:cncc_portal/presentation/pages/store/fulfilled_rejected_page.dart';
+import 'package:cncc_portal/presentation/pages/store/store_pending_page.dart';
+import 'package:cncc_portal/presentation/pages/store/store_approved_page.dart';
+import 'package:cncc_portal/presentation/pages/store/store_archive_page.dart';
 
-// ── Page IDs ──────────────────────────────────────────────────────────────────
-enum _StorePage {
-  pending,
-  approved,
-  completed,
-  profile,
-}
+enum _StoreTab { pending, approved, archive, profile }
 
-// ── Sidebar item model ────────────────────────────────────────────────────────
-class _SidebarItem {
-  final _StorePage page;
-  final IconData icon;
-  final String label;
-
-  const _SidebarItem(this.page, this.icon, this.label);
-}
-
-const _sections = [
-  (
-    title: 'Store Requests',
-    items: [
-      _SidebarItem(_StorePage.pending, Icons.pending_rounded, 'Pending'),
-      _SidebarItem(_StorePage.approved, Icons.check_circle_rounded, 'Approved'),
-      _SidebarItem(_StorePage.completed, Icons.task_alt_rounded, 'Completed'),
-    ],
-  ),
-  (
-    title: 'Account',
-    items: [
-      _SidebarItem(_StorePage.profile, Icons.account_circle_rounded, 'Profile'),
-    ],
-  ),
-];
-
-// ── Home page ─────────────────────────────────────────────────────────────────
 class StoreHomePage extends ConsumerStatefulWidget {
   const StoreHomePage({super.key});
 
@@ -49,66 +16,62 @@ class StoreHomePage extends ConsumerStatefulWidget {
 }
 
 class _StoreHomePageState extends ConsumerState<StoreHomePage> {
-  _StorePage _currentPage = _StorePage.pending;
+  _StoreTab _tab = _StoreTab.pending;
 
-  String get _currentTitle {
-    for (final section in _sections) {
-      for (final item in section.items) {
-        if (item.page == _currentPage) return item.label;
-      }
+  String get _title {
+    switch (_tab) {
+      case _StoreTab.pending:
+        return 'Pending Requests';
+      case _StoreTab.approved:
+        return 'Approved Requests';
+      case _StoreTab.archive:
+        return 'Archive';
+      case _StoreTab.profile:
+        return 'Profile';
     }
-    return 'Store Dashboard';
-  }
-
-  void _navigate(_StorePage page) {
-    setState(() => _currentPage = page);
-    Navigator.pop(context); // close drawer
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(authProvider).user;
+    final userName = user?.name ?? user?.email ?? '';
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_currentTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Sign out',
-            onPressed: () async {
-              await fb.FirebaseAuth.instance.signOut();
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(_title)),
       drawer: _StoreDrawer(
-        currentPage: _currentPage,
-        onNavigate: _navigate,
+        currentTab: _tab,
+        userName: userName,
+        onNavigate: (tab) {
+          setState(() => _tab = tab);
+          Navigator.pop(context);
+        },
       ),
       body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
-    switch (_currentPage) {
-      case _StorePage.pending:
-        return const PendingStoreRequestsPage();
-      case _StorePage.approved:
-        return const ApprovedStoreRequestsPage();
-      case _StorePage.completed:
-        return const FulfilledRejectedPage();
-      case _StorePage.profile:
+    switch (_tab) {
+      case _StoreTab.pending:
+        return const StorePendingPage();
+      case _StoreTab.approved:
+        return const StoreApprovedPage();
+      case _StoreTab.archive:
+        return const StoreArchivePage();
+      case _StoreTab.profile:
         return const ProfilePage();
     }
   }
 }
 
-// ── Drawer ────────────────────────────────────────────────────────────────────
 class _StoreDrawer extends StatelessWidget {
-  final _StorePage currentPage;
-  final void Function(_StorePage) onNavigate;
+  final _StoreTab currentTab;
+  final String userName;
+  final void Function(_StoreTab) onNavigate;
 
   const _StoreDrawer({
-    required this.currentPage,
+    required this.currentTab,
+    required this.userName,
     required this.onNavigate,
   });
 
@@ -116,77 +79,83 @@ class _StoreDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
+    final sections = [
+      (
+        title: 'STORE REQUESTS',
+        items: [
+          (_StoreTab.pending, Icons.pending_rounded, 'Pending'),
+          (_StoreTab.approved, Icons.verified_rounded, 'Approved'),
+          (_StoreTab.archive, Icons.archive_rounded, 'Archive'),
+        ]
+      ),
+      (
+        title: 'ACCOUNT',
+        items: [
+          (_StoreTab.profile, Icons.account_circle_rounded, 'Profile'),
+        ]
+      ),
+    ];
+
     return Drawer(
       backgroundColor: cs.surfaceContainerLow,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Row(
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: cs.primary.withValues(alpha: 0.15),
+                    child: Text(
+                      userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, color: cs.primary),
                     ),
-                    child:
-                        Icon(Icons.store_rounded, color: cs.primary, size: 22),
                   ),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'CNCC Portal',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: cs.onSurface,
-                        ),
-                      ),
-                      Text(
-                        'Store',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.45),
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('CNCC Portal',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: cs.onSurface)),
+                        Text('Store',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: cs.onSurface.withValues(alpha: 0.45))),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
             Divider(color: cs.onSurface.withValues(alpha: 0.08)),
-            const SizedBox(height: 4),
-
-            // Sections
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
-                  for (final section in _sections) ...[
+                  for (final section in sections) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
-                      child: Text(
-                        section.title.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                          color: cs.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
+                      child: Text(section.title,
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                              color: cs.onSurface.withValues(alpha: 0.5))),
                     ),
                     for (final item in section.items)
                       _DrawerTile(
-                        item: item,
-                        isSelected: currentPage == item.page,
-                        onTap: () => onNavigate(item.page),
+                        icon: item.$2,
+                        label: item.$3,
+                        isSelected: currentTab == item.$1,
+                        onTap: () => onNavigate(item.$1),
                       ),
                   ],
                 ],
@@ -200,12 +169,14 @@ class _StoreDrawer extends StatelessWidget {
 }
 
 class _DrawerTile extends StatelessWidget {
-  final _SidebarItem item;
+  final IconData icon;
+  final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _DrawerTile({
-    required this.item,
+    required this.icon,
+    required this.label,
     required this.isSelected,
     required this.onTap,
   });
@@ -213,12 +184,11 @@ class _DrawerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Material(
         color: isSelected
-            ? cs.primary.withValues(alpha: 0.15)
+            ? cs.primary.withValues(alpha: 0.12)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
@@ -228,36 +198,20 @@ class _DrawerTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                Icon(
-                  item.icon,
-                  size: 20,
-                  color: isSelected
-                      ? cs.primary
-                      : cs.onSurface.withValues(alpha: 0.55),
-                ),
+                Icon(icon,
+                    size: 20,
+                    color: isSelected
+                        ? cs.primary
+                        : cs.onSurface.withValues(alpha: 0.55)),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    item.label,
+                Text(label,
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w400,
-                      color: isSelected
-                          ? cs.primary
-                          : cs.onSurface.withValues(alpha: 0.8),
-                    ),
-                  ),
-                ),
-                if (isSelected)
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: cs.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                        fontSize: 14,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w400,
+                        color: isSelected
+                            ? cs.primary
+                            : cs.onSurface.withValues(alpha: 0.8))),
               ],
             ),
           ),
