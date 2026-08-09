@@ -1,6 +1,7 @@
 class User {
   final String id;
   final String email;
+  final String? name;
   final String role;
   final bool isActive;
   final DateTime createdAt;
@@ -8,6 +9,7 @@ class User {
   User({
     required this.id,
     required this.email,
+    this.name,
     required this.role,
     required this.isActive,
     required this.createdAt,
@@ -17,6 +19,7 @@ class User {
     return User(
       id: json['id'] as String,
       email: json['email'] as String,
+      name: json['name'] as String?,
       role: json['role'] as String,
       isActive: json['is_active'] as bool,
       createdAt: DateTime.parse('${json['created_at']}Z').toLocal(),
@@ -27,6 +30,7 @@ class User {
     return {
       'id': id,
       'email': email,
+      'name': name,
       'role': role,
       'is_active': isActive,
       'created_at': createdAt.toIso8601String(),

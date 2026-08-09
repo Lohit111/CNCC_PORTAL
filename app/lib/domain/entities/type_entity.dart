@@ -1,23 +1,24 @@
 class MainType {
   final int id;
   final String name;
-  final String createdBy;
-  final DateTime createdAt;
 
   MainType({
     required this.id,
     required this.name,
-    required this.createdBy,
-    required this.createdAt,
   });
 
   factory MainType.fromJson(Map<String, dynamic> json) {
     return MainType(
       id: json['id'] as int,
       name: json['name'] as String,
-      createdBy: json['created_by'] as String,
-      createdAt: DateTime.parse('${json['created_at']}Z').toLocal(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+    };
   }
 }
 
@@ -38,5 +39,13 @@ class SubType {
       name: json['name'] as String,
       mainTypeId: json['main_type_id'] as int,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'main_type_id': mainTypeId,
+    };
   }
 }

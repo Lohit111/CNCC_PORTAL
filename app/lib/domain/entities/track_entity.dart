@@ -1,8 +1,8 @@
 class Track {
   final int id;
-  final String? requestId;
+  final String requestId;
   final String? storeRequestId;
-  final String actionType;
+  final String eventType;
   final String performedBy;
   final String performedByRole;
   final String? comment;
@@ -10,9 +10,9 @@ class Track {
 
   Track({
     required this.id,
-    this.requestId,
+    required this.requestId,
     this.storeRequestId,
-    required this.actionType,
+    required this.eventType,
     required this.performedBy,
     required this.performedByRole,
     this.comment,
@@ -22,9 +22,9 @@ class Track {
   factory Track.fromJson(Map<String, dynamic> json) {
     return Track(
       id: json['id'] as int,
-      requestId: json['request_id'] as String?,
+      requestId: json['request_id'] as String,
       storeRequestId: json['store_request_id'] as String?,
-      actionType: json['action_type'] as String,
+      eventType: json['event_type'] as String,
       performedBy: json['performed_by'] as String,
       performedByRole: json['performed_by_role'] as String,
       comment: json['comment'] as String?,
@@ -37,7 +37,7 @@ class Track {
       'id': id,
       'request_id': requestId,
       'store_request_id': storeRequestId,
-      'action_type': actionType,
+      'event_type': eventType,
       'performed_by': performedBy,
       'performed_by_role': performedByRole,
       'comment': comment,
@@ -45,13 +45,12 @@ class Track {
     };
   }
 
-  // Helper method to get display text for action type
-  String get actionDisplayText {
-    switch (actionType) {
+  String get eventDisplayText {
+    switch (eventType) {
       case 'RAISED':
         return 'Request Created';
       case 'REPLIED':
-        return 'Admin Replied';
+        return 'Replied';
       case 'REJECTED':
         return 'Request Rejected';
       case 'ASSIGNED':
@@ -71,7 +70,7 @@ class Track {
       case 'STORE_REQUEST_FULFILLED':
         return 'Store Request Fulfilled';
       default:
-        return actionType;
+        return eventType;
     }
   }
 }

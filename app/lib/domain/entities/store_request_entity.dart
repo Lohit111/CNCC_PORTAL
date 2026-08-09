@@ -5,7 +5,6 @@ class StoreRequest {
   final String description;
   final String status;
   final String? respondedBy;
-  final String? responseComment;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -16,7 +15,6 @@ class StoreRequest {
     required this.description,
     required this.status,
     this.respondedBy,
-    this.responseComment,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -29,7 +27,6 @@ class StoreRequest {
       description: json['description'] as String,
       status: json['status'] as String,
       respondedBy: json['responded_by'] as String?,
-      responseComment: json['response_comment'] as String?,
       createdAt: DateTime.parse('${json['created_at']}Z').toLocal(),
       updatedAt: DateTime.parse('${json['updated_at']}Z').toLocal(),
     );
@@ -43,13 +40,11 @@ class StoreRequest {
       'description': description,
       'status': status,
       'responded_by': respondedBy,
-      'response_comment': responseComment,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
   }
 
-  // Helper method to get status display text
   String get statusDisplayText {
     switch (status) {
       case 'PENDING':

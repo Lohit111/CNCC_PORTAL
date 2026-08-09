@@ -19,11 +19,19 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-env_path = Path(__file__).resolve().parent / ".env"
+# Must happen before importing models
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+
+# Load .env from server/
+env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
 
-# Add current directory to path
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Add server/ to path so models can be imported
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 VALID_ROLES = [r.value for r in UserRole]
 
@@ -62,41 +70,6 @@ def cmd_get(db, email: str):
     print(f"Role:      {user.role.value}")
     print(f"Active:    {'Yes' if user.is_active else 'No'}")
     print(f"ID:        {user.id}")
-
-
-def cmd_create(db):
-    """Create a new user"""
-
-    email = input("Email: ").strip()
-    name = input("Name: ").strip()
-
-    existing = db.query(UserTable).filter(UserTable.email == email).first()
-    if existing:
-        print(f"User already exists: {email}")
-        return
-
-    role = input(
-        f"Role ({', '.join(VALID_ROLES)}): "
-    ).strip().upper()
-
-    if role not in VALID_ROLES:
-        print(f"Invalid role. Valid roles: {', '.join(VALID_ROLES)}")
-        return
-
-    user = UserTable(
-        email=email,
-        name=name if name else None,
-        role=UserRole(role),
-        is_active=True
-    )
-
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
-    print(f"✓ Created user: {email}")
-    print(f"  Role: {role}")
-    print(f"  ID: {user.id}")
 
 
 def cmd_set(db, email: str, role: str):
@@ -146,56 +119,47 @@ def cmd_activate(db, email: str):
 
 
 def main():
+    args = sys.argv[1:]
+
+    if not args:
+        print(__doc__)
+        sys.exit(0)
+
+    command = args[0].lower()
     db = get_db()
 
     try:
-        while True:
-            print("""
-=============================
-     User Role Manager
-=============================
-1. List users
-2. Get user details
-3. Create user
-4. Set user role
-5. Deactivate user
-6. Activate user
-7. Exit
-""")
+        if command == "list":
+            cmd_list(db)
 
-            choice = input("Select option: ").strip()
+        elif command == "get":
+            if len(args) < 2:
+                print("Usage: manage_roles.py get <email>")
+                sys.exit(1)
+            cmd_get(db, args[1])
 
-            if choice == "1":
-                cmd_list(db)
+        elif command == "set":
+            if len(args) < 3:
+                print("Usage: manage_roles.py set <email> <role>")
+                sys.exit(1)
+            cmd_set(db, args[1], args[2])
 
-            elif choice == "2":
-                email = input("Enter email: ").strip()
-                cmd_get(db, email)
+        elif command == "deactivate":
+            if len(args) < 2:
+                print("Usage: manage_roles.py deactivate <email>")
+                sys.exit(1)
+            cmd_deactivate(db, args[1])
 
-            elif choice == "3":
-                cmd_create(db)
+        elif command == "activate":
+            if len(args) < 2:
+                print("Usage: manage_roles.py activate <email>")
+                sys.exit(1)
+            cmd_activate(db, args[1])
 
-            elif choice == "4":
-                email = input("Enter email: ").strip()
-                role = input(
-                    f"Enter role ({', '.join(VALID_ROLES)}): "
-                ).strip()
-                cmd_set(db, email, role)
-
-            elif choice == "5":
-                email = input("Enter email: ").strip()
-                cmd_deactivate(db, email)
-
-            elif choice == "6":
-                email = input("Enter email: ").strip()
-                cmd_activate(db, email)
-
-            elif choice == "7":
-                print("Exiting...")
-                break
-
-            else:
-                print("Invalid option.")
+        else:
+            print(f"Unknown command: '{command}'")
+            print(__doc__)
+            sys.exit(1)
 
     finally:
         db.close()

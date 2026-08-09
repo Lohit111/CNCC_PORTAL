@@ -9,11 +9,13 @@ class NetworkClient {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   NetworkClient._internal() {
+    const backendUrl = String.fromEnvironment(
+      'BACKEND_URL',
+      defaultValue: 'http://localhost:8000/api/v1',
+    );
+
     _dio = Dio(BaseOptions(
-      // baseUrl: 'http://103.248.208.109:8000/api/v1',
-      baseUrl: 'http://localhost:8000/api/v1',
-      // baseUrl: 'https://cncc-portal.onrender.com/api/v1',
-      // baseUrl: 'http://100.104.144.107:8000/api/v1',
+      baseUrl: backendUrl,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
     ));
