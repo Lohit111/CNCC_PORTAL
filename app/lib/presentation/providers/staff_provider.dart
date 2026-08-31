@@ -118,6 +118,18 @@ class StaffNotifier extends FamilyAsyncNotifier<StaffRequestsState, String> {
       return false;
     }
   }
+
+  Future<bool> sendChatMessage(String storeRequestId, String message) async {
+    try {
+      await _client.post(
+        '/staff/chat/$storeRequestId',
+        data: {'message': message},
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
 /// Usage: ref.watch(staffProvider('assigned'))

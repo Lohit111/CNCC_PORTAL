@@ -18,8 +18,50 @@ class UserHomePage extends ConsumerStatefulWidget {
   ConsumerState<UserHomePage> createState() => _UserHomePageState();
 }
 
-class _UserHomePageState extends ConsumerState<UserHomePage> {
+class _UserHomePageState extends ConsumerState<UserHomePage>
+    with WidgetsBindingObserver {
   _UserTab _tab = _UserTab.raised;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _invalidateCurrentTab();
+    }
+  }
+
+  void _invalidateCurrentTab() {
+    switch (_tab) {
+      case _UserTab.raised:
+        ref.invalidate(myRequestsProvider('raised'));
+      case _UserTab.replied:
+        ref.invalidate(myRequestsProvider('replied'));
+      case _UserTab.inprogress:
+        ref.invalidate(myRequestsProvider('inprogress'));
+      case _UserTab.archive:
+        ref.invalidate(myRequestsProvider('archive'));
+      case _UserTab.profile:
+        break;
+    }
+  }
+
+  void _navigateTo(_UserTab tab) {
+    setState(() => _tab = tab);
+    Navigator.pop(context);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _invalidateCurrentTab());
+  }
 
   String get _title {
     switch (_tab) {
@@ -74,10 +116,7 @@ class _UserHomePageState extends ConsumerState<UserHomePage> {
         currentTab: _tab,
         repliedCount: repliedCount,
         userName: user?.name ?? user?.email ?? '',
-        onNavigate: (tab) {
-          setState(() => _tab = tab);
-          Navigator.pop(context);
-        },
+        onNavigate: _navigateTo,
       ),
       body: _buildBody(),
       floatingActionButton: _tab != _UserTab.profile

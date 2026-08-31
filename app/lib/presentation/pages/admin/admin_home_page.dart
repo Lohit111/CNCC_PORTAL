@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
+import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_raised_page.dart';
@@ -40,8 +41,64 @@ class AdminHomePage extends ConsumerStatefulWidget {
   ConsumerState<AdminHomePage> createState() => _AdminHomePageState();
 }
 
-class _AdminHomePageState extends ConsumerState<AdminHomePage> {
+class _AdminHomePageState extends ConsumerState<AdminHomePage>
+    with WidgetsBindingObserver {
   _AdminTab _tab = _AdminTab.raised;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _invalidateCurrentTab();
+    }
+  }
+
+  void _invalidateCurrentTab() {
+    switch (_tab) {
+      case _AdminTab.raised:
+        ref.invalidate(adminProvider('raised'));
+      case _AdminTab.replied:
+        ref.invalidate(adminProvider('replied'));
+      case _AdminTab.assigned:
+        ref.invalidate(adminProvider('assigned'));
+      case _AdminTab.reassignRequested:
+        ref.invalidate(adminProvider('reassign-requested'));
+      case _AdminTab.inprogress:
+        ref.invalidate(adminProvider('inprogress'));
+      case _AdminTab.archive:
+        ref.invalidate(adminProvider('archive'));
+      case _AdminTab.myRaised:
+        ref.invalidate(myRequestsProvider('raised'));
+      case _AdminTab.myReplied:
+        ref.invalidate(myRequestsProvider('replied'));
+      case _AdminTab.myInProgress:
+        ref.invalidate(myRequestsProvider('inprogress'));
+      case _AdminTab.myArchive:
+        ref.invalidate(myRequestsProvider('archive'));
+      case _AdminTab.manageUsers:
+      case _AdminTab.manageTypes:
+      case _AdminTab.profile:
+        break;
+    }
+  }
+
+  void _navigateTo(_AdminTab tab) {
+    setState(() => _tab = tab);
+    Navigator.pop(context);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _invalidateCurrentTab());
+  }
 
   String get _title {
     switch (_tab) {
@@ -84,10 +141,7 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
       drawer: _AdminDrawer(
         currentTab: _tab,
         userName: userName,
-        onNavigate: (tab) {
-          setState(() => _tab = tab);
-          Navigator.pop(context);
-        },
+        onNavigate: _navigateTo,
       ),
       body: _buildBody(),
       floatingActionButton: _isMyRequestsTab

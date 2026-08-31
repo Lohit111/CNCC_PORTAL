@@ -267,3 +267,32 @@ def get_store_chat(db: Session, staff_id: str, store_request_id: str) -> list:
     if not sr:
         raise HTTPException(status_code=404, detail="Store request not found")
     return StoreChat.find(db, {"store_request_id": store_request_id})
+
+
+def send_staff_chat_message(db: Session, staff: User, store_request_id: str, message: str) -> bool:
+    """Send a chat message on a store request — staff must own the parent request"""
+    from models.enums import StoreRequestStatus
+    sr = StoreRequest.get(db, {"id": store_request_id})
+    if not sr:
+        raise HTTPException(status_code=404, detail="Store request not found")
+
+    # Verify the staff member is the one who created this store request
+    if sr.requested_by != staff.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not the owner of this store request"
+        )
+
+    if sr.status not in [StoreRequestStatus.PENDING, StoreRequestStatus.APPROVED]:
+        raise HTTPException(
+            status_code=400,
+            detail="Chat is only available on PENDING or APPROVED store requests"
+        )
+
+    StoreChat.create(db, {
+        "store_request_id": store_request_id,
+        "sender_id": staff.id,
+        "message": message
+    })
+    db.commit()
+    return True
