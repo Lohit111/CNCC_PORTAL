@@ -145,10 +145,11 @@ def _verify_staff_assigned(db: Session, staff_id: str, request_id: str):
 
 def start_request(db: Session, staff: User, request_id: str) -> bool:
     """Set request status to IN_PROGRESS and create a track entry"""
-    request = Request.get(db, {"id": request_id})
-    if not request:
+    # Lock the row so two staff members cannot both start the same request simultaneously
+    row = Request.get_for_update(db, {"id": request_id})
+    if not row:
         raise HTTPException(status_code=404, detail="Request not found")
-    if request.status != RequestStatus.ASSIGNED:
+    if row.status != RequestStatus.ASSIGNED:
         raise HTTPException(
             status_code=400, detail="Request is not in ASSIGNED status")
 
@@ -174,10 +175,11 @@ def request_reassignment(db: Session, staff: User, request_id: str, comment: str
     - Deactivates all active assignments for this request
     - Creates a track entry
     """
-    request = Request.get(db, {"id": request_id})
-    if not request:
+    # Lock the row to prevent concurrent reassignment/finish actions on the same request
+    row = Request.get_for_update(db, {"id": request_id})
+    if not row:
         raise HTTPException(status_code=404, detail="Request not found")
-    if request.status not in [RequestStatus.ASSIGNED, RequestStatus.IN_PROGRESS]:
+    if row.status not in [RequestStatus.ASSIGNED, RequestStatus.IN_PROGRESS]:
         raise HTTPException(
             status_code=400, detail="Request cannot be reassigned from its current status")
 
@@ -207,10 +209,11 @@ def finish_request(db: Session, staff: User, request_id: str) -> bool:
     - Deactivates all active assignments
     - Creates a track entry
     """
-    request = Request.get(db, {"id": request_id})
-    if not request:
+    # Lock the row to prevent double-completion or a finish/reassign collision
+    row = Request.get_for_update(db, {"id": request_id})
+    if not row:
         raise HTTPException(status_code=404, detail="Request not found")
-    if request.status != RequestStatus.IN_PROGRESS:
+    if row.status != RequestStatus.IN_PROGRESS:
         raise HTTPException(
             status_code=400, detail="Request is not IN_PROGRESS")
 
