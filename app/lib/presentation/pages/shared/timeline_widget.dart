@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:cncc_portal/domain/entities/track_entity.dart';
 import 'package:cncc_portal/domain/entities/user_entity.dart';
+import 'package:cncc_portal/domain/entities/assignment_entity.dart';
 
 /// Reusable vertical timeline widget.
-/// Pass [timeline] (list of Track) and [users] map (uid → User).
+/// Pass [timeline] (list of Track), [users] map (uid → User),
+/// and optionally [assignments] so ASSIGNED events show the assigned staff inline.
 class TimelineWidget extends StatelessWidget {
   final List<Track> timeline;
   final Map<String, User> users;
+  final List<Assignment> assignments;
 
   const TimelineWidget({
     super.key,
     required this.timeline,
     required this.users,
+    this.assignments = const [],
   });
 
   @override
@@ -28,6 +32,9 @@ class TimelineWidget extends StatelessWidget {
       );
     }
 
+    // Build a map from trackId → Assignment for quick lookup
+    final assignmentByTrackId = {for (final a in assignments) a.trackId: a};
+
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -39,9 +46,21 @@ class TimelineWidget extends StatelessWidget {
         final performerName =
             performer?.name ?? performer?.email ?? track.performedBy;
 
+        // For ASSIGNED events, resolve the staff name from the linked assignment
+        String? assignedStaffName;
+        if (track.eventType == 'ASSIGNED') {
+          final assignment = assignmentByTrackId[track.id];
+          if (assignment != null) {
+            final staff = users[assignment.staffId];
+            assignedStaffName =
+                staff?.name ?? staff?.email ?? assignment.staffId;
+          }
+        }
+
         return _TimelineItem(
           track: track,
           performerName: performerName,
+          assignedStaffName: assignedStaffName,
           isLast: isLast,
         );
       },
@@ -52,11 +71,13 @@ class TimelineWidget extends StatelessWidget {
 class _TimelineItem extends StatelessWidget {
   final Track track;
   final String performerName;
+  final String? assignedStaffName;
   final bool isLast;
 
   const _TimelineItem({
     required this.track,
     required this.performerName,
+    this.assignedStaffName,
     required this.isLast,
   });
 
@@ -131,6 +152,26 @@ class _TimelineItem extends StatelessWidget {
                       color: cs.onSurface.withValues(alpha: 0.55),
                     ),
                   ),
+                  if (assignedStaffName != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.person_rounded,
+                            size: 13,
+                            color: const Color(0xFFCBA6F7)
+                                .withValues(alpha: 0.85)),
+                        const SizedBox(width: 4),
+                        Text(
+                          assignedStaffName!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFCBA6F7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (track.comment != null &&
                       track.comment!.trim().isNotEmpty) ...[
                     const SizedBox(height: 6),

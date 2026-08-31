@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
+import 'package:cncc_portal/presentation/providers/staff_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
 import 'package:cncc_portal/presentation/pages/staff/staff_assigned_page.dart';
@@ -30,8 +31,57 @@ class StaffHomePage extends ConsumerStatefulWidget {
   ConsumerState<StaffHomePage> createState() => _StaffHomePageState();
 }
 
-class _StaffHomePageState extends ConsumerState<StaffHomePage> {
+class _StaffHomePageState extends ConsumerState<StaffHomePage>
+    with WidgetsBindingObserver {
   _StaffTab _tab = _StaffTab.assigned;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _invalidateCurrentTab();
+    }
+  }
+
+  void _invalidateCurrentTab() {
+    switch (_tab) {
+      case _StaffTab.assigned:
+        ref.invalidate(staffProvider('assigned'));
+      case _StaffTab.inprogress:
+        ref.invalidate(staffProvider('inprogress'));
+      case _StaffTab.archive:
+        ref.invalidate(staffProvider('archive'));
+      case _StaffTab.myRaised:
+        ref.invalidate(myRequestsProvider('raised'));
+      case _StaffTab.myReplied:
+        ref.invalidate(myRequestsProvider('replied'));
+      case _StaffTab.myInProgress:
+        ref.invalidate(myRequestsProvider('inprogress'));
+      case _StaffTab.myArchive:
+        ref.invalidate(myRequestsProvider('archive'));
+      case _StaffTab.profile:
+        break;
+    }
+  }
+
+  void _navigateTo(_StaffTab tab) {
+    setState(() => _tab = tab);
+    Navigator.pop(context);
+    // Invalidate after setState so the new tab's provider rebuilds fresh
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _invalidateCurrentTab());
+  }
 
   String get _title {
     switch (_tab) {
@@ -64,10 +114,7 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage> {
       drawer: _StaffDrawer(
         currentTab: _tab,
         userName: userName,
-        onNavigate: (tab) {
-          setState(() => _tab = tab);
-          Navigator.pop(context);
-        },
+        onNavigate: _navigateTo,
       ),
       body: _buildBody(),
       floatingActionButton: _isMyRequestsTab

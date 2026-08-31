@@ -1,0 +1,55 @@
+Assigners email (done)
+
+Timeline should show names (done)
+
+Time  are wrong(done)
+
+Ticket should show auto refresh (done)
+
+Can't edit roles when they have pending requests (done)
+
+Staff and admin should also be able to create requests (done)
+
+Multiple staff assignments (testing)
+
+Staff should be able to assign to staff (change assigned by role in creating assignments)
+
+
+----------------
+
+when request status is set to completed, verify there are no pending requests(done)
+--> its simple for single assigned staff, if assigned multiple staff, one staff cant see other staffs store requests which mich belong to the same parent request (done)
+
+----------------
+
+.commits() are supposed to be in conrollers/services not in models(risk:low)
+
+--------------------------------------------
+
+
+flutter run -d web-server --web-port 3000 --web-hostname 0.0.0.0
+
+cd build/web | python -m http.server
+
+
+
+Room no. Phone no. Mandatory in request(done)
+
+Profile page(done)
+
+Delete role(done)
+
+Timeline lo assigned status assignees names(done)
+
+Should add created by interface in request instead of timeline (done)
+
+Admin should be able to close requests. (Should reflect in timeline as well)
+
+Add names
+Add phone number to user
+
+
+
+and also after finishing all this, we need to add race condition safety in the backend -> when request status changes by 2 participants at the same time, we need a way to resolve that
+
+maybe row locking or allowing the operation only after checking the current status of the request

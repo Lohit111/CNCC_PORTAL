@@ -8,7 +8,7 @@ from middleware.auth import require_role, get_current_user
 from controllers.staff_requests import (
     get_assigned, get_inprogress, get_archive,
     start_request, request_reassignment, finish_request,
-    create_store_request, get_store_chat
+    create_store_request, get_store_chat, send_staff_chat_message
 )
 from config.database import get_db
 
@@ -28,6 +28,10 @@ class CommentBody(BaseModel):
 
 class StoreRequestBody(BaseModel):
     description: str
+
+
+class MessageBody(BaseModel):
+    message: str
 
 
 # --- GET Endpoints ---
@@ -72,6 +76,19 @@ async def list_chat(
     messages = get_store_chat(db, staff_id=user.id,
                               store_request_id=store_request_id)
     return [m.model_dump() for m in messages]
+
+
+@router.post("/chat/{store_request_id}")
+async def post_chat(
+    store_request_id: str,
+    body: MessageBody,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Send a chat message on a store request (staff must own the store request)"""
+    send_staff_chat_message(db, staff=user,
+                            store_request_id=store_request_id, message=body.message)
+    return {"message": "Message sent"}
 
 
 # --- PUT Action Endpoints ---

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
+import 'package:cncc_portal/presentation/providers/store_provider.dart';
 import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
 import 'package:cncc_portal/presentation/pages/store/store_pending_page.dart';
 import 'package:cncc_portal/presentation/pages/store/store_approved_page.dart';
@@ -15,8 +16,48 @@ class StoreHomePage extends ConsumerStatefulWidget {
   ConsumerState<StoreHomePage> createState() => _StoreHomePageState();
 }
 
-class _StoreHomePageState extends ConsumerState<StoreHomePage> {
+class _StoreHomePageState extends ConsumerState<StoreHomePage>
+    with WidgetsBindingObserver {
   _StoreTab _tab = _StoreTab.pending;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _invalidateCurrentTab();
+    }
+  }
+
+  void _invalidateCurrentTab() {
+    switch (_tab) {
+      case _StoreTab.pending:
+        ref.invalidate(storeProvider('pending'));
+      case _StoreTab.approved:
+        ref.invalidate(storeProvider('approved'));
+      case _StoreTab.archive:
+        ref.invalidate(storeProvider('archive'));
+      case _StoreTab.profile:
+        break;
+    }
+  }
+
+  void _navigateTo(_StoreTab tab) {
+    setState(() => _tab = tab);
+    Navigator.pop(context);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _invalidateCurrentTab());
+  }
 
   String get _title {
     switch (_tab) {
@@ -41,10 +82,7 @@ class _StoreHomePageState extends ConsumerState<StoreHomePage> {
       drawer: _StoreDrawer(
         currentTab: _tab,
         userName: userName,
-        onNavigate: (tab) {
-          setState(() => _tab = tab);
-          Navigator.pop(context);
-        },
+        onNavigate: _navigateTo,
       ),
       body: _buildBody(),
     );
