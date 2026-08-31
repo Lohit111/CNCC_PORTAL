@@ -96,6 +96,15 @@ class Request(BaseModel):
         return query.first()
 
     @staticmethod
+    def get_for_update(db: Session, filter: dict) -> Optional[RequestTable]:
+        """Get raw SQLAlchemy object with a row-level lock (SELECT FOR UPDATE).
+        Use this before any status mutation to prevent race conditions."""
+        query = db.query(RequestTable).with_for_update()
+        for key, value in filter.items():
+            query = query.filter(getattr(RequestTable, key) == value)
+        return query.first()
+
+    @staticmethod
     def find(db: Session, filter: Optional[dict] = None, skip: int = 0, limit: Optional[int] = None) -> List["Request"]:
         """Find multiple requests"""
         query = db.query(RequestTable)

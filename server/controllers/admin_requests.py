@@ -96,8 +96,9 @@ def get_archive(db: Session, page: int) -> dict:
 
 def reply_to_request(db: Session, admin: User, request_id: str, comment: str) -> bool:
     """Set request status to REPLIED and create a track entry"""
-    request = Request.get(db, {"id": request_id})
-    if not request:
+    # Lock the row so concurrent requests cannot double-reply the same request
+    row = Request.get_for_update(db, {"id": request_id})
+    if not row:
         raise HTTPException(status_code=404, detail="Request not found")
 
     Request.update(db, {"id": request_id}, {"status": RequestStatus.REPLIED})
@@ -118,8 +119,9 @@ def assign_request(db: Session, admin: User, request_id: str, staff_ids: List[st
     Creates one ASSIGNED track entry, one assignment per staff_id (all linked to that track),
     and updates request status — all in a single transaction.
     """
-    request = Request.get(db, {"id": request_id})
-    if not request:
+    # Lock the row first — prevents two admins from double-assigning the same request
+    row = Request.get_for_update(db, {"id": request_id})
+    if not row:
         raise HTTPException(status_code=404, detail="Request not found")
 
     if not staff_ids:
@@ -162,8 +164,9 @@ def assign_request(db: Session, admin: User, request_id: str, staff_ids: List[st
 
 def reject_request(db: Session, admin: User, request_id: str, comment: str) -> bool:
     """Set request status to REJECTED and create a track entry"""
-    request = Request.get(db, {"id": request_id})
-    if not request:
+    # Lock the row so concurrent requests cannot reject the same request twice
+    row = Request.get_for_update(db, {"id": request_id})
+    if not row:
         raise HTTPException(status_code=404, detail="Request not found")
 
     Request.update(db, {"id": request_id}, {"status": RequestStatus.REJECTED})
@@ -183,32 +186,40 @@ def reject_request(db: Session, admin: User, request_id: str, comment: str) -> b
 def delete_request(db: Session, request_id: str) -> bool:
     """
     Delete a request and all its related data:
-    tracks, assignments, store_requests (and their chats)
-    Cascade relationships handle most of this, but store chats need explicit deletion
-    since they hang off store_requests not requests directly.
+    tracks, assignments, store_requests (and their chats).
+
+    Uses db.delete(obj) instead of a bulk query.delete() so that SQLAlchemy's
+    ORM cascade ("all, delete-orphan") fires correctly and child rows are removed
+    before the parent — avoiding FK constraint violations from PostgreSQL.
+    Store chats still need explicit deletion because they cascade from store_requests,
+    not directly from requests.
     """
-    request = Request.get(db, {"id": request_id})
-    if not request:
+    row = Request.get_raw(db, {"id": request_id})
+    if not row:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    # Delete store chats first (not directly cascaded from request)
+    # Delete store chats first — they cascade from store_requests, not from requests,
+    # so the ORM cascade won't reach them automatically.
     store_requests = StoreRequest.find(db, {"parent_request_id": request_id})
     for sr in store_requests:
         StoreChat.delete_all(db, {"store_request_id": sr.id})
 
-    # Delete the request — cascades to tracks, assignments, store_requests
-    Request.delete(db, {"id": request_id})
+    # db.delete triggers cascade: tracks, assignments, store_requests all removed
+    db.delete(row)
     db.commit()
     return True
 
 
 def delete_store_request(db: Session, store_request_id: str) -> bool:
-    """Delete a store request and its chat messages"""
-    sr = StoreRequest.get(db, {"id": store_request_id})
-    if not sr:
+    """Delete a store request and its chat messages."""
+    row = StoreRequest.get_raw(db, {"id": store_request_id})
+    if not row:
         raise HTTPException(status_code=404, detail="Store request not found")
 
+    # Chats don't cascade automatically via the ORM bulk path, delete explicitly first
     StoreChat.delete_all(db, {"store_request_id": store_request_id})
-    StoreRequest.delete(db, {"id": store_request_id})
+
+    # db.delete triggers cascade: tracks removed via store_request's cascade relationship
+    db.delete(row)
     db.commit()
     return True

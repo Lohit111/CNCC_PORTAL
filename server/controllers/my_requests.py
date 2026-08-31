@@ -93,11 +93,12 @@ def get_archive(db: Session, user_id: str, page: int) -> dict:
 
 def reply_to_request(db: Session, user_id: str, request_id: str, comment: str, description: str) -> bool:
     """User replies to admin — updates description, sets status back to RAISED, adds track entry"""
-    request = Request.get(db, {"id": request_id, "raised_by": user_id})
-    if not request:
+    # Lock the row — prevents the user from submitting two replies simultaneously
+    row = Request.get_for_update(db, {"id": request_id, "raised_by": user_id})
+    if not row:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    if request.status != RequestStatus.REPLIED:
+    if row.status != RequestStatus.REPLIED:
         raise HTTPException(
             status_code=400,
             detail="This request is not in REPLIED status"
@@ -116,7 +117,8 @@ def reply_to_request(db: Session, user_id: str, request_id: str, comment: str, d
         "request_id": request_id,
         "event_type": TrackEventType.REPLIED,
         "performed_by": user_id,
-        "performed_by_role": user.role, # pyright: ignore[reportOptionalMemberAccess]
+        # pyright: ignore[reportOptionalMemberAccess]
+        "performed_by_role": user.role,
         "comment": comment
     })
     db.commit()
@@ -140,7 +142,8 @@ def create_request(db: Session, user_id: str, main_type: str, sub_type: str, des
         "request_id": request.id,
         "event_type": TrackEventType.RAISED,
         "performed_by": user_id,
-        "performed_by_role": user.role, # pyright: ignore[reportOptionalMemberAccess]
+        # pyright: ignore[reportOptionalMemberAccess]
+        "performed_by_role": user.role,
         "comment": None
     })
     db.commit()
