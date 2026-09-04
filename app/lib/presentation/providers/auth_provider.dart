@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/core/utils/error_handler.dart';
+import 'package:cncc_portal/core/services/notification_service.dart';
 import 'package:cncc_portal/domain/entities/user_entity.dart';
 
 class AuthState {
@@ -54,6 +55,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = User.fromJson(response.data);
 
       state = AuthState(user: user, isLoading: false);
+      await NotificationService().registerToken();
     } catch (error) {
       final appError = ErrorHandler.handle(error);
       state = AuthState(
