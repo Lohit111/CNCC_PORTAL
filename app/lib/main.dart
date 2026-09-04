@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cncc_portal/firebase_options.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/core/services/notification_service.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/pages/login_page.dart';
 import 'package:cncc_portal/presentation/pages/user/user_home_page.dart';
@@ -13,6 +14,7 @@ import 'package:cncc_portal/presentation/pages/store/store_home_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await NotificationService().init();
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -352,8 +354,9 @@ class _NameGatePageState extends ConsumerState<_NameGatePage> {
                         prefixIcon: Icon(Icons.badge_rounded),
                       ),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty)
+                        if (v == null || v.trim().isEmpty) {
                           return 'Name cannot be empty';
+                        }
                         if (v.trim().length < 2) return 'Name is too short';
                         return null;
                       },

@@ -38,3 +38,9 @@ class StoreRequestStatus(str, Enum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     FULFILLED = "FULFILLED"
+
+
+class DevicePlatform(str, Enum):
+    ANDROID = "android"
+    IOS = "ios"
+    UNKNOWN = "unknown"

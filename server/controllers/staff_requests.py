@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from models.request import Request, RequestTable
 from models.track import RequestTrack, RequestTrackTable
 from models.assignment import Assignment, AssignmentTable
-from models.store_request import StoreRequest
+from models.store_request import StoreRequest, StoreRequestTable
 from models.store_chat import StoreChat
 from models.user import User
 from models.enums import RequestStatus, TrackEventType, StoreRequestStatus
@@ -218,6 +218,24 @@ def finish_request(db: Session, staff: User, request_id: str) -> bool:
             status_code=400, detail="Request is not IN_PROGRESS")
 
     _verify_staff_assigned(db, staff.id, request_id)
+
+    # Block completion if any store requests are still pending or approved
+    pending_store_requests = (
+        db.query(StoreRequestTable)
+        .filter(
+            StoreRequestTable.parent_request_id == request_id,
+            StoreRequestTable.status.in_([
+                StoreRequestStatus.PENDING,
+                StoreRequestStatus.APPROVED,
+            ])
+        )
+        .count()
+    )
+    if pending_store_requests > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot complete request: {pending_store_requests} store request(s) are still pending or approved"
+        )
 
     # Deactivate all active assignments
     Assignment.update(db, {"request_id": request_id,
