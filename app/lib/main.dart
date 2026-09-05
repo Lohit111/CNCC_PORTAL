@@ -218,8 +218,11 @@ class HomeBuilder extends ConsumerWidget {
       return const LoginPage();
     }
 
-    // Force name entry if not set
-    if (user.name == null || user.name!.trim().isEmpty) {
+    // Gate: force profile completion if name or phone is missing
+    if (user.name == null ||
+        user.name!.trim().isEmpty ||
+        user.phone == null ||
+        user.phone!.trim().isEmpty) {
       return NameGatePage(user: user);
     }
 

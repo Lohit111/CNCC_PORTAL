@@ -29,7 +29,6 @@ class CreateRequestBody(BaseModel):
     sub_type: str
     description: str
     room_no: str
-    phone_no: str
 
 
 # --- Endpoints ---
@@ -48,7 +47,6 @@ async def create(
         sub_type=body.sub_type,
         description=body.description,
         room_no=body.room_no,
-        phone_no=body.phone_no
     )
 
 

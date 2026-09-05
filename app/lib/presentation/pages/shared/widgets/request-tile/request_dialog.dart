@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/timeline_widget.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
@@ -75,11 +76,16 @@ class RequestDialog extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _DetailRow(
-                          label: 'Raised by', value: detail.raiserDisplay),
+                        label: 'Raised by',
+                        value: _raiserDisplay(detail),
+                      ),
                       const SizedBox(height: 6),
                       _DetailRow(label: 'Room', value: req.roomNo),
                       const SizedBox(height: 6),
-                      _DetailRow(label: 'Phone', value: req.phoneNo),
+                      _DetailRow(
+                        label: 'Type',
+                        value: '${req.mainType} › ${req.subType}',
+                      ),
                       const SizedBox(height: 6),
                       _DetailRow(
                           label: 'Created', value: _fmtFull(req.createdAt)),
@@ -92,6 +98,8 @@ class RequestDialog extends ConsumerWidget {
                           height: 1.5,
                         ),
                       ),
+                      const SizedBox(height: 14),
+                      _CallCreatorRow(detail: detail),
                     ],
                   ),
                 ),
@@ -407,6 +415,13 @@ class RequestDialog extends ConsumerWidget {
   // Helpers
   // ---------------------------------------------------------------------------
 
+  String _raiserDisplay(RequestDetail detail) {
+    final u = detail.users[detail.request.raisedBy];
+    if (u == null) return detail.request.raisedBy;
+    final name = (u.name != null && u.name!.trim().isNotEmpty) ? u.name! : null;
+    return name != null ? '$name · ${u.email}' : u.email;
+  }
+
   Color _statusColor(String s) {
     switch (s) {
       case 'RAISED':
@@ -575,6 +590,73 @@ class _DetailRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Call creator row
+// ---------------------------------------------------------------------------
+
+class _CallCreatorRow extends StatelessWidget {
+  final RequestDetail detail;
+  const _CallCreatorRow({required this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final raiser = detail.users[detail.request.raisedBy];
+    final phone = raiser?.phone;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: cs.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.call_rounded, size: 18, color: cs.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Call Creator',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  phone ?? 'No phone number on file',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: phone != null
+                        ? cs.primary
+                        : cs.onSurface.withValues(alpha: 0.35),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (phone != null)
+            IconButton(
+              icon: Icon(Icons.phone_forwarded_rounded, color: cs.primary),
+              tooltip: 'Open dialer',
+              onPressed: () async {
+                final uri = Uri(scheme: 'tel', path: phone);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri);
+                }
+              },
+            ),
+        ],
+      ),
     );
   }
 }

@@ -261,9 +261,27 @@ class _TimelineItem extends StatelessWidget {
   String _fmt(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${date.day}/${date.month}/${date.year}';
+
+    final datePart = '${date.day}/${date.month}/${date.year}';
+
+    final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+
+    final timePart = '$hour:$minute $period';
+
+    if (diff.inMinutes < 60) {
+      return '$datePart $timePart - (${diff.inMinutes}m ago)';
+    }
+
+    if (diff.inHours < 24) {
+      return '$datePart $timePart - (${diff.inHours}h ago)';
+    }
+
+    if (diff.inDays < 7) {
+      return '$datePart $timePart - (${diff.inDays}d ago)';
+    }
+
+    return '$datePart $timePart';
   }
 }

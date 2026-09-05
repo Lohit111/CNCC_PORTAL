@@ -4,7 +4,7 @@ import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 
-/// Shared profile page — displays current user info and allows name update.
+/// Shared profile page — displays current user info and allows name + phone update.
 /// Used across all roles.
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -15,6 +15,7 @@ class ProfilePage extends ConsumerStatefulWidget {
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isEditing = false;
   bool _isSaving = false;
@@ -22,22 +23,24 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
-  Future<void> _saveName() async {
+  Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     try {
-      await NetworkClient().put('/users/me/name', data: {
+      await NetworkClient().put('/users/me/profile', data: {
         'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
       });
       await ref.read(authProvider.notifier).refresh();
       if (mounted) setState(() => _isEditing = false);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update name')),
+          const SnackBar(content: Text('Failed to update profile')),
         );
       }
     } finally {
@@ -53,6 +56,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final email =
         user?.email ?? fb.FirebaseAuth.instance.currentUser?.email ?? '';
     final name = user?.name;
+    final phone = user?.phone;
     final role = user?.role ?? '';
     final avatarLetter = (name?.isNotEmpty == true ? name! : email)
         .characters
@@ -105,6 +109,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             color: cs.onSurface.withValues(alpha: 0.55),
                           ),
                         ),
+                        if (phone != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            phone,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: cs.onSurface.withValues(alpha: 0.55),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -135,6 +149,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         _isEditing = !_isEditing;
                         if (_isEditing) {
                           _nameController.text = name ?? '';
+                          _phoneController.text = phone ?? '';
                         }
                       });
                     },
@@ -144,7 +159,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             ),
           ),
 
-          // Name edit form
+          // Edit form
           if (_isEditing) ...[
             const SizedBox(height: 16),
             Card(
@@ -156,7 +171,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Update Name',
+                        'Update Profile',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -179,11 +194,30 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           return null;
                         },
                       ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        maxLength: 10,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone Number',
+                          prefixIcon: Icon(Icons.phone_rounded),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Phone number cannot be empty';
+                          }
+                          if (!RegExp(r'^\d{10}$').hasMatch(v.trim())) {
+                            return 'Must be exactly 10 digits';
+                          }
+                          return null;
+                        },
+                      ),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _isSaving ? null : _saveName,
+                          onPressed: _isSaving ? null : _saveProfile,
                           child: _isSaving
                               ? const SizedBox(
                                   width: 18,

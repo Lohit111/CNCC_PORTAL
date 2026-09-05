@@ -6,7 +6,7 @@ from models.user import User
 from models.user_fcm import UserFcm
 from models.enums import UserRole, DevicePlatform
 from middleware.auth import get_current_user, require_role
-from controllers.user import get_users, create_user, update_user_role, update_user_name, deactivate_user
+from controllers.user import get_users, create_user, update_user_role, update_user_name, update_user_profile, deactivate_user
 from config.database import get_db
 from services.notification_service import send_to_role
 
@@ -24,8 +24,9 @@ class UpdateRoleRequest(BaseModel):
     role: UserRole
 
 
-class UpdateNameRequest(BaseModel):
+class UpdateProfileRequest(BaseModel):
     name: str
+    phone: str
 
 
 class UpsertFcmTokenRequest(BaseModel):
@@ -41,14 +42,14 @@ async def me(user: User = Depends(get_current_user)):
     return user
 
 
-@router.put("/me/name")
-async def update_name(
-    body: UpdateNameRequest,
+@router.put("/me/profile")
+async def update_profile(
+    body: UpdateProfileRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Update the current user's name"""
-    return update_user_name(db, user_id=user.id, name=body.name)
+    """Update the current user's name and phone number"""
+    return update_user_profile(db, user_id=user.id, name=body.name, phone=body.phone)
 
 
 @router.get("/")

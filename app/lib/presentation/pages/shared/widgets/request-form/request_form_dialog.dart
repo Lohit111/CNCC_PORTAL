@@ -27,7 +27,6 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _descController = TextEditingController();
   final _roomController = TextEditingController();
-  final _phoneController = TextEditingController();
 
   int? _selectedMainId;
   int? _selectedSubId;
@@ -39,7 +38,6 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   void dispose() {
     _descController.dispose();
     _roomController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -133,24 +131,6 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                       ? 'Room number is required'
                       : null,
                 ),
-
-                const SizedBox(height: 12),
-
-                TextFormField(
-                  controller: _phoneController,
-                  decoration: const InputDecoration(labelText: 'Phone No'),
-                  keyboardType: TextInputType.phone,
-                  maxLength: 10,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Phone number is required';
-                    }
-                    if (!RegExp(r'^\d{10}$').hasMatch(v.trim())) {
-                      return 'Phone number must be 10 digits';
-                    }
-                    return null;
-                  },
-                ),
               ],
             ),
           ),
@@ -187,7 +167,6 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
               subType: _selectedSubName!,
               description: _descController.text.trim(),
               roomNo: _roomController.text.trim(),
-              phoneNo: _phoneController.text.trim(),
             );
     if (mounted) {
       Navigator.pop(context);

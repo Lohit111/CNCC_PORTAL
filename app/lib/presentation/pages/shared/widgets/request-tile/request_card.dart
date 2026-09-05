@@ -105,8 +105,8 @@ class RequestCard extends StatelessWidget {
 
                 // Info rows
                 _InfoRow(
-                  label: 'Type',
-                  value: '${req.mainType} › ${req.subType}',
+                  label: 'Raised by',
+                  value: _raiserDisplay(detail),
                 ),
                 const SizedBox(height: 3),
 
@@ -117,8 +117,8 @@ class RequestCard extends StatelessWidget {
                 const SizedBox(height: 3),
 
                 _InfoRow(
-                  label: 'Raised by',
-                  value: _raiserDisplay(detail),
+                  label: 'Type',
+                  value: '${req.mainType} › ${req.subType}',
                 ),
                 const SizedBox(height: 3),
 
