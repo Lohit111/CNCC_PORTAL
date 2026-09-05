@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from models.user import User
 from models.enums import UserRole
 from middleware.auth import require_role, get_current_user
-from controllers.admin_requests import (
+from controllers.admin_actions import (
     get_raised, get_replied, get_assigned,
     get_reassign_requested, get_inprogress, get_archive,
     reply_to_request, assign_request, reject_request,

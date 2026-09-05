@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
+import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
 
 /// Shared "New Request" dialog used by all role home pages.
@@ -26,24 +27,25 @@ class RequestFormDialog extends ConsumerStatefulWidget {
 class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _descController = TextEditingController();
-  final _roomController = TextEditingController();
 
   int? _selectedMainId;
   int? _selectedSubId;
   String? _selectedMainName;
   String? _selectedSubName;
+  int? _selectedRoomId;
+  String? _selectedRoomNo;
   bool _isSubmitting = false;
 
   @override
   void dispose() {
     _descController.dispose();
-    _roomController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final mainTypesAsync = ref.watch(mainTypesProvider);
+    final roomsAsync = ref.watch(roomsProvider);
 
     return AlertDialog(
       title: const Text('New Request'),
@@ -61,7 +63,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                   error: (e, _) => Text('Failed to load types: $e'),
                   data: (mainTypes) => DropdownButtonFormField<int>(
                     decoration: const InputDecoration(labelText: 'Main Type'),
-                    initialValue: _selectedMainId,
+                    value: _selectedMainId,
                     items: mainTypes
                         .map((t) =>
                             DropdownMenuItem(value: t.id, child: Text(t.name)))
@@ -93,7 +95,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                       data: (subs) => DropdownButtonFormField<int>(
                         decoration:
                             const InputDecoration(labelText: 'Sub Type'),
-                        initialValue: _selectedSubId,
+                        value: _selectedSubId,
                         items: subs
                             .map((t) => DropdownMenuItem(
                                 value: t.id, child: Text(t.name)))
@@ -113,22 +115,36 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
 
                 const SizedBox(height: 12),
 
+                // Room
+                roomsAsync.when(
+                  loading: () => const CircularProgressIndicator(),
+                  error: (e, _) => Text('Failed to load rooms: $e'),
+                  data: (rooms) => DropdownButtonFormField<int>(
+                    decoration: const InputDecoration(labelText: 'Room'),
+                    value: _selectedRoomId,
+                    items: rooms
+                        .map((r) => DropdownMenuItem(
+                            value: r.id, child: Text(r.roomNo)))
+                        .toList(),
+                    onChanged: (val) {
+                      final room = rooms.firstWhere((r) => r.id == val);
+                      setState(() {
+                        _selectedRoomId = val;
+                        _selectedRoomNo = room.roomNo;
+                      });
+                    },
+                    validator: (v) => v == null ? 'Please select a room' : null,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
                 TextFormField(
                   controller: _descController,
                   decoration: const InputDecoration(labelText: 'Description'),
                   maxLines: 3,
                   validator: (v) => v == null || v.trim().isEmpty
                       ? 'Description is required'
-                      : null,
-                ),
-
-                const SizedBox(height: 12),
-
-                TextFormField(
-                  controller: _roomController,
-                  decoration: const InputDecoration(labelText: 'Room No'),
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Room number is required'
                       : null,
                 ),
               ],
@@ -159,6 +175,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedMainName == null || _selectedSubName == null) return;
+    if (_selectedRoomNo == null) return;
 
     setState(() => _isSubmitting = true);
     final success =
@@ -166,7 +183,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
               mainType: _selectedMainName!,
               subType: _selectedSubName!,
               description: _descController.text.trim(),
-              roomNo: _roomController.text.trim(),
+              roomNo: _selectedRoomNo!,
             );
     if (mounted) {
       Navigator.pop(context);

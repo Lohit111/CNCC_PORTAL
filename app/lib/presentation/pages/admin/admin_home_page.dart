@@ -4,6 +4,7 @@ import 'package:cncc_portal/presentation/pages/admin/admin_inprogress_page.dart'
 import 'package:cncc_portal/presentation/pages/admin/admin_raised_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_reassign_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_replied_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_rooms_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_types_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_users_page.dart';
 import 'package:cncc_portal/presentation/pages/shared/pages/my_requests/my_requests_archive_page.dart';
@@ -15,6 +16,7 @@ import 'package:cncc_portal/presentation/pages/shared/widgets/request-form/reque
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
+import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:cncc_portal/presentation/providers/users_provider.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +31,7 @@ enum _AdminTab {
   archive,
   manageUsers,
   manageTypes,
+  manageRooms,
   myRaised,
   myReplied,
   myInProgress,
@@ -93,6 +96,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
       case _AdminTab.manageTypes:
         ref.invalidate(mainTypesProvider);
         ref.invalidate(subTypesProvider);
+      case _AdminTab.manageRooms:
+        ref.invalidate(roomsProvider);
       case _AdminTab.profile:
         break;
     }
@@ -123,6 +128,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return 'Manage Users';
       case _AdminTab.manageTypes:
         return 'Manage Types';
+      case _AdminTab.manageRooms:
+        return 'Manage Rooms';
       case _AdminTab.myRaised:
         return 'My Raised';
       case _AdminTab.myReplied:
@@ -185,6 +192,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return const AdminUsersPage();
       case _AdminTab.manageTypes:
         return const AdminTypesPage();
+      case _AdminTab.manageRooms:
+        return const AdminRoomsPage();
       case _AdminTab.myRaised:
         return const MyRequestsRaisedPage();
       case _AdminTab.myReplied:
@@ -246,6 +255,7 @@ class _AdminDrawer extends StatelessWidget {
         items: [
           (_AdminTab.manageUsers, Icons.manage_accounts_rounded, 'Users'),
           (_AdminTab.manageTypes, Icons.category_rounded, 'Types'),
+          (_AdminTab.manageRooms, Icons.door_front_door_rounded, 'Rooms'),
         ]
       ),
       (

@@ -2,6 +2,7 @@
 from models.base import Base
 from models.user import User, UserTable
 from models.user_fcm import UserFcm, UserFcmTable
+from models.room import Room, RoomTable
 from models.request import Request, RequestTable
 from models.request_type import MainType, MainTypeTable, SubType, SubTypeTable
 from models.track import RequestTrack, RequestTrackTable
@@ -23,6 +24,8 @@ __all__ = [
     "SubTypeTable",
     "RequestTrack",
     "RequestTrackTable",
+    "Room",
+    "RoomTable",
     "Assignment",
     "AssignmentTable",
     "StoreRequest",
