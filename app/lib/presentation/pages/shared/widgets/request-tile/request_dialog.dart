@@ -8,7 +8,7 @@ import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 
 /// Full-detail dialog for a request.
 /// Shows request info, timeline, assignments, and store requests.
-/// Admins get a delete button in the app bar.
+/// Admins get reject + delete buttons in the app bar.
 class RequestDialog extends ConsumerWidget {
   final RequestDetail detail;
 
@@ -53,8 +53,14 @@ class RequestDialog extends ConsumerWidget {
                   ),
                 ),
               ),
-              // Admin delete button
-              if (isAdmin)
+              // Admin action buttons — reject + delete
+              if (isAdmin) ...[
+                IconButton(
+                  icon: const Icon(Icons.cancel_outlined,
+                      color: Color(0xFFF9E2AF)),
+                  tooltip: 'Reject',
+                  onPressed: () => _showRejectDialog(context, ref),
+                ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline_rounded,
                       color: Color(0xFFF38BA8)),
@@ -62,6 +68,7 @@ class RequestDialog extends ConsumerWidget {
                   onPressed: () =>
                       _showDeleteSheet(context, ref, isAdmin: true),
                 ),
+              ],
             ],
           ),
           body: SingleChildScrollView(
@@ -244,6 +251,53 @@ class RequestDialog extends ConsumerWidget {
   // ---------------------------------------------------------------------------
   // Delete sheet
   // ---------------------------------------------------------------------------
+
+  void _showRejectDialog(BuildContext context, WidgetRef ref) {
+    final ctrl = TextEditingController();
+    final req = detail.request;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject Request'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(
+            labelText: 'Reason',
+            hintText: 'Enter a reason for rejection...',
+          ),
+          maxLines: 3,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF9E2AF)),
+            onPressed: () async {
+              if (ctrl.text.trim().isEmpty) return;
+              Navigator.pop(ctx); // close reason dialog
+              final ok = await ref
+                  .read(adminProvider(_categoryForStatus(req.status)).notifier)
+                  .reject(req.id, ctrl.text.trim());
+              if (context.mounted) {
+                Navigator.pop(context); // close RequestDialog
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(
+                      ok ? 'Request rejected' : 'Failed to reject request'),
+                ));
+              }
+            },
+            child:
+                const Text('Reject', style: TextStyle(color: Colors.black87)),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showDeleteSheet(BuildContext context, WidgetRef ref,
       {required bool isAdmin}) {
