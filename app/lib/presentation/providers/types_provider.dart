@@ -59,7 +59,7 @@ class SubTypesNotifier extends FamilyAsyncNotifier<List<SubType>, int> {
   }
 
   Future<void> create(String name) async {
-    await _client.post('/types/${arg}/sub', data: {'name': name});
+    await _client.post('/types/$arg/sub', data: {'name': name});
     await refresh();
   }
 

@@ -69,7 +69,7 @@ class AdminUsersPage extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: selectedRole,
+                initialValue: selectedRole,
                 decoration: const InputDecoration(labelText: 'Role'),
                 items: roles
                     .map((r) => DropdownMenuItem(value: r, child: Text(r)))
@@ -205,7 +205,7 @@ class _UserTile extends ConsumerWidget {
         builder: (ctx, setState) => AlertDialog(
           title: Text('Change Role — ${user.name ?? user.email}'),
           content: DropdownButtonFormField<String>(
-            value: selected,
+            initialValue: selected,
             decoration: const InputDecoration(labelText: 'Role'),
             items: roles
                 .map((r) => DropdownMenuItem(value: r, child: Text(r)))

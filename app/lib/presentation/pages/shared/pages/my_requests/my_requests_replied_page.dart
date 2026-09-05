@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
-import 'package:cncc_portal/presentation/pages/shared/request_card.dart';
+import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/request_card.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 
-class UserRepliedPage extends ConsumerWidget {
-  const UserRepliedPage({super.key});
+class MyRequestsRepliedPage extends ConsumerWidget {
+  const MyRequestsRepliedPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/staff_provider.dart';
-import 'package:cncc_portal/presentation/pages/shared/request_card.dart';
-import 'package:cncc_portal/presentation/pages/store/store_chat_page.dart';
+import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/request_card.dart';
 import 'package:cncc_portal/presentation/pages/staff/staff_chat_page.dart';
 
 /// Staff request card with context-specific action buttons.
@@ -71,26 +70,6 @@ class StaffRequestActionCard extends ConsumerWidget {
                     onTap: () => _showStoreRequestDialog(context, ref),
                   ),
                 ),
-              ],
-              // Archive — view store chats if any
-              if (category == 'archive') ...[
-                if (detail.storeRequests.isNotEmpty)
-                  Expanded(
-                    child: _ActionBtn(
-                      label: 'View Chat',
-                      icon: Icons.chat_rounded,
-                      color: const Color(0xFF89B4FA),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => StoreChatPage(
-                            storeRequestId: detail.storeRequests.first.id,
-                            description: detail.storeRequests.first.description,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ],
           ),

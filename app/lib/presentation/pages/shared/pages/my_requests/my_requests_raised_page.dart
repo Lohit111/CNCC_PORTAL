@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
-import 'package:cncc_portal/presentation/pages/shared/request_card.dart';
+import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/request_card.dart';
 
-class UserRaisedPage extends ConsumerWidget {
-  const UserRaisedPage({super.key});
+class MyRequestsRaisedPage extends ConsumerWidget {
+  const MyRequestsRaisedPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -15,7 +15,7 @@ class UserRaisedPage extends ConsumerWidget {
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (data) {
         if (data.requests.isEmpty) {
-          return _EmptyState(
+          return const _EmptyState(
             icon: Icons.inbox_rounded,
             message: 'No raised requests',
             sub: 'Tap the + button to raise a new request',

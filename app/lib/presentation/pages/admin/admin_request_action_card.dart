@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 import 'package:cncc_portal/presentation/providers/users_provider.dart';
-import 'package:cncc_portal/presentation/pages/shared/request_card.dart';
-import 'package:cncc_portal/presentation/pages/shared/request_dialog.dart';
+import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/request_card.dart';
 
 /// Admin request card with context-specific action buttons.
 /// [category] determines which actions are shown.
@@ -31,7 +30,7 @@ class AdminRequestActionCard extends ConsumerWidget {
           padding: const EdgeInsets.only(bottom: 10),
           child: Row(
             children: [
-              if (category == 'raised' || category == 'replied') ...[
+              if (category == 'raised') ...[
                 Expanded(
                   child: _ActionButton(
                     label: 'Reply',
@@ -49,15 +48,6 @@ class AdminRequestActionCard extends ConsumerWidget {
                     onTap: () => _showAssignDialog(context, ref),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _ActionButton(
-                    label: 'Reject',
-                    icon: Icons.cancel_rounded,
-                    color: const Color(0xFFF38BA8),
-                    onTap: () => _showRejectDialog(context, ref),
-                  ),
-                ),
               ],
               if (category == 'reassign-requested') ...[
                 Expanded(
@@ -66,47 +56,6 @@ class AdminRequestActionCard extends ConsumerWidget {
                     icon: Icons.assignment_ind_rounded,
                     color: const Color(0xFFCBA6F7),
                     onTap: () => _showAssignDialog(context, ref),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _ActionButton(
-                    label: 'Reject',
-                    icon: Icons.cancel_rounded,
-                    color: const Color(0xFFF38BA8),
-                    onTap: () => _showRejectDialog(context, ref),
-                  ),
-                ),
-              ],
-              if (category == 'assigned' || category == 'inprogress') ...[
-                Expanded(
-                  child: _ActionButton(
-                    label: 'View',
-                    icon: Icons.visibility_rounded,
-                    color: const Color(0xFF89B4FA),
-                    onTap: () => showDialog(
-                      context: context,
-                      builder: (_) => RequestDialog(detail: detail),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _ActionButton(
-                    label: 'Delete',
-                    icon: Icons.delete_rounded,
-                    color: const Color(0xFFF38BA8),
-                    onTap: () => _confirmDelete(context, ref),
-                  ),
-                ),
-              ],
-              if (category == 'archive') ...[
-                Expanded(
-                  child: _ActionButton(
-                    label: 'Delete',
-                    icon: Icons.delete_rounded,
-                    color: const Color(0xFFF38BA8),
-                    onTap: () => _confirmDelete(context, ref),
                   ),
                 ),
               ],
@@ -160,71 +109,6 @@ class AdminRequestActionCard extends ConsumerWidget {
       builder: (ctx) => _AssignDialog(
         detail: detail,
         category: category,
-      ),
-    );
-  }
-
-  // ── Reject ───────────────────────────────────────────────────────────────
-
-  void _showRejectDialog(BuildContext context, WidgetRef ref) {
-    final commentCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reject Request'),
-        content: TextField(
-          controller: commentCtrl,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Reason',
-            hintText: 'Enter rejection reason...',
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF38BA8)),
-            onPressed: () async {
-              if (commentCtrl.text.trim().isEmpty) return;
-              Navigator.pop(ctx);
-              await ref.read(adminProvider(category).notifier).reject(
-                    detail.request.id,
-                    commentCtrl.text.trim(),
-                  );
-            },
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Delete ───────────────────────────────────────────────────────────────
-
-  void _confirmDelete(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Request'),
-        content: const Text(
-            'This will permanently delete the request and all related data. This cannot be undone.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF38BA8)),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref
-                  .read(adminProvider(category).notifier)
-                  .deleteRequest(detail.request.id);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
       ),
     );
   }

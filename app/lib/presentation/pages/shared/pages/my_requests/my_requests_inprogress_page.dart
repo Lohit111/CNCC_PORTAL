@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
-import 'package:cncc_portal/presentation/pages/shared/request_card.dart';
+import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/request_card.dart';
 
-class UserArchivePage extends ConsumerWidget {
-  const UserArchivePage({super.key});
+class MyRequestsInProgressPage extends ConsumerWidget {
+  const MyRequestsInProgressPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(myRequestsProvider('archive'));
+    final state = ref.watch(myRequestsProvider('inprogress'));
 
     return state.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -19,14 +19,14 @@ class UserArchivePage extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.task_alt_rounded,
+                Icon(Icons.pending_rounded,
                     size: 56,
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
                         .withValues(alpha: 0.2)),
                 const SizedBox(height: 14),
-                Text('No archived requests',
+                Text('No requests in progress',
                     style: TextStyle(
                         fontSize: 16,
                         color: Theme.of(context)
@@ -39,14 +39,14 @@ class UserArchivePage extends ConsumerWidget {
         }
         return RefreshIndicator(
           onRefresh: () async =>
-              ref.read(myRequestsProvider('archive').notifier).refresh(),
+              ref.read(myRequestsProvider('inprogress').notifier).refresh(),
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
             itemCount: data.requests.length,
             itemBuilder: (_, i) => RequestCard(
               detail: data.requests[i],
               onRefresh: () =>
-                  ref.read(myRequestsProvider('archive').notifier).refresh(),
+                  ref.read(myRequestsProvider('inprogress').notifier).refresh(),
             ),
           ),
         );

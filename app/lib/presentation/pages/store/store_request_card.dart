@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/domain/entities/store_request_detail_entity.dart';
 import 'package:cncc_portal/presentation/providers/store_provider.dart';
 import 'package:cncc_portal/presentation/pages/store/store_chat_page.dart';
-import 'package:cncc_portal/presentation/pages/shared/request_dialog.dart';
+import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/request_dialog.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 
 /// Store request card with context actions (approve/reject/fulfil/chat).
@@ -131,15 +131,6 @@ class StoreRequestCard extends ConsumerWidget {
                     icon: Icons.cancel_rounded,
                     color: const Color(0xFFF38BA8),
                     onTap: () => _reject(context, ref),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _ActionBtn(
-                    label: 'Chat',
-                    icon: Icons.chat_rounded,
-                    color: const Color(0xFF89B4FA),
-                    onTap: () => _openChat(context),
                   ),
                 ),
               ],
