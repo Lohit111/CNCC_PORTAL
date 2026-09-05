@@ -44,7 +44,14 @@ def update_user_name(db: Session, user_id: str, name: str) -> User:
     """Update the current user's name"""
     User.update(db, {"id": user_id}, {"name": name})
     db.commit()
-    return User.get(db, {"id": user_id}) # pyright: ignore[reportReturnType]
+    return User.get(db, {"id": user_id})  # pyright: ignore[reportReturnType]
+
+
+def update_user_profile(db: Session, user_id: str, name: str, phone: str) -> User:
+    """Update the current user's name and phone number"""
+    User.update(db, {"id": user_id}, {"name": name, "phone": phone})
+    db.commit()
+    return User.get(db, {"id": user_id})  # pyright: ignore[reportReturnType]
 
 
 def deactivate_user(db: Session, user_id: str) -> bool:

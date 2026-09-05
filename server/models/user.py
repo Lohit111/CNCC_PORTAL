@@ -17,6 +17,7 @@ class UserTable(Base):
                 default=lambda: str(uuid.uuid4()), index=True)
     email = Column(String, unique=True, nullable=False, index=True)
     name = Column(String, nullable=True)
+    phone = Column(String(10), nullable=True)
     role = Column(SAEnum(UserRole), nullable=False, index=True)
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -37,6 +38,7 @@ class User(BaseModel):
     id: str = Field()
     email: str = Field()
     name: Optional[str] = Field(default=None)
+    phone: Optional[str] = Field(default=None)
     role: UserRole = Field()
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -51,6 +53,7 @@ class User(BaseModel):
             id=str(user_table.id),
             email=str(user_table.email),
             name=user_table.name,
+            phone=user_table.phone,
             role=user_table.role,
             is_active=bool(user_table.is_active),
             created_at=user_table.created_at

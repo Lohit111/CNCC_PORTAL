@@ -25,6 +25,9 @@ dependencies:
   # Networking
   dio: ^5.4.0
 
+  # URL handling
+  url_launcher: ^6.3.0
+
   # Storage
   shared_preferences: ^2.2.2
 

@@ -12,10 +12,18 @@ class NameGatePage extends ConsumerStatefulWidget {
 }
 
 class NameGatePageState extends ConsumerState<NameGatePage> {
-  final _controller = TextEditingController();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   String? _error;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -26,21 +34,17 @@ class NameGatePageState extends ConsumerState<NameGatePage> {
 
     try {
       final client = NetworkClient();
-      await client
-          .put('/users/me/name', data: {'name': _controller.text.trim()});
+      await client.put('/users/me/profile', data: {
+        'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+      });
       await ref.read(authProvider.notifier).refresh();
     } catch (e) {
       setState(() {
-        _error = 'Failed to save name. Please try again.';
+        _error = 'Failed to save details. Please try again.';
         _isLoading = false;
       });
     }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   @override
@@ -70,20 +74,21 @@ class NameGatePageState extends ConsumerState<NameGatePage> {
                     ),
                     const SizedBox(height: 24),
                     const Text(
-                      'What should we call you?',
+                      'Complete your profile',
                       style:
                           TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Please enter your name to continue.',
+                      'Please enter your name and phone number to continue.',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                           fontSize: 14,
                           color: cs.onSurface.withValues(alpha: 0.5)),
                     ),
                     const SizedBox(height: 32),
                     TextFormField(
-                      controller: _controller,
+                      controller: _nameController,
                       autofocus: true,
                       textCapitalization: TextCapitalization.words,
                       decoration: const InputDecoration(
@@ -99,8 +104,28 @@ class NameGatePageState extends ConsumerState<NameGatePage> {
                         return null;
                       },
                     ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      maxLength: 10,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                        hintText: 'e.g. 9876543210',
+                        prefixIcon: Icon(Icons.phone_rounded),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Phone number cannot be empty';
+                        }
+                        if (!RegExp(r'^\d{10}$').hasMatch(v.trim())) {
+                          return 'Must be exactly 10 digits';
+                        }
+                        return null;
+                      },
+                    ),
                     if (_error != null) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Text(_error!,
                           style: TextStyle(color: cs.error, fontSize: 13)),
                     ],
