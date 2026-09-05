@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
-import 'package:cncc_portal/presentation/pages/shared/timeline_widget.dart';
+import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/timeline_widget.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 

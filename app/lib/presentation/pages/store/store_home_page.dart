@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/store_provider.dart';
-import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
+import 'package:cncc_portal/presentation/pages/shared/pages/profile_page.dart';
 import 'package:cncc_portal/presentation/pages/store/store_pending_page.dart';
 import 'package:cncc_portal/presentation/pages/store/store_approved_page.dart';
 import 'package:cncc_portal/presentation/pages/store/store_archive_page.dart';
