@@ -182,7 +182,8 @@ class _AssignDialogState extends ConsumerState<_AssignDialog> {
                         widget.detail.request.id,
                         _selectedIds.toList(),
                       );
-                  if (mounted) Navigator.pop(context);
+                  if (!context.mounted) return;
+                  Navigator.pop(context);
                 },
           child: _isSubmitting
               ? const SizedBox(

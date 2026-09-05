@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
@@ -25,15 +26,19 @@ class _StoreChatPageState extends ConsumerState<StoreChatPage> {
   bool _isSending = false;
   List<StoreChat> _messages = [];
   bool _isLoading = true;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
+    _pollTimer =
+        Timer.periodic(const Duration(seconds: 5), (_) => _pollMessages());
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -54,6 +59,25 @@ class _StoreChatPageState extends ConsumerState<StoreChatPage> {
       _scrollToBottom();
     } catch (_) {
       setState(() => _isLoading = false);
+    }
+  }
+
+  /// Silent background refresh — no loading spinner, only scrolls if new
+  /// messages arrived so it doesn't interrupt the user while typing.
+  Future<void> _pollMessages() async {
+    if (!mounted) return;
+    try {
+      final res =
+          await NetworkClient().get('/staff/chat/${widget.storeRequestId}');
+      final msgs = (res.data as List)
+          .map((e) => StoreChat.fromJson(e as Map<String, dynamic>))
+          .toList();
+      if (!mounted) return;
+      final hadNew = msgs.length > _messages.length;
+      setState(() => _messages = msgs);
+      if (hadNew) _scrollToBottom();
+    } catch (_) {
+      // silent — polling failures are non-fatal
     }
   }
 

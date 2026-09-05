@@ -63,7 +63,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                   error: (e, _) => Text('Failed to load types: $e'),
                   data: (mainTypes) => DropdownButtonFormField<int>(
                     decoration: const InputDecoration(labelText: 'Main Type'),
-                    value: _selectedMainId,
+                    initialValue: _selectedMainId,
                     items: mainTypes
                         .map((t) =>
                             DropdownMenuItem(value: t.id, child: Text(t.name)))
@@ -95,7 +95,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                       data: (subs) => DropdownButtonFormField<int>(
                         decoration:
                             const InputDecoration(labelText: 'Sub Type'),
-                        value: _selectedSubId,
+                        initialValue: _selectedSubId,
                         items: subs
                             .map((t) => DropdownMenuItem(
                                 value: t.id, child: Text(t.name)))
@@ -121,7 +121,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                   error: (e, _) => Text('Failed to load rooms: $e'),
                   data: (rooms) => DropdownButtonFormField<int>(
                     decoration: const InputDecoration(labelText: 'Room'),
-                    value: _selectedRoomId,
+                    initialValue: _selectedRoomId,
                     items: rooms
                         .map((r) => DropdownMenuItem(
                             value: r.id, child: Text(r.roomNo)))
