@@ -117,6 +117,5 @@ async def test_notification(
         role=UserRole.ADMIN,
         title="Test Notification",
         body="This is a test notification from the CNCC Portal backend.",
-        data={"type": "test"},
     )
     return {"success": True, "message": "Test notification sent to ADMIN users"}

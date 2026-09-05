@@ -1,165 +1,153 @@
 """Notification Service
 
-Sends FCM push notifications to individual users or to all users
-belonging to a given role. Relies on firebase-admin (already initialised
-in main.py via initialize_app).
+Public API (all accept db, title, body only):
+    send_to_uid(db, user_id, title, body)
+    send_to_uids(db, user_ids, title, body)
+    send_to_role(db, role, title, body)
+    broadcast(db, title, body)
+
+Each function resolves devices via a single JOIN query, then calls
+_build_notifications → _send_notifications.
+
+Set DEBUG=true in .env to skip FCM sends (logs instead).
 """
+import os
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from firebase_admin import messaging
 from sqlalchemy.orm import Session
 
 from models.enums import UserRole, DevicePlatform
 from models.user import UserTable
-from models.user_fcm import UserFcm
+from models.user_fcm import UserFcmTable
 
 logger = logging.getLogger(__name__)
 
-# FCM allows up to 500 messages per send_each call
-_FCM_BATCH_SIZE = 500
+_DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+_BATCH_SIZE = 500
 
 
-def _build_message(
-    token: str,
-    platform: DevicePlatform,
+# ---------------------------------------------------------------------------
+# Step 2 — build platform-specific messages from a device list
+# ---------------------------------------------------------------------------
+
+def _build_notifications(
+    devices: List[Tuple[str, DevicePlatform]],
     title: str,
     body: str,
-    data: Optional[dict],
-) -> messaging.Message:
-    """Build a platform-specific FCM Message."""
+) -> List[messaging.Message]:
+    messages = []
     notification = messaging.Notification(title=title, body=body)
-    base = dict(token=token, notification=notification, data=data or {})
 
-    if platform == DevicePlatform.ANDROID:
-        return messaging.Message(
-            **base,
-            android=messaging.AndroidConfig(
-                notification=messaging.AndroidNotification(
-                    channel_id="cncc_high_importance",
-                ),
-            ),
-        )
-
-    if platform == DevicePlatform.IOS:
-        return messaging.Message(
-            **base,
-            apns=messaging.APNSConfig(
-                payload=messaging.APNSPayload(
-                    aps=messaging.Aps(
-                        sound="default",
-                        badge=1,
+    for token, platform in devices:
+        if platform == DevicePlatform.ANDROID:
+            msg = messaging.Message(
+                token=token,
+                notification=notification,
+                android=messaging.AndroidConfig(
+                    notification=messaging.AndroidNotification(
+                        channel_id="cncc_high_importance",
                     ),
                 ),
-            ),
-        )
+            )
+        elif platform == DevicePlatform.IOS:
+            msg = messaging.Message(
+                token=token,
+                notification=notification,
+                apns=messaging.APNSConfig(
+                    payload=messaging.APNSPayload(
+                        aps=messaging.Aps(sound="default", badge=1),
+                    ),
+                ),
+            )
+        else:
+            msg = messaging.Message(token=token, notification=notification)
 
-    # DevicePlatform.UNKNOWN — send bare message, let FCM use defaults
-    return messaging.Message(**base)
+        messages.append(msg)
+
+    return messages
 
 
-def _send_multicast(
-    token_platforms: List[Tuple[str, DevicePlatform]],
-    title: str,
-    body: str,
-    data: Optional[dict] = None,
-) -> None:
-    """Build per-platform messages and send them in batches of 500."""
-    if not token_platforms:
-        logger.info("_send_multicast: no tokens provided, skipping")
+# ---------------------------------------------------------------------------
+# Step 3 — batch send, no app logic
+# ---------------------------------------------------------------------------
+
+def _send_notifications(messages: List[messaging.Message]) -> None:
+    if not messages:
         return
 
-    messages = [
-        _build_message(token, platform, title, body, data)
-        for token, platform in token_platforms
-    ]
-
-    for i in range(0, len(messages), _FCM_BATCH_SIZE):
-        batch = messages[i: i + _FCM_BATCH_SIZE]
+    for i in range(0, len(messages), _BATCH_SIZE):
+        batch = messages[i: i + _BATCH_SIZE]
         response = messaging.send_each(batch)
         logger.info(
             "FCM batch %d-%d: %d success, %d failure",
-            i,
-            i + len(batch) - 1,
-            response.success_count,
-            response.failure_count,
+            i, i + len(batch) - 1,
+            response.success_count, response.failure_count,
         )
-
         for idx, resp in enumerate(response.responses):
             if not resp.success:
                 logger.warning(
                     "FCM delivery failed for token index %d: %s",
-                    i + idx,
-                    resp.exception,
+                    i + idx, resp.exception,
                 )
 
 
-def send_to_user(
-    db: Session,
-    user_id: str,
-    title: str,
-    body: str,
-    data: Optional[dict] = None,
-) -> None:
-    """Send a push notification to all devices registered for a single user.
+# ---------------------------------------------------------------------------
+# Public API — each does its own JOIN to resolve devices
+# ---------------------------------------------------------------------------
 
-    Args:
-        db:      SQLAlchemy session.
-        user_id: The target user's ID.
-        title:   Notification title.
-        body:    Notification body text.
-        data:    Optional key-value payload attached to the notification.
-    """
-    token_platforms = UserFcm.get_tokens_for_user(db, user_id=user_id)
-    if not token_platforms:
-        logger.info("send_to_user: no FCM tokens for user %s", user_id)
-        return
-    logger.info(
-        "Sending notification to user %s (%d token(s))",
-        user_id,
-        len(token_platforms),
-    )
-    _send_multicast(token_platforms, title=title, body=body, data=data)
-
-
-def send_to_role(
-    db: Session,
-    role: UserRole,
-    title: str,
-    body: str,
-    data: Optional[dict] = None,
-) -> None:
-    """Send a push notification to every active user with the given role.
-
-    Args:
-        db:    SQLAlchemy session.
-        role:  Target UserRole (e.g. UserRole.ADMIN, UserRole.STAFF).
-        title: Notification title.
-        body:  Notification body text.
-        data:  Optional key-value payload attached to the notification.
-    """
-    user_ids: List[str] = [
-        str(row.id)
-        for row in db.query(UserTable.id)
-        .filter(UserTable.role == role, UserTable.is_active == True)
+def send_to_uid(db: Session, user_id: str, title: str, body: str) -> None:
+    """Send to all devices of a single user."""
+    devices: List[Tuple[str, DevicePlatform]] = (
+        db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
+        .filter(UserFcmTable.user_id == user_id)
         .all()
-    ]
-
-    if not user_ids:
-        logger.info("send_to_role: no active users with role %s", role.value)
-        return
-
-    token_platforms = UserFcm.get_tokens_for_users(db, user_ids=user_ids)
-    if not token_platforms:
-        logger.info(
-            "send_to_role: no FCM tokens registered for role %s", role.value
-        )
-        return
-
-    logger.info(
-        "Sending notification to role %s (%d user(s), %d token(s))",
-        role.value,
-        len(user_ids),
-        len(token_platforms),
     )
-    _send_multicast(token_platforms, title=title, body=body, data=data)
+    if _DEBUG:
+        logger.info("DEBUG — skipping send_to_uid(%s): '%s'", user_id, title)
+        return
+    _send_notifications(_build_notifications(devices, title, body))
+
+
+def send_to_uids(db: Session, user_ids: List[str], title: str, body: str) -> None:
+    """Send to all devices of a set of users."""
+    if not user_ids:
+        return
+    devices: List[Tuple[str, DevicePlatform]] = (
+        db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
+        .filter(UserFcmTable.user_id.in_(user_ids))
+        .all()
+    )
+    if _DEBUG:
+        logger.info("DEBUG — skipping send_to_uids(%d users): '%s'", len(user_ids), title)
+        return
+    _send_notifications(_build_notifications(devices, title, body))
+
+
+def send_to_role(db: Session, role: UserRole, title: str, body: str) -> None:
+    """Send to all devices of every active user with the given role."""
+    devices: List[Tuple[str, DevicePlatform]] = (
+        db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
+        .join(UserTable, UserTable.id == UserFcmTable.user_id)
+        .filter(UserTable.role == role, UserTable.is_active == True)  # noqa: E712
+        .all()
+    )
+    if _DEBUG:
+        logger.info("DEBUG — skipping send_to_role(%s): '%s'", role.value, title)
+        return
+    _send_notifications(_build_notifications(devices, title, body))
+
+
+def broadcast(db: Session, title: str, body: str) -> None:
+    """Send to all devices of every active user."""
+    devices: List[Tuple[str, DevicePlatform]] = (
+        db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
+        .join(UserTable, UserTable.id == UserFcmTable.user_id)
+        .filter(UserTable.is_active == True)  # noqa: E712
+        .all()
+    )
+    if _DEBUG:
+        logger.info("DEBUG — skipping broadcast: '%s'", title)
+        return
+    _send_notifications(_build_notifications(devices, title, body))
