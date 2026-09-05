@@ -6,7 +6,7 @@ from models.user import User
 from models.user_fcm import UserFcm
 from models.enums import UserRole, DevicePlatform
 from middleware.auth import get_current_user, require_role
-from controllers.user import get_users, create_user, update_user_role, update_user_name, update_user_profile, deactivate_user
+from controllers.users import get_users, create_user, update_user_role, update_user_name, update_user_profile, deactivate_user
 from config.database import get_db
 from services.notification_service import send_to_role
 

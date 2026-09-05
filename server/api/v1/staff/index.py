@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from models.user import User
 from models.enums import UserRole
 from middleware.auth import require_role, get_current_user
-from controllers.staff_requests import (
+from controllers.staff_actions import (
     get_assigned, get_inprogress, get_archive,
     start_request, request_reassignment, finish_request,
     create_store_request, get_store_chat, send_staff_chat_message

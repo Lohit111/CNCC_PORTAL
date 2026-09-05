@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from models.user import User
 from models.enums import UserRole
 from middleware.auth import get_current_user, require_role
-from controllers.request_type import (
+from controllers.types import (
     get_main_types, create_main_type, update_main_type, delete_main_type,
     get_sub_types, create_sub_type, update_sub_type, delete_sub_type
 )
