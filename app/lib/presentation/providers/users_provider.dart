@@ -1,6 +1,77 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/domain/entities/user_entity.dart';
+import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/domain/entities/store_request_entity.dart';
+
+// ---------------------------------------------------------------------------
+// Participation conflict — four lists of entities
+// ---------------------------------------------------------------------------
+
+class UserParticipation {
+  final List<Request> raisedRequests;
+  final List<Request> assignedRequests;
+  final List<StoreRequest> requestedStoreRequests;
+  final List<StoreRequest> respondedStoreRequests;
+
+  const UserParticipation({
+    required this.raisedRequests,
+    required this.assignedRequests,
+    required this.requestedStoreRequests,
+    required this.respondedStoreRequests,
+  });
+
+  factory UserParticipation.fromJson(Map<String, dynamic> p) {
+    List<Request> toRequests(String key) => ((p[key] as List?) ?? [])
+        .map((e) => Request.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    List<StoreRequest> toStoreRequests(String key) => ((p[key] as List?) ?? [])
+        .map((e) => StoreRequest.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    return UserParticipation(
+      raisedRequests: toRequests('raised_requests'),
+      assignedRequests: toRequests('assigned_requests'),
+      requestedStoreRequests: toStoreRequests('requested_store_requests'),
+      respondedStoreRequests: toStoreRequests('responded_store_requests'),
+    );
+  }
+
+  bool get isEmpty =>
+      raisedRequests.isEmpty &&
+      assignedRequests.isEmpty &&
+      requestedStoreRequests.isEmpty &&
+      respondedStoreRequests.isEmpty;
+}
+
+// ---------------------------------------------------------------------------
+// Action result — success, participation conflict, or plain error
+// ---------------------------------------------------------------------------
+
+class UserActionResult {
+  final bool success;
+  final UserParticipation? conflict;
+  final String? error;
+
+  const UserActionResult.ok()
+      : success = true,
+        conflict = null,
+        error = null;
+
+  const UserActionResult.conflict(this.conflict)
+      : success = false,
+        error = null;
+
+  const UserActionResult.error(this.error)
+      : success = false,
+        conflict = null;
+}
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
 
 class UsersState {
   final List<User> users;
@@ -38,6 +109,10 @@ class UsersState {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Notifier
+// ---------------------------------------------------------------------------
+
 class UsersNotifier extends StateNotifier<UsersState> {
   final _client = NetworkClient();
 
@@ -72,24 +147,50 @@ class UsersNotifier extends StateNotifier<UsersState> {
     }
   }
 
-  Future<bool> updateRole(String userId, String role) async {
+  Future<UserActionResult> updateRole(String userId, String role) async {
     try {
       await _client.put('/users/$userId/update-role', data: {'role': role});
       await fetch(page: state.page);
-      return true;
-    } catch (_) {
-      return false;
+      return const UserActionResult.ok();
+    } on DioException catch (e) {
+      return _handleError(e);
+    } catch (e) {
+      return UserActionResult.error(e.toString());
     }
   }
 
-  Future<bool> deactivateUser(String userId) async {
+  Future<UserActionResult> deactivateUser(String userId) async {
     try {
       await _client.delete('/users/$userId');
       await fetch(page: state.page);
-      return true;
-    } catch (_) {
-      return false;
+      return const UserActionResult.ok();
+    } on DioException catch (e) {
+      return _handleError(e);
+    } catch (e) {
+      return UserActionResult.error(e.toString());
     }
+  }
+
+  UserActionResult _handleError(DioException e) {
+    final data = e.response?.data;
+    if (e.response?.statusCode == 409 && data is Map<String, dynamic>) {
+      final detail = data['detail'];
+      if (detail is Map<String, dynamic> &&
+          detail.containsKey('participation')) {
+        return UserActionResult.conflict(
+          UserParticipation.fromJson(
+              detail['participation'] as Map<String, dynamic>),
+        );
+      }
+    }
+    // Extract a readable message from any error shape
+    String msg = 'Action failed.';
+    if (data is Map && data['detail'] is String) {
+      msg = data['detail'] as String;
+    } else if (e.message != null && e.message!.isNotEmpty) {
+      msg = e.message!;
+    }
+    return UserActionResult.error(msg);
   }
 
   Future<void> nextPage() async {

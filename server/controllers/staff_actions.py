@@ -151,7 +151,7 @@ def start_request(db: Session, staff: User, request_id: str) -> bool:
         raise HTTPException(status_code=404, detail="Request not found")
     if row.status != RequestStatus.ASSIGNED:
         raise HTTPException(
-            status_code=400, detail="Request is not in ASSIGNED status")
+            status_code=400, detail=f"Cannot start request from '{row.status.value}' status")
 
     _verify_staff_assigned(db, staff.id, request_id)
 
@@ -179,9 +179,9 @@ def request_reassignment(db: Session, staff: User, request_id: str, comment: str
     row = Request.get_for_update(db, {"id": request_id})
     if not row:
         raise HTTPException(status_code=404, detail="Request not found")
-    if row.status not in [RequestStatus.ASSIGNED, RequestStatus.IN_PROGRESS]:
+    if row.status != RequestStatus.ASSIGNED:
         raise HTTPException(
-            status_code=400, detail="Request cannot be reassigned from its current status")
+            status_code=400, detail=f"Cannot request reassignment from '{row.status.value}' status")
 
     _verify_staff_assigned(db, staff.id, request_id)
 
@@ -215,7 +215,7 @@ def finish_request(db: Session, staff: User, request_id: str) -> bool:
         raise HTTPException(status_code=404, detail="Request not found")
     if row.status != RequestStatus.IN_PROGRESS:
         raise HTTPException(
-            status_code=400, detail="Request is not IN_PROGRESS")
+            status_code=400, detail=f"Cannot finish request from '{row.status.value}' status")
 
     _verify_staff_assigned(db, staff.id, request_id)
 
@@ -259,9 +259,17 @@ def create_store_request(db: Session, staff: User, request_id: str, description:
     - Creates the store request with PENDING status
     - Creates a track entry on the parent request
     """
-    request = Request.get(db, {"id": request_id})
-    if not request:
+    # Lock the row — prevents creating a store request on a request that is
+    # being completed or reassigned concurrently
+    row = Request.get_for_update(db, {"id": request_id})
+    if not row:
         raise HTTPException(status_code=404, detail="Request not found")
+
+    if row.status != RequestStatus.IN_PROGRESS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot raise a store request on a request in '{row.status.value}' status — request must be IN_PROGRESS"
+        )
 
     _verify_staff_assigned(db, staff.id, request_id)
 
