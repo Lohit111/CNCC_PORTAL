@@ -9,7 +9,7 @@ from models.assignment import Assignment
 from models.store_request import StoreRequest
 from models.store_chat import StoreChat
 from models.user import User
-from models.enums import RequestStatus, TrackEventType
+from models.enums import RequestStatus, TrackEventType, StoreRequestStatus
 
 
 PAGE_SIZE = 30
@@ -101,6 +101,12 @@ def reply_to_request(db: Session, admin: User, request_id: str, comment: str) ->
     if not row:
         raise HTTPException(status_code=404, detail="Request not found")
 
+    if row.status != RequestStatus.RAISED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot reply to a request in '{row.status.value}' status — only RAISED requests can be replied to"
+        )
+
     Request.update(db, {"id": request_id}, {"status": RequestStatus.REPLIED})
     RequestTrack.create(db, {
         "request_id": request_id,
@@ -127,6 +133,13 @@ def assign_request(db: Session, admin: User, request_id: str, staff_ids: List[st
     if not staff_ids:
         raise HTTPException(
             status_code=400, detail="At least one staff_id is required")
+
+    # Only allow assignment from statuses where it makes sense
+    if row.status not in [RequestStatus.RAISED, RequestStatus.REASSIGN_REQUESTED]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot assign a request in '{row.status.value}' status — request must be RAISED, REPLIED, or REASSIGN_REQUESTED"
+        )
 
     # Validate all staff users exist and have STAFF role
     from models.enums import UserRole
@@ -163,19 +176,63 @@ def assign_request(db: Session, admin: User, request_id: str, staff_ids: List[st
 
 
 def reject_request(db: Session, admin: User, request_id: str, comment: str) -> bool:
-    """Set request status to REJECTED and create a track entry"""
+    """
+    Reject a request:
+    - Appends a forced-closure note to the admin's comment
+    - Deactivates all active assignments
+    - Rejects all PENDING/APPROVED store requests and adds a track for each
+    - Sets request status to REJECTED with a track entry
+    """
     # Lock the row so concurrent requests cannot reject the same request twice
     row = Request.get_for_update(db, {"id": request_id})
     if not row:
         raise HTTPException(status_code=404, detail="Request not found")
 
+    if row.status in [RequestStatus.COMPLETED, RequestStatus.REJECTED]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot reject a request that is already '{row.status.value}'"
+        )
+
+    # Append forced-closure note
+    full_comment = comment + "\n\nAn admin has closed this request forcefully."
+
+    # Deactivate all active assignments
+    Assignment.update(
+        db,
+        {"request_id": request_id, "is_active": True},
+        {"is_active": False}
+    )
+
+    # Reject all open store requests and add a track for each
+    open_store_requests = StoreRequest.find(
+        db,
+        {"parent_request_id": request_id}
+    )
+    for sr in open_store_requests:
+        if sr.status in [StoreRequestStatus.PENDING, StoreRequestStatus.APPROVED]:
+            StoreRequest.update(
+                db,
+                {"id": sr.id},
+                {"status": StoreRequestStatus.REJECTED, "responded_by": admin.id}
+            )
+            RequestTrack.create(db, {
+                "request_id": request_id,
+                "store_request_id": sr.id,
+                "event_type": TrackEventType.STORE_REQUEST_REJECTED,
+                "performed_by": admin.id,
+                "performed_by_role": admin.role,
+                "comment": "Rejected due to parent request being forcefully closed."
+            })
+
+    # Reject the request itself
     Request.update(db, {"id": request_id}, {"status": RequestStatus.REJECTED})
     RequestTrack.create(db, {
         "request_id": request_id,
         "event_type": TrackEventType.REJECTED,
         "performed_by": admin.id,
         "performed_by_role": admin.role,
-        "comment": comment
+        "comment": full_comment
     })
     db.commit()
     return True
@@ -185,41 +242,56 @@ def reject_request(db: Session, admin: User, request_id: str, comment: str) -> b
 
 def delete_request(db: Session, request_id: str) -> bool:
     """
-    Delete a request and all its related data:
-    tracks, assignments, store_requests (and their chats).
+    Delete a request and every related row explicitly:
+      store chats → store request tracks → store requests
+      → assignments → request tracks → request
 
-    Uses db.delete(obj) instead of a bulk query.delete() so that SQLAlchemy's
-    ORM cascade ("all, delete-orphan") fires correctly and child rows are removed
-    before the parent — avoiding FK constraint violations from PostgreSQL.
-    Store chats still need explicit deletion because they cascade from store_requests,
-    not directly from requests.
+    Explicit ordering avoids FK constraint violations and is not reliant
+    on ORM cascade configuration being correct.
     """
     row = Request.get_raw(db, {"id": request_id})
     if not row:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    # Delete store chats first — they cascade from store_requests, not from requests,
-    # so the ORM cascade won't reach them automatically.
     store_requests = StoreRequest.find(db, {"parent_request_id": request_id})
-    for sr in store_requests:
-        StoreChat.delete_all(db, {"store_request_id": sr.id})
 
-    # db.delete triggers cascade: tracks, assignments, store_requests all removed
+    for sr in store_requests:
+        # 1. Delete chats for this store request
+        StoreChat.delete_all(db, {"store_request_id": sr.id})
+        # 2. Delete tracks that reference this store request
+        RequestTrack.delete_all(db, {"store_request_id": sr.id})
+
+    # 3. Delete all store requests
+    StoreRequest.delete_all(db, {"parent_request_id": request_id})
+
+    # 4. Delete all assignments (tracks reference assignments, so assignments first)
+    Assignment.delete_all(db, {"request_id": request_id})
+
+    # 5. Delete all remaining request tracks
+    RequestTrack.delete_all(db, {"request_id": request_id})
+
+    # 6. Delete the request itself
     db.delete(row)
     db.commit()
     return True
 
 
 def delete_store_request(db: Session, store_request_id: str) -> bool:
-    """Delete a store request and its chat messages."""
+    """
+    Delete a store request and every related row explicitly:
+      store chats → store request tracks → store request
+    """
     row = StoreRequest.get_raw(db, {"id": store_request_id})
     if not row:
         raise HTTPException(status_code=404, detail="Store request not found")
 
-    # Chats don't cascade automatically via the ORM bulk path, delete explicitly first
+    # 1. Delete chats
     StoreChat.delete_all(db, {"store_request_id": store_request_id})
 
-    # db.delete triggers cascade: tracks removed via store_request's cascade relationship
+    # 2. Delete tracks that reference this store request
+    RequestTrack.delete_all(db, {"store_request_id": store_request_id})
+
+    # 3. Delete the store request itself
     db.delete(row)
     db.commit()
     return True

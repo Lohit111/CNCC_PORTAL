@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
+import 'package:cncc_portal/domain/entities/request_entity.dart';
+import 'package:cncc_portal/domain/entities/store_request_entity.dart';
 import 'package:cncc_portal/domain/entities/user_entity.dart';
 import 'package:cncc_portal/presentation/providers/users_provider.dart';
 
@@ -30,7 +33,6 @@ class AdminUsersPage extends ConsumerWidget {
               ),
             ),
           ),
-          // Pagination
           if (state.pages > 1)
             _PaginationRow(
               page: state.page,
@@ -98,6 +100,10 @@ class AdminUsersPage extends ConsumerWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// User tile
+// ---------------------------------------------------------------------------
 
 class _UserTile extends ConsumerWidget {
   final User user;
@@ -219,9 +225,12 @@ class _UserTile extends ConsumerWidget {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(ctx);
-                await ref
+                final result = await ref
                     .read(usersProvider.notifier)
                     .updateRole(user.id, selected);
+                if (!result.success && context.mounted) {
+                  _showConflictSnackBar(context, result);
+                }
               },
               child: const Text('Update'),
             ),
@@ -246,13 +255,42 @@ class _UserTile extends ConsumerWidget {
                 backgroundColor: const Color(0xFFF38BA8)),
             onPressed: () async {
               Navigator.pop(ctx);
-              await ref.read(usersProvider.notifier).deactivateUser(user.id);
+              final result = await ref
+                  .read(usersProvider.notifier)
+                  .deactivateUser(user.id);
+              if (!result.success && context.mounted) {
+                _showConflictSnackBar(context, result);
+              }
             },
-            child: const Text('Deactivate'),
+            child:
+                const Text('Deactivate', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
+  }
+
+  void _showConflictSnackBar(BuildContext context, UserActionResult result) {
+    if (result.conflict != null) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => _ConflictSheet(
+          userName: user.name ?? user.email,
+          conflict: result.conflict!,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.error ?? 'Action failed.'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 
   Color _roleColor(String role) {
@@ -268,6 +306,314 @@ class _UserTile extends ConsumerWidget {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Conflict bottom sheet
+// ---------------------------------------------------------------------------
+
+class _ConflictSheet extends StatefulWidget {
+  final String userName;
+  final UserParticipation conflict;
+
+  const _ConflictSheet({required this.userName, required this.conflict});
+
+  @override
+  State<_ConflictSheet> createState() => _ConflictSheetState();
+}
+
+class _ConflictSheetState extends State<_ConflictSheet> {
+  final _client = NetworkClient();
+
+  // local mutable copies so items disappear after action
+  late List<Request> _raisedRequests;
+  late List<Request> _assignedRequests;
+  late List<StoreRequest> _requestedSRs;
+  late List<StoreRequest> _respondedSRs;
+
+  @override
+  void initState() {
+    super.initState();
+    _raisedRequests = List.of(widget.conflict.raisedRequests);
+    _assignedRequests = List.of(widget.conflict.assignedRequests);
+    _requestedSRs = List.of(widget.conflict.requestedStoreRequests);
+    _respondedSRs = List.of(widget.conflict.respondedStoreRequests);
+  }
+
+  bool get _allResolved =>
+      _raisedRequests.isEmpty &&
+      _assignedRequests.isEmpty &&
+      _requestedSRs.isEmpty &&
+      _respondedSRs.isEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.6,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      builder: (_, scrollCtrl) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: cs.onSurface.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text(
+              'Unfinished work — ${widget.userName}',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Resolve all items before retrying.',
+              style: TextStyle(
+                  fontSize: 12, color: cs.onSurface.withValues(alpha: 0.5)),
+            ),
+            const SizedBox(height: 12),
+            if (_allResolved)
+              Expanded(
+                child: Center(
+                  child: Text('All resolved. You may retry.',
+                      style: TextStyle(color: cs.primary)),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView(
+                  controller: scrollCtrl,
+                  children: [
+                    if (_raisedRequests.isNotEmpty) ...[
+                      _sectionHeader(cs, Icons.upload_rounded,
+                          const Color(0xFF89B4FA), 'Raised by user'),
+                      ..._raisedRequests.map((r) => _RequestItem(
+                            request: r,
+                            onDelete: () => _deleteRequest(r),
+                            onReject: () => _rejectRequest(r),
+                          )),
+                    ],
+                    if (_assignedRequests.isNotEmpty) ...[
+                      _sectionHeader(cs, Icons.assignment_ind_rounded,
+                          const Color(0xFFCBA6F7), 'Assigned to user'),
+                      ..._assignedRequests.map((r) => _RequestItem(
+                            request: r,
+                            onDelete: () => _deleteRequest(r),
+                            onReject: () => _rejectRequest(r),
+                          )),
+                    ],
+                    if (_requestedSRs.isNotEmpty) ...[
+                      _sectionHeader(cs, Icons.store_rounded,
+                          const Color(0xFFF9E2AF), 'Store requests raised'),
+                      ..._requestedSRs.map((sr) => _StoreRequestItem(
+                            storeRequest: sr,
+                            onDelete: () => _deleteStoreRequest(sr),
+                          )),
+                    ],
+                    if (_respondedSRs.isNotEmpty) ...[
+                      _sectionHeader(cs, Icons.reply_rounded,
+                          const Color(0xFF94E2D5), 'Store requests responded'),
+                      ..._respondedSRs.map((sr) => _StoreRequestItem(
+                            storeRequest: sr,
+                            onDelete: () => _deleteStoreRequest(sr),
+                          )),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionHeader(
+      ColorScheme cs, IconData icon, Color color, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: cs.onSurface.withValues(alpha: 0.5))),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteRequest(Request r) async {
+    try {
+      await _client.delete('/admin/request/${r.id}');
+      setState(() {
+        _raisedRequests.remove(r);
+        _assignedRequests.remove(r);
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Delete failed.')));
+      }
+    }
+  }
+
+  Future<void> _rejectRequest(Request r) async {
+    try {
+      await _client.put('/admin/reject/${r.id}',
+          data: {'comment': 'Rejected by admin during user management.'});
+      setState(() {
+        _raisedRequests.remove(r);
+        _assignedRequests.remove(r);
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Reject failed.')));
+      }
+    }
+  }
+
+  Future<void> _deleteStoreRequest(StoreRequest sr) async {
+    try {
+      await _client.delete('/admin/store-request/${sr.id}');
+      setState(() {
+        _requestedSRs.remove(sr);
+        _respondedSRs.remove(sr);
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Delete failed.')));
+      }
+    }
+  }
+}
+
+class _RequestItem extends StatelessWidget {
+  final Request request;
+  final VoidCallback onDelete;
+  final VoidCallback onReject;
+
+  const _RequestItem({
+    required this.request,
+    required this.onDelete,
+    required this.onReject,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${request.mainType} › ${request.subType}',
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${request.roomNo} · ${request.statusDisplayText}',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurface.withValues(alpha: 0.5)),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.cancel_outlined,
+                  size: 20, color: Color(0xFFF9E2AF)),
+              tooltip: 'Reject',
+              onPressed: onReject,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded,
+                  size: 20, color: Color(0xFFF38BA8)),
+              tooltip: 'Delete',
+              onPressed: onDelete,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StoreRequestItem extends StatelessWidget {
+  final StoreRequest storeRequest;
+  final VoidCallback onDelete;
+
+  const _StoreRequestItem({
+    required this.storeRequest,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    storeRequest.description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    storeRequest.statusDisplayText,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurface.withValues(alpha: 0.5)),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded,
+                  size: 20, color: Color(0xFFF38BA8)),
+              tooltip: 'Delete',
+              onPressed: onDelete,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pagination row
+// ---------------------------------------------------------------------------
 
 class _PaginationRow extends StatelessWidget {
   final int page;
