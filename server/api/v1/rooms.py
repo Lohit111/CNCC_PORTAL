@@ -22,7 +22,7 @@ class RoomRequest(BaseModel):
 @router.get("/")
 async def list_rooms(
     user: User = Depends(require_role(
-        UserRole.ADMIN, UserRole.STAFF, UserRole.STORE)),
+        UserRole.ADMIN, UserRole.STAFF, UserRole.USER)),
     db: Session = Depends(get_db)
 ):
     """Get all rooms — accessible by all authenticated users"""

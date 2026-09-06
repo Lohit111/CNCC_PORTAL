@@ -81,7 +81,7 @@ class UserFcm(BaseModel):
             .first()
         )
         if existing:
-            existing.platform = platform
+            existing.platform = platform # pyright: ignore[reportAttributeAccessIssue]
             db.flush()
             return UserFcm.from_orm(existing)
 
@@ -90,30 +90,6 @@ class UserFcm(BaseModel):
         db.add(row)
         db.flush()
         return UserFcm.from_orm(row)
-
-    @staticmethod
-    def get_tokens_for_user(
-        db: Session, user_id: str
-    ) -> List[Tuple[str, DevicePlatform]]:
-        """Return all (fcm_token, platform) pairs for a user."""
-        rows = (
-            db.query(UserFcmTable)
-            .filter(UserFcmTable.user_id == user_id)
-            .all()
-        )
-        return [(str(r.fcm_token), r.platform or DevicePlatform.UNKNOWN) for r in rows]
-
-    @staticmethod
-    def get_tokens_for_users(
-        db: Session, user_ids: List[str]
-    ) -> List[Tuple[str, DevicePlatform]]:
-        """Return all (fcm_token, platform) pairs for a list of user IDs."""
-        rows = (
-            db.query(UserFcmTable)
-            .filter(UserFcmTable.user_id.in_(user_ids))
-            .all()
-        )
-        return [(str(r.fcm_token), r.platform or DevicePlatform.UNKNOWN) for r in rows]
 
     @staticmethod
     def delete_token(db: Session, user_id: str, fcm_token: str) -> bool:
@@ -127,3 +103,19 @@ class UserFcm(BaseModel):
             .delete()
         )
         return deleted > 0
+
+    @staticmethod
+    def delete_tokens(db: Session, fcm_tokens: List[str]) -> int:
+        """Remove all rows whose fcm_token is in the given list.
+
+        Used to purge invalid/unregistered tokens discovered during a send.
+        Caller must commit.
+        """
+        if not fcm_tokens:
+            return 0
+        deleted = (
+            db.query(UserFcmTable)
+            .filter(UserFcmTable.fcm_token.in_(fcm_tokens))
+            .delete(synchronize_session=False)
+        )
+        return deleted

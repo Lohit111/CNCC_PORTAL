@@ -1,3 +1,5 @@
+import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
+import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
@@ -64,12 +66,20 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage>
         ref.invalidate(staffProvider('archive'));
       case _StaffTab.myRaised:
         ref.invalidate(myRequestsProvider('raised'));
+        ref.invalidate(mainTypesProvider);
+        ref.invalidate(roomsProvider);
       case _StaffTab.myReplied:
         ref.invalidate(myRequestsProvider('replied'));
+        ref.invalidate(mainTypesProvider);
+        ref.invalidate(roomsProvider);
       case _StaffTab.myInProgress:
         ref.invalidate(myRequestsProvider('inprogress'));
+        ref.invalidate(mainTypesProvider);
+        ref.invalidate(roomsProvider);
       case _StaffTab.myArchive:
         ref.invalidate(myRequestsProvider('archive'));
+        ref.invalidate(mainTypesProvider);
+        ref.invalidate(roomsProvider);
       case _StaffTab.profile:
         break;
     }
@@ -109,11 +119,41 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage>
     final user = ref.watch(authProvider).user;
     final userName = user?.name ?? user?.email ?? '';
 
+    final assignedCount =
+        ref.watch(staffProvider('assigned')).valueOrNull?.total ?? 0;
+
     return Scaffold(
-      appBar: AppBar(title: Text(_title)),
+      appBar: AppBar(
+        title: Text(_title),
+        leading: Builder(
+          builder: (ctx) => Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.menu_rounded),
+                onPressed: () => Scaffold.of(ctx).openDrawer(),
+              ),
+              if (assignedCount > 0)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF89B4FA),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
       drawer: _StaffDrawer(
         currentTab: _tab,
         userName: userName,
+        assignedCount: assignedCount,
         onNavigate: _navigateTo,
       ),
       body: _buildBody(),
@@ -121,8 +161,10 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage>
           ? FloatingActionButton.extended(
               onPressed: () => _showNewRequestDialog(context),
               icon: const Icon(Icons.add_rounded),
-              label: const Text('New Request',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              label: const Text(
+                'New Request',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             )
           : null,
     );
@@ -171,11 +213,13 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage>
 class _StaffDrawer extends StatelessWidget {
   final _StaffTab currentTab;
   final String userName;
+  final int assignedCount;
   final void Function(_StaffTab) onNavigate;
 
   const _StaffDrawer({
     required this.currentTab,
     required this.userName,
+    required this.assignedCount,
     required this.onNavigate,
   });
 
@@ -187,28 +231,34 @@ class _StaffDrawer extends StatelessWidget {
       (
         title: 'ASSIGNED WORK',
         items: [
-          (_StaffTab.assigned, Icons.assignment_ind_rounded, 'Assigned to Me'),
-          (_StaffTab.inprogress, Icons.pending_rounded, 'In Progress'),
-          (_StaffTab.archive, Icons.task_alt_rounded, 'Archive'),
+          (
+            _StaffTab.assigned,
+            Icons.assignment_ind_rounded,
+            'Assigned to Me',
+            assignedCount
+          ),
+          (_StaffTab.inprogress, Icons.pending_rounded, 'In Progress', 0),
+          (_StaffTab.archive, Icons.task_alt_rounded, 'Archive', 0),
         ]
       ),
       (
         title: 'MY REQUESTS',
         items: [
-          (_StaffTab.myRaised, Icons.inbox_rounded, 'Raised'),
-          (_StaffTab.myReplied, Icons.reply_all_rounded, 'Needs Response'),
+          (_StaffTab.myRaised, Icons.inbox_rounded, 'Raised', 0),
+          (_StaffTab.myReplied, Icons.reply_all_rounded, 'Needs Response', 0),
           (
             _StaffTab.myInProgress,
             Icons.pending_actions_rounded,
-            'In Progress'
+            'In Progress',
+            0
           ),
-          (_StaffTab.myArchive, Icons.archive_rounded, 'Archive'),
+          (_StaffTab.myArchive, Icons.archive_rounded, 'Archive', 0),
         ]
       ),
       (
         title: 'ACCOUNT',
         items: [
-          (_StaffTab.profile, Icons.account_circle_rounded, 'Profile'),
+          (_StaffTab.profile, Icons.account_circle_rounded, 'Profile', 0),
         ]
       ),
     ];
@@ -237,7 +287,7 @@ class _StaffDrawer extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('CNCC Portal',
+                        Text(userName,
                             style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
@@ -271,6 +321,7 @@ class _StaffDrawer extends StatelessWidget {
                       _DrawerTile(
                         icon: item.$2,
                         label: item.$3,
+                        badge: item.$4,
                         isSelected: currentTab == item.$1,
                         onTap: () => onNavigate(item.$1),
                       ),
@@ -288,12 +339,14 @@ class _StaffDrawer extends StatelessWidget {
 class _DrawerTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final int badge;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _DrawerTile({
     required this.icon,
     required this.label,
+    required this.badge,
     required this.isSelected,
     required this.onTap,
   });
@@ -315,20 +368,46 @@ class _DrawerTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                Icon(icon,
-                    size: 20,
-                    color: isSelected
-                        ? cs.primary
-                        : cs.onSurface.withValues(alpha: 0.55)),
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected
+                      ? cs.primary
+                      : cs.onSurface.withValues(alpha: 0.55),
+                ),
                 const SizedBox(width: 12),
-                Text(label,
+                Expanded(
+                  child: Text(
+                    label,
                     style: TextStyle(
-                        fontSize: 14,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w400,
-                        color: isSelected
-                            ? cs.primary
-                            : cs.onSurface.withValues(alpha: 0.8))),
+                      fontSize: 14,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected
+                          ? cs.primary
+                          : cs.onSurface.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ),
+                if (badge > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAB387),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$badge',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

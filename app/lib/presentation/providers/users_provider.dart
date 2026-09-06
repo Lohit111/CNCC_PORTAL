@@ -75,34 +75,22 @@ class UserActionResult {
 
 class UsersState {
   final List<User> users;
-  final int total;
-  final int page;
-  final int pages;
   final bool isLoading;
   final String? error;
 
   const UsersState({
     this.users = const [],
-    this.total = 0,
-    this.page = 1,
-    this.pages = 1,
     this.isLoading = false,
     this.error,
   });
 
   UsersState copyWith({
     List<User>? users,
-    int? total,
-    int? page,
-    int? pages,
     bool? isLoading,
     String? error,
   }) {
     return UsersState(
       users: users ?? this.users,
-      total: total ?? this.total,
-      page: page ?? this.page,
-      pages: pages ?? this.pages,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -120,16 +108,12 @@ class UsersNotifier extends StateNotifier<UsersState> {
     fetch();
   }
 
-  Future<void> fetch({int page = 1}) async {
+  Future<void> fetch() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final res = await _client.get('/users/', queryParameters: {'page': page});
-      final data = res.data as Map<String, dynamic>;
+      final res = await _client.get('/users/');
       state = UsersState(
-        users: (data['users'] as List).map((e) => User.fromJson(e)).toList(),
-        total: data['total'] as int,
-        page: data['page'] as int,
-        pages: data['pages'] as int,
+        users: (res.data as List) .map((e) => User.fromJson(e as Map<String, dynamic>)) .toList(),
         isLoading: false,
       );
     } catch (e) {
@@ -140,7 +124,7 @@ class UsersNotifier extends StateNotifier<UsersState> {
   Future<bool> createUser(String email, String role) async {
     try {
       await _client.post('/users/', data: {'email': email, 'role': role});
-      await fetch(page: state.page);
+      await fetch();
       return true;
     } catch (_) {
       return false;
@@ -150,7 +134,7 @@ class UsersNotifier extends StateNotifier<UsersState> {
   Future<UserActionResult> updateRole(String userId, String role) async {
     try {
       await _client.put('/users/$userId/update-role', data: {'role': role});
-      await fetch(page: state.page);
+      await fetch();
       return const UserActionResult.ok();
     } on DioException catch (e) {
       return _handleError(e);
@@ -161,8 +145,8 @@ class UsersNotifier extends StateNotifier<UsersState> {
 
   Future<UserActionResult> deactivateUser(String userId) async {
     try {
-      await _client.delete('/users/$userId');
-      await fetch(page: state.page);
+      await _client.put('/users/$userId/deactivate');
+      await fetch();
       return const UserActionResult.ok();
     } on DioException catch (e) {
       return _handleError(e);
@@ -170,6 +154,18 @@ class UsersNotifier extends StateNotifier<UsersState> {
       return UserActionResult.error(e.toString());
     }
   }
+
+  Future<UserActionResult> activateUser(String userId) async {
+  try {
+    await _client.put('/users/$userId/activate');
+    await fetch();
+    return const UserActionResult.ok();
+  } on DioException catch (e) {
+    return _handleError(e);
+  } catch (e) {
+    return UserActionResult.error(e.toString());
+  }
+}
 
   UserActionResult _handleError(DioException e) {
     final data = e.response?.data;
@@ -191,14 +187,6 @@ class UsersNotifier extends StateNotifier<UsersState> {
       msg = e.message!;
     }
     return UserActionResult.error(msg);
-  }
-
-  Future<void> nextPage() async {
-    if (state.page < state.pages) await fetch(page: state.page + 1);
-  }
-
-  Future<void> prevPage() async {
-    if (state.page > 1) await fetch(page: state.page - 1);
   }
 }
 

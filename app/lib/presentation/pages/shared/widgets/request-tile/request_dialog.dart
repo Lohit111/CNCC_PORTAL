@@ -132,25 +132,54 @@ class RequestDialog extends ConsumerWidget {
                       children:
                           detail.assignments.where((a) => a.isActive).map((a) {
                         final staff = detail.users[a.staffId];
+                        final phone = staff?.phone;
                         final name = staff?.name ?? staff?.email ?? a.staffId;
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Row(
                             children: [
-                              Icon(Icons.person_rounded,
-                                  size: 16, color: cs.primary),
+                              Icon(
+                                Icons.person_rounded,
+                                size: 16,
+                                color: cs.primary,
+                              ),
                               const SizedBox(width: 8),
+
                               Expanded(
                                 child: Text(
                                   name,
                                   style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
+
+                              if (phone != null)
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.phone_forwarded_rounded,
+                                    size: 18,
+                                    color: cs.primary,
+                                  ),
+                                  tooltip: 'Call $name',
+                                  onPressed: () async {
+                                    final uri = Uri(
+                                      scheme: 'tel',
+                                      path: phone,
+                                    );
+                                    if (await canLaunchUrl(uri)) {
+                                      await launchUrl(uri);
+                                    }
+                                  },
+                                ),
+
+                              // Your existing Active badge
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFA6E3A1)
                                       .withValues(alpha: 0.15),
@@ -181,6 +210,7 @@ class RequestDialog extends ConsumerWidget {
                     child: Column(
                       children: detail.storeRequests.map((sr) {
                         final requester = detail.users[sr.requestedBy];
+                        final requesterPhone = requester?.phone;
                         final requesterName = requester?.name ??
                             requester?.email ??
                             sr.requestedBy;
@@ -196,18 +226,61 @@ class RequestDialog extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Expanded(
-                                      child: Text(
-                                        sr.description,
-                                        style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            sr.description,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'By $requesterName',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: cs.onSurface
+                                                  .withValues(alpha: 0.45),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
+
+                                    // Call requester
+                                    if (requesterPhone != null)
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.phone_forwarded_rounded,
+                                          size: 18,
+                                          color: cs.primary,
+                                        ),
+                                        tooltip: 'Call $requesterName',
+                                        onPressed: () async {
+                                          final uri = Uri(
+                                            scheme: 'tel',
+                                            path: requesterPhone,
+                                          );
+                                          if (await canLaunchUrl(uri)) {
+                                            await launchUrl(uri);
+                                          }
+                                        },
+                                      ),
+
+                                    const SizedBox(width: 4),
+
+                                    // Status
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 2),
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: _srStatusColor(sr.status)
                                             .withValues(alpha: 0.12),
@@ -356,16 +429,14 @@ class RequestDialog extends ConsumerWidget {
                             'its timeline events, assignments, store requests, '
                             'and chat messages.');
                     if (!confirmed) return;
-                    final ok = await ref
+                    final message = await ref
                         .read(adminProvider(_categoryForStatus(req.status))
                             .notifier)
                         .deleteRequest(req.id);
                     if (context.mounted) {
                       Navigator.pop(context); // close the RequestDialog
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(ok
-                            ? 'Request deleted'
-                            : 'Failed to delete request'),
+                        content: Text(message ?? 'Null'),
                       ));
                     }
                   },
@@ -398,7 +469,7 @@ class RequestDialog extends ConsumerWidget {
                               '"${sr.description}" and its chat messages will '
                                   'be permanently removed.');
                           if (!confirmed) return;
-                          final ok = await ref
+                          final message = await ref
                               .read(
                                   adminProvider(_categoryForStatus(req.status))
                                       .notifier)
@@ -406,9 +477,7 @@ class RequestDialog extends ConsumerWidget {
                           if (context.mounted) {
                             Navigator.pop(context); // close RequestDialog
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text(ok
-                                  ? 'Store request deleted'
-                                  : 'Failed to delete store request'),
+                              content: Text(message ?? 'Null'),
                             ));
                           }
                         },

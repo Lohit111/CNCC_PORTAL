@@ -6,8 +6,8 @@ from models.track import RequestTrack
 from models.assignment import Assignment
 from models.store_request import StoreRequest
 from models.user import User
-from models.enums import RequestStatus, TrackEventType
-
+from models.enums import RequestStatus, TrackEventType, UserRole
+from services.notification_service import send_to_role
 
 PAGE_SIZE = 30
 
@@ -62,6 +62,9 @@ def _paginate(db: Session, user_id: str, statuses: list, page: int) -> dict:
         "page": page,
         "pages": -(-total // PAGE_SIZE)
     }
+
+def _truncate(text: str, max_length: int = 80) -> str:
+    return text if len(text) <= max_length else text[:max_length - 3] + "..."
 
 
 def get_raised(db: Session, user_id: str, page: int) -> dict:
@@ -121,6 +124,11 @@ def reply_to_request(db: Session, user_id: str, request_id: str, comment: str, d
         "comment": comment
     })
     db.commit()
+    send_to_role(
+        UserRole.ADMIN,
+        f"{user.name}({user.email}) Replied to a Request",
+        f'"{_truncate(comment)}" for "{_truncate(row.description)}"',
+    )
     return True
 
 
@@ -144,4 +152,9 @@ def create_request(db: Session, user_id: str, main_type: str, sub_type: str, des
         "comment": None
     })
     db.commit()
+    send_to_role(
+        UserRole.ADMIN,
+        f"{user.name}({user.email}) Raised a Request",
+        f'"{_truncate(request.description)}"',
+    )
     return {"message": "Request created successfully", "request_id": request.id}

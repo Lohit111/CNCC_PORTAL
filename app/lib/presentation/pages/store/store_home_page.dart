@@ -77,11 +77,41 @@ class _StoreHomePageState extends ConsumerState<StoreHomePage>
     final user = ref.watch(authProvider).user;
     final userName = user?.name ?? user?.email ?? '';
 
+    final pendingCount =
+        ref.watch(storeProvider('pending')).valueOrNull?.total ?? 0;
+
     return Scaffold(
-      appBar: AppBar(title: Text(_title)),
+      appBar: AppBar(
+        title: Text(_title),
+        leading: Builder(
+          builder: (ctx) => Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.menu_rounded),
+                onPressed: () => Scaffold.of(ctx).openDrawer(),
+              ),
+              if (pendingCount > 0)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF89B4FA),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
       drawer: _StoreDrawer(
         currentTab: _tab,
         userName: userName,
+        pendingCount: pendingCount,
         onNavigate: _navigateTo,
       ),
       body: _buildBody(),
@@ -105,11 +135,13 @@ class _StoreHomePageState extends ConsumerState<StoreHomePage>
 class _StoreDrawer extends StatelessWidget {
   final _StoreTab currentTab;
   final String userName;
+  final int pendingCount;
   final void Function(_StoreTab) onNavigate;
 
   const _StoreDrawer({
     required this.currentTab,
     required this.userName,
+    required this.pendingCount,
     required this.onNavigate,
   });
 
@@ -121,15 +153,15 @@ class _StoreDrawer extends StatelessWidget {
       (
         title: 'STORE REQUESTS',
         items: [
-          (_StoreTab.pending, Icons.pending_rounded, 'Pending'),
-          (_StoreTab.approved, Icons.verified_rounded, 'Approved'),
-          (_StoreTab.archive, Icons.archive_rounded, 'Archive'),
+          (_StoreTab.pending, Icons.pending_rounded, 'Pending', pendingCount),
+          (_StoreTab.approved, Icons.verified_rounded, 'Approved', 0),
+          (_StoreTab.archive, Icons.archive_rounded, 'Archive', 0),
         ]
       ),
       (
         title: 'ACCOUNT',
         items: [
-          (_StoreTab.profile, Icons.account_circle_rounded, 'Profile'),
+          (_StoreTab.profile, Icons.account_circle_rounded, 'Profile', 0),
         ]
       ),
     ];
@@ -158,7 +190,7 @@ class _StoreDrawer extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('CNCC Portal',
+                        Text(userName,
                             style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
@@ -192,6 +224,7 @@ class _StoreDrawer extends StatelessWidget {
                       _DrawerTile(
                         icon: item.$2,
                         label: item.$3,
+                        badge: item.$4,
                         isSelected: currentTab == item.$1,
                         onTap: () => onNavigate(item.$1),
                       ),
@@ -209,12 +242,14 @@ class _StoreDrawer extends StatelessWidget {
 class _DrawerTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final int badge;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _DrawerTile({
     required this.icon,
     required this.label,
+    required this.badge,
     required this.isSelected,
     required this.onTap,
   });
@@ -236,20 +271,46 @@ class _DrawerTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                Icon(icon,
-                    size: 20,
-                    color: isSelected
-                        ? cs.primary
-                        : cs.onSurface.withValues(alpha: 0.55)),
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected
+                      ? cs.primary
+                      : cs.onSurface.withValues(alpha: 0.55),
+                ),
                 const SizedBox(width: 12),
-                Text(label,
+                Expanded(
+                  child: Text(
+                    label,
                     style: TextStyle(
-                        fontSize: 14,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w400,
-                        color: isSelected
-                            ? cs.primary
-                            : cs.onSurface.withValues(alpha: 0.8))),
+                      fontSize: 14,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected
+                          ? cs.primary
+                          : cs.onSurface.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ),
+                if (badge > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAB387),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$badge',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

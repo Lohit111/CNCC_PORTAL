@@ -5,16 +5,6 @@ import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
 
 /// Shared "New Request" dialog used by all role home pages.
-///
-/// Usage:
-/// ```dart
-/// showDialog(
-///   context: context,
-///   builder: (_) => RequestFormDialog(
-///     onSuccess: () => ref.invalidate(myRequestsProvider('raised')),
-///   ),
-/// );
-/// ```
 class RequestFormDialog extends ConsumerStatefulWidget {
   final VoidCallback onSuccess;
 

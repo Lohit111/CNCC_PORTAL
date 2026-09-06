@@ -26,7 +26,7 @@ dev-web:
 
 dev-mobile:
 	adb reverse tcp:8000 tcp:8000
-	flutter run
+	cd app && flutter run
 
 dev-backend:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db

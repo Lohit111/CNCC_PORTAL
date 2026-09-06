@@ -20,33 +20,32 @@ class AdminUsersPage extends ConsumerWidget {
           if (state.error != null)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text('Error: ${state.error}',
-                  style: const TextStyle(color: Colors.red)),
+              child: Text(
+                'Error: ${state.error}',
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: () async => ref.read(usersProvider.notifier).fetch(),
+              onRefresh: () => ref.read(usersProvider.notifier).fetch(),
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
                 itemCount: state.users.length,
-                itemBuilder: (_, i) => _UserTile(user: state.users[i]),
+                itemBuilder: (_, i) => _UserTile(
+                  user: state.users[i],
+                ),
               ),
             ),
           ),
-          if (state.pages > 1)
-            _PaginationRow(
-              page: state.page,
-              pages: state.pages,
-              onPrev: () => ref.read(usersProvider.notifier).prevPage(),
-              onNext: () => ref.read(usersProvider.notifier).nextPage(),
-            ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateDialog(context, ref),
         icon: const Icon(Icons.person_add_rounded),
-        label: const Text('Add User',
-            style: TextStyle(fontWeight: FontWeight.w600)),
+        label: const Text(
+          'Add User',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -114,88 +113,158 @@ class _UserTile extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final displayName = user.name ?? user.email;
     final roleColor = _roleColor(user.role);
+    final isInactive = !user.isActive;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: roleColor.withValues(alpha: 0.15),
-                child: Text(
-                  displayName.characters.first.toUpperCase(),
-                  style:
-                      TextStyle(fontWeight: FontWeight.w700, color: roleColor),
+      child: Opacity(
+        opacity: isInactive ? 0.55 : 1.0,
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: roleColor.withValues(alpha: 0.15),
+                  child: Text(
+                    displayName.characters.first.toUpperCase(),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: roleColor,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(displayName,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
                         style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600)),
-                    if (user.name != null)
-                      Text(user.email,
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: cs.onSurface.withValues(alpha: 0.5))),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: roleColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(5),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      child: Text(
-                        user.role,
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: roleColor),
+                      if (user.name != null)
+                        Text(
+                          user.email,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: roleColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              user.role,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: roleColor,
+                              ),
+                            ),
+                          ),
+                          if (isInactive) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: cs.onSurface.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Text(
+                                'INACTIVE',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: cs.onSurface.withValues(alpha: 0.55),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_vert_rounded,
+                    size: 20,
+                    color: cs.onSurface.withValues(alpha: 0.4),
+                  ),
+                  onSelected: (action) => _handleAction(context, ref, action),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'role',
+                      child: Row(
+                        children: [
+                          Icon(Icons.manage_accounts_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text('Change Role'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: isInactive ? 'activate' : 'deactivate',
+                      child: Row(
+                        children: [
+                          Icon(
+                            isInactive
+                                ? Icons.person_add_alt_1_rounded
+                                : Icons.person_off_rounded,
+                            size: 18,
+                            color: isInactive
+                                ? const Color(0xFF94E2D5)
+                                : const Color(0xFFF38BA8),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isInactive ? 'Activate' : 'Deactivate',
+                            style: TextStyle(
+                              color: isInactive
+                                  ? const Color(0xFF94E2D5)
+                                  : const Color(0xFFF38BA8),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert_rounded,
-                    size: 20, color: cs.onSurface.withValues(alpha: 0.4)),
-                onSelected: (action) => _handleAction(context, ref, action),
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                      value: 'role',
-                      child: Row(children: [
-                        Icon(Icons.manage_accounts_rounded, size: 18),
-                        SizedBox(width: 8),
-                        Text('Change Role'),
-                      ])),
-                  const PopupMenuItem(
-                      value: 'deactivate',
-                      child: Row(children: [
-                        Icon(Icons.person_off_rounded,
-                            size: 18, color: Color(0xFFF38BA8)),
-                        SizedBox(width: 8),
-                        Text('Deactivate',
-                            style: TextStyle(color: Color(0xFFF38BA8))),
-                      ])),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  void _handleAction(BuildContext context, WidgetRef ref, String action) {
+  void _handleAction(
+    BuildContext context,
+    WidgetRef ref,
+    String action,
+  ) {
     if (action == 'role') {
       _showRoleDialog(context, ref);
+    } else if (action == 'activate') {
+      _confirmActivate(context, ref);
     } else if (action == 'deactivate') {
       _confirmDeactivate(context, ref);
     }
@@ -228,7 +297,14 @@ class _UserTile extends ConsumerWidget {
                 final result = await ref
                     .read(usersProvider.notifier)
                     .updateRole(user.id, selected);
-                if (!result.success && context.mounted) {
+                if (!context.mounted) return;
+                if (result.success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('User Role changed successfully'),
+                    ),
+                  );
+                } else if (context.mounted) {
                   _showConflictSnackBar(context, result);
                 }
               },
@@ -236,6 +312,43 @@ class _UserTile extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmActivate(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Activate User'),
+        content: Text(
+          'Activate ${user.name ?? user.email}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+
+              final result =
+                  await ref.read(usersProvider.notifier).activateUser(user.id);
+              if (!context.mounted) return;
+              if (result.success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('User activated successfully'),
+                  ),
+                );
+              } else if (context.mounted) {
+                _showConflictSnackBar(context, result);
+              }
+            },
+            child: const Text('Activate'),
+          ),
+        ],
       ),
     );
   }
@@ -258,7 +371,14 @@ class _UserTile extends ConsumerWidget {
               final result = await ref
                   .read(usersProvider.notifier)
                   .deactivateUser(user.id);
-              if (!result.success && context.mounted) {
+              if (!context.mounted) return;
+              if (result.success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('User deactivated successfully'),
+                  ),
+                );
+              } else if (context.mounted) {
                 _showConflictSnackBar(context, result);
               }
             },

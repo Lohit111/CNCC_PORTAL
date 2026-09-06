@@ -103,23 +103,23 @@ class AdminNotifier extends FamilyAsyncNotifier<AdminRequestsState, String> {
     }
   }
 
-  Future<bool> deleteRequest(String requestId) async {
+  Future<String?> deleteRequest(String requestId) async {
     try {
-      await _client.delete('/admin/request/$requestId');
+      final response = await _client.delete('/admin/request/$requestId');
       await refresh();
-      return true;
+      return response.data['message'] as String?;
     } catch (_) {
-      return false;
+      return null;
     }
   }
 
-  Future<bool> deleteStoreRequest(String storeRequestId) async {
+  Future<String?> deleteStoreRequest(String storeRequestId) async {
     try {
-      await _client.delete('/admin/store-request/$storeRequestId');
+      final response = await _client.delete('/admin/store-request/$storeRequestId');
       await refresh();
-      return true;
+      return response.data['message'] as String?;
     } catch (_) {
-      return false;
+      return null;
     }
   }
 }

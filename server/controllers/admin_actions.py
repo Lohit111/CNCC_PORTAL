@@ -4,12 +4,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from fastapi import HTTPException
 from models.request import Request, RequestTable
-from models.track import RequestTrack, RequestTrackTable
+from models.track import RequestTrack
 from models.assignment import Assignment
 from models.store_request import StoreRequest
 from models.store_chat import StoreChat
 from models.user import User
 from models.enums import RequestStatus, TrackEventType, StoreRequestStatus
+from services.notification_service import send_to_uid, send_to_uids
 
 
 PAGE_SIZE = 30
@@ -66,6 +67,10 @@ def _query_requests(db: Session, statuses: list, page: int) -> dict:
     }
 
 
+def _truncate(text: str, max_length: int = 80) -> str:
+    return text if len(text) <= max_length else text[:max_length - 3] + "..."
+
+
 # --- GET endpoints ---
 
 def get_raised(db: Session, page: int) -> dict:
@@ -116,6 +121,11 @@ def reply_to_request(db: Session, admin: User, request_id: str, comment: str) ->
         "comment": comment
     })
     db.commit()
+    send_to_uid(
+        row.raised_by,
+        f"{admin.name}({admin.email}) Replied to Your Request",
+        f'"{_truncate(comment)}" for "{_truncate(row.description)}"',
+    )
     return True
 
 
@@ -172,6 +182,11 @@ def assign_request(db: Session, admin: User, request_id: str, staff_ids: List[st
     # Update request status
     Request.update(db, {"id": request_id}, {"status": RequestStatus.ASSIGNED})
     db.commit()
+    send_to_uids(
+        staff_ids,
+        "You Were Assigned a Request",
+        f'"{_truncate(row.description)}" at {row.room_no}',
+    )
     return True
 
 
@@ -195,7 +210,7 @@ def reject_request(db: Session, admin: User, request_id: str, comment: str) -> b
         )
 
     # Append forced-closure note
-    full_comment = comment + "\n\nAn admin has closed this request forcefully."
+    full_comment = comment + ("\n\nAn admin has closed this request forcefully." if row.status != RequestStatus.RAISED else "")
 
     # Deactivate all active assignments
     Assignment.update(
@@ -235,6 +250,11 @@ def reject_request(db: Session, admin: User, request_id: str, comment: str) -> b
         "comment": full_comment
     })
     db.commit()
+    send_to_uid(
+        row.raised_by,
+        f"Your Request Was Closed by an Admin - {admin.name}({admin.email})",
+        f'Request: "{_truncate(row.description)}"\n\nReason: "{_truncate(full_comment)}"',
+    )
     return True
 
 

@@ -1,4 +1,5 @@
 """Admin API Endpoints"""
+import os
 from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -118,7 +119,12 @@ async def remove_request(
     db: Session = Depends(get_db)
 ):
     """Delete a request and all its related data (tracks, assignments, store_requests, chats)"""
-    delete_request(db, request_id=request_id)
+    HALT_DELETE = os.getenv("PREVENT_DELETE_REQUESTS", "True").lower() == "true"
+    if HALT_DELETE:
+        return {"message": "Developer has disabled this endpoint to prevent accidental deletion of requests. Please contact the developer to enable it."}
+    res = delete_request(db, request_id=request_id)
+    if not res:
+        return {"message": "Request not found or could not be deleted"}
     return {"message": "Request deleted successfully"}
 
 
@@ -128,5 +134,10 @@ async def remove_store_request(
     db: Session = Depends(get_db)
 ):
     """Delete a store request and its chat messages"""
-    delete_store_request(db, store_request_id=store_request_id)
+    HALT_DELETE = os.getenv("PREVENT_DELETE_REQUESTS", "True").lower() == "true"
+    if HALT_DELETE:
+        return {"message": "Developer has disabled this endpoint to prevent accidental deletion of requests. Please contact the developer to enable it."}
+    res = delete_store_request(db, store_request_id=store_request_id)
+    if not res:
+        return {"message": "Store request not found or could not be deleted"}
     return {"message": "Store request deleted successfully"}

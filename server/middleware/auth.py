@@ -40,8 +40,13 @@ async def get_current_user(authorization: str = Header(...), db: Session = Depen
     try:
         email = get_email_from_token(authorization)
 
-        user = User.get(db, {"email": email, "is_active": True})
+        user = User.get(db, {"email": email})
         if user:
+            if not user.is_active:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Your Account has been deactivated by the admin",
+                )
             return user
 
         if not _resolve_default_role(email):
@@ -50,16 +55,21 @@ async def get_current_user(authorization: str = Header(...), db: Session = Depen
                 detail="Access denied: No Role Assigned: Please contact the Administator for Role Assignment"
             )
 
-        # User exists but was deactivated — reactivate
-        existing = User.get(db, {"email": email})
-        if existing:
-            User.update(db, {"email": email}, {"is_active": True})
-            db.commit()
-            return User.get(db, {"email": email}) # pyright: ignore[reportReturnType]
+        if not _resolve_default_role(email):
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorised",
+            )
 
-        # Brand new user
+        # New authorised user
         user = User.create(
-            db, {"email": email, "role": UserRole.USER, "is_active": True})
+            db,
+            {
+                "email": email,
+                "role": UserRole.USER,
+                "is_active": True,
+            },
+        )
         db.commit()
         logger.info(f"Created new user: {email}")
         return user

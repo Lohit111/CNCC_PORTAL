@@ -6,6 +6,7 @@ from models.assignment import AssignmentTable
 from models.request import Request, RequestTable
 from models.store_request import StoreRequest, StoreRequestTable
 from models.enums import UserRole, RequestStatus, StoreRequestStatus
+from services.notification_service import send_to_uid
 
 
 # ---------------------------------------------------------------------------
@@ -115,19 +116,10 @@ def _assert_no_participation(db: Session, user_id: str, action: str) -> None:
 # CRUD
 # ---------------------------------------------------------------------------
 
-def get_users(db: Session, page: int = 1) -> dict:
-    """Get all active users paginated in chunks of 50"""
-    page_size = 50
-    skip = (page - 1) * page_size
-    total = User.count(db, {"is_active": True})
-    users = User.find(db, {"is_active": True}, skip=skip, limit=page_size)
-    return {
-        "users": users,
-        "total": total,
-        "page": page,
-        "pages": -(-total // page_size),
-    }
-
+def get_users(db: Session) -> dict:
+    """Get all active users"""
+    users = User.find(db, {"is_active": True})
+    return users
 
 def create_user(db: Session, email: str, role: UserRole) -> User:
     """Create a new active user with given email and role"""
@@ -140,7 +132,7 @@ def create_user(db: Session, email: str, role: UserRole) -> User:
     return user
 
 
-def update_user_role(db: Session, user_id: str, role: UserRole) -> User:
+def update_user_role(db: Session, user_id: str, role: UserRole, admin_name: str) -> User:
     """Update a user's role — blocked if the user has unfinished participation"""
     user = User.get(db, {"id": user_id})
     if not user:
@@ -150,13 +142,11 @@ def update_user_role(db: Session, user_id: str, role: UserRole) -> User:
     _assert_no_participation(db, user_id, action="change the role of")
     User.update(db, {"id": user_id}, {"role": role})
     db.commit()
-    return User.get(db, {"id": user_id})  # pyright: ignore[reportReturnType]
-
-
-def update_user_name(db: Session, user_id: str, name: str) -> User:
-    """Update the current user's name"""
-    User.update(db, {"id": user_id}, {"name": name})
-    db.commit()
+    send_to_uid(
+        user_id,
+        "Role Updated",
+        f"Your role has been updated to {role.value} by an administrator ({admin_name}).",
+    )
     return User.get(db, {"id": user_id})  # pyright: ignore[reportReturnType]
 
 
@@ -167,7 +157,7 @@ def update_user_profile(db: Session, user_id: str, name: str, phone: str) -> Use
     return User.get(db, {"id": user_id})  # pyright: ignore[reportReturnType]
 
 
-def deactivate_user(db: Session, user_id: str) -> bool:
+def deactivate_user(db: Session, user_id: str, admin_name: str) -> bool:
     """Soft delete a user — blocked if the user has unfinished participation"""
     user = User.get(db, {"id": user_id})
     if not user:
@@ -177,4 +167,25 @@ def deactivate_user(db: Session, user_id: str) -> bool:
     _assert_no_participation(db, user_id, action="deactivate")
     User.update(db, {"id": user_id}, {"is_active": False})
     db.commit()
+    send_to_uid(
+        user_id,
+        "Account Deactivated",
+        f"Your account has been deactivated by an administrator ({admin_name}). Please contact support for more information.",
+    )
+    return True
+
+def activate_user(db: Session, user_id: str, admin_name: str) -> bool:
+    """Activate a user"""
+    user = User.get(db, {"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.is_active:
+        raise HTTPException(status_code=409, detail="User is already activated")
+    User.update(db, {"id": user_id}, {"is_active": True})
+    db.commit()
+    send_to_uid(
+        user_id,
+        "Account Activated",
+        f"Your account has been activated by an administrator ({admin_name}). You can now access the system.",
+    )
     return True

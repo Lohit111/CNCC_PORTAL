@@ -7,8 +7,8 @@ from models.assignment import Assignment, AssignmentTable
 from models.store_request import StoreRequest, StoreRequestTable
 from models.store_chat import StoreChat
 from models.user import User
-from models.enums import RequestStatus, TrackEventType, StoreRequestStatus
-
+from models.enums import RequestStatus, TrackEventType, StoreRequestStatus, UserRole
+from services.notification_service import send_to_uid, send_to_role
 
 PAGE_SIZE = 30
 
@@ -70,6 +70,9 @@ def _get_requests_for_staff(db: Session, staff_id: str, statuses: list, page: in
         "page": page,
         "pages": -(-total // PAGE_SIZE)
     }
+
+def _truncate(text: str, max_length: int = 80) -> str:
+    return text if len(text) <= max_length else text[:max_length - 3] + "..."
 
 
 def get_assigned(db: Session, staff_id: str, page: int) -> dict:
@@ -165,6 +168,11 @@ def start_request(db: Session, staff: User, request_id: str) -> bool:
         "comment": None
     })
     db.commit()
+    send_to_role(
+        UserRole.ADMIN,
+        f"{staff.name}({staff.email}) Started a Request",
+        f'Request Details: "{_truncate(row.description)}"',
+    )
     return True
 
 
@@ -199,6 +207,11 @@ def request_reassignment(db: Session, staff: User, request_id: str, comment: str
         "comment": comment
     })
     db.commit()
+    send_to_role(
+        UserRole.ADMIN,
+        f"{staff.name}({staff.email}) Requested Reassignment",
+        f'Reason: "{_truncate(comment)}"\n\non Request: "{_truncate(row.description)}"',
+    )
     return True
 
 
@@ -250,6 +263,11 @@ def finish_request(db: Session, staff: User, request_id: str) -> bool:
         "comment": None
     })
     db.commit()
+    send_to_uid(
+        row.raised_by,
+        f"{staff.name}({staff.email}) Completed Your Request",
+        f'Request Details: "{_truncate(row.description)}"',
+    )
     return True
 
 
@@ -287,6 +305,11 @@ def create_store_request(db: Session, staff: User, request_id: str, description:
         "comment": None
     })
     db.commit()
+    send_to_role(
+        UserRole.STORE,
+        f"New Store Request by {staff.name}({staff.email})",
+        f'"{_truncate(description)}"\n\non Request: "{_truncate(row.description)}"',
+    )
     return True
 
 
@@ -324,4 +347,9 @@ def send_staff_chat_message(db: Session, staff: User, store_request_id: str, mes
         "message": message
     })
     db.commit()
+    send_to_uid(
+        sr.responded_by,
+        f"{staff.name}({staff.email}) Sent a Message",
+        f'"{_truncate(message)}"\n\non Store Request: "{_truncate(sr.description)}"',
+    )
     return True

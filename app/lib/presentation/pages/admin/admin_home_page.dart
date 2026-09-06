@@ -73,6 +73,7 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
     switch (_tab) {
       case _AdminTab.raised:
         ref.invalidate(adminProvider('raised'));
+        ref.invalidate(usersProvider);
       case _AdminTab.replied:
         ref.invalidate(adminProvider('replied'));
       case _AdminTab.assigned:
@@ -85,12 +86,20 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         ref.invalidate(adminProvider('archive'));
       case _AdminTab.myRaised:
         ref.invalidate(myRequestsProvider('raised'));
+        ref.invalidate(mainTypesProvider);
+        ref.invalidate(roomsProvider);
       case _AdminTab.myReplied:
         ref.invalidate(myRequestsProvider('replied'));
+        ref.invalidate(mainTypesProvider);
+        ref.invalidate(roomsProvider);
       case _AdminTab.myInProgress:
         ref.invalidate(myRequestsProvider('inprogress'));
+        ref.invalidate(mainTypesProvider);
+        ref.invalidate(roomsProvider);
       case _AdminTab.myArchive:
         ref.invalidate(myRequestsProvider('archive'));
+        ref.invalidate(mainTypesProvider);
+        ref.invalidate(roomsProvider);
       case _AdminTab.manageUsers:
         ref.invalidate(usersProvider);
       case _AdminTab.manageTypes:
@@ -147,12 +156,41 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
     final userName = user?.name ?? user?.email ?? '';
+    final raisedCount =
+        ref.watch(adminProvider('raised')).valueOrNull?.total ?? 0;
 
     return Scaffold(
-      appBar: AppBar(title: Text(_title)),
+      appBar: AppBar(
+        title: Text(_title),
+        leading: Builder(
+          builder: (ctx) => Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.menu_rounded),
+                onPressed: () => Scaffold.of(ctx).openDrawer(),
+              ),
+              if (raisedCount > 0)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF89B4FA),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
       drawer: _AdminDrawer(
         currentTab: _tab,
         userName: userName,
+        raisedCount: raisedCount,
         onNavigate: _navigateTo,
       ),
       body: _buildBody(),
@@ -222,11 +260,13 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
 class _AdminDrawer extends StatelessWidget {
   final _AdminTab currentTab;
   final String userName;
+  final int raisedCount;
   final void Function(_AdminTab) onNavigate;
 
   const _AdminDrawer({
     required this.currentTab,
     required this.userName,
+    required this.raisedCount,
     required this.onNavigate,
   });
 
@@ -238,43 +278,45 @@ class _AdminDrawer extends StatelessWidget {
       (
         title: 'ALL REQUESTS',
         items: [
-          (_AdminTab.raised, Icons.fiber_new_rounded, 'Raised'),
-          (_AdminTab.replied, Icons.reply_rounded, 'Replied'),
-          (_AdminTab.assigned, Icons.assignment_ind_rounded, 'Assigned'),
+          (_AdminTab.raised, Icons.fiber_new_rounded, 'Raised', raisedCount),
+          (_AdminTab.replied, Icons.reply_rounded, 'Replied', 0),
+          (_AdminTab.assigned, Icons.assignment_ind_rounded, 'Assigned', 0),
           (
             _AdminTab.reassignRequested,
             Icons.swap_horiz_rounded,
-            'Reassign Requested'
+            'Reassign Requested',
+            0,
           ),
-          (_AdminTab.inprogress, Icons.pending_rounded, 'In Progress'),
-          (_AdminTab.archive, Icons.task_alt_rounded, 'Archive'),
+          (_AdminTab.inprogress, Icons.pending_rounded, 'In Progress', 0),
+          (_AdminTab.archive, Icons.task_alt_rounded, 'Archive', 0),
         ]
       ),
       (
         title: 'MANAGEMENT',
         items: [
-          (_AdminTab.manageUsers, Icons.manage_accounts_rounded, 'Users'),
-          (_AdminTab.manageTypes, Icons.category_rounded, 'Types'),
-          (_AdminTab.manageRooms, Icons.door_front_door_rounded, 'Rooms'),
+          (_AdminTab.manageUsers, Icons.manage_accounts_rounded, 'Users', 0),
+          (_AdminTab.manageTypes, Icons.category_rounded, 'Types', 0),
+          (_AdminTab.manageRooms, Icons.door_front_door_rounded, 'Rooms', 0),
         ]
       ),
       (
         title: 'MY REQUESTS',
         items: [
-          (_AdminTab.myRaised, Icons.inbox_rounded, 'Raised'),
-          (_AdminTab.myReplied, Icons.reply_all_rounded, 'Needs Response'),
+          (_AdminTab.myRaised, Icons.inbox_rounded, 'Raised', 0),
+          (_AdminTab.myReplied, Icons.reply_all_rounded, 'Needs Response', 0),
           (
             _AdminTab.myInProgress,
             Icons.pending_actions_rounded,
-            'In Progress'
+            'In Progress',
+            0,
           ),
-          (_AdminTab.myArchive, Icons.archive_rounded, 'Archive'),
+          (_AdminTab.myArchive, Icons.archive_rounded, 'Archive', 0),
         ]
       ),
       (
         title: 'ACCOUNT',
         items: [
-          (_AdminTab.profile, Icons.account_circle_rounded, 'Profile'),
+          (_AdminTab.profile, Icons.account_circle_rounded, 'Profile', 0),
         ]
       ),
     ];
@@ -303,7 +345,7 @@ class _AdminDrawer extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('CNCC Portal',
+                        Text(userName,
                             style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
@@ -337,6 +379,7 @@ class _AdminDrawer extends StatelessWidget {
                       _DrawerTile(
                         icon: item.$2,
                         label: item.$3,
+                        badge: item.$4,
                         isSelected: currentTab == item.$1,
                         onTap: () => onNavigate(item.$1),
                       ),
@@ -354,12 +397,14 @@ class _AdminDrawer extends StatelessWidget {
 class _DrawerTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final int badge;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _DrawerTile({
     required this.icon,
     required this.label,
+    required this.badge,
     required this.isSelected,
     required this.onTap,
   });
@@ -397,6 +442,20 @@ class _DrawerTile extends StatelessWidget {
                               ? cs.primary
                               : cs.onSurface.withValues(alpha: 0.8))),
                 ),
+                if (badge > 0)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAB387),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('$badge',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87)),
+                  ),
               ],
             ),
           ),

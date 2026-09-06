@@ -1,14 +1,13 @@
 """User API Endpoints"""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from models.user import User
 from models.user_fcm import UserFcm
 from models.enums import UserRole, DevicePlatform
 from middleware.auth import get_current_user, require_role
-from controllers.users import get_users, create_user, update_user_role, update_user_name, update_user_profile, deactivate_user
+from controllers.users import get_users, create_user, update_user_role, update_user_profile, deactivate_user, activate_user
 from config.database import get_db
-from services.notification_service import send_to_role
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -54,12 +53,11 @@ async def update_profile(
 
 @router.get("/")
 async def list_users(
-    page: int = 1,
     user: User = Depends(require_role(UserRole.ADMIN)),
     db: Session = Depends(get_db)
 ):
-    """Get all active users paginated (50 per page)"""
-    return get_users(db, page=page)
+    """Get all active users"""
+    return get_users(db)
 
 
 @router.post("/")
@@ -80,21 +78,39 @@ async def update_role(
     db: Session = Depends(get_db)
 ):
     """Update a user's role"""
-    return update_user_role(db, user_id=user_id, role=body.role)
+    if user.id == user_id:
+        raise HTTPException(
+            status_code=400, detail="You cannot change your own role")
+    return update_user_role(db, user_id=user_id, role=body.role, admin_name=user.name)
 
 
-@router.delete("/{user_id}")
-async def delete_user(
+@router.put("/{user_id}/deactivate")
+async def deactivate_user_endpoint(
     user_id: str,
     user: User = Depends(require_role(UserRole.ADMIN)),
     db: Session = Depends(get_db)
 ):
     """Deactivate a user (soft delete)"""
-    deactivate_user(db, user_id=user_id)
+    if user.id == user_id:
+        raise HTTPException(
+            status_code=400, detail="You cannot deactivate your own account")
+    deactivate_user(db, user_id=user_id, admin_name=user.name)
     return {"message": "User deactivated successfully"}
 
+@router.put("/{user_id}/activate")
+async def activate_user_endpoint(
+    user_id: str,
+    user: User = Depends(require_role(UserRole.ADMIN)),
+    db: Session = Depends(get_db)
+):
+    """Activate a user (soft delete)"""
+    if user.id == user_id:
+        raise HTTPException(
+            status_code=400, detail="You cannot activate your own account")
+    activate_user(db, user_id=user_id, admin_name=user.name)
+    return {"message": "User activated successfully"}
 
-@router.post("/fcm_token")
+@router.post("/upsert_fcm_token")
 async def upsert_fcm_token(
     body: UpsertFcmTokenRequest,
     user: User = Depends(get_current_user),
@@ -105,17 +121,3 @@ async def upsert_fcm_token(
                             fcm_token=body.fcm_token, platform=body.platform)
     db.commit()
     return result
-
-
-@router.post("/test-notification")
-async def test_notification(
-    db: Session = Depends(get_db)
-):
-    """Test FCM notification by sending to all active admins"""
-    send_to_role(
-        db=db,
-        role=UserRole.ADMIN,
-        title="Test Notification",
-        body="This is a test notification from the CNCC Portal backend.",
-    )
-    return {"success": True, "message": "Test notification sent to ADMIN users"}

@@ -1,3 +1,5 @@
+import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
+import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
@@ -20,7 +22,7 @@ class UserHomePage extends ConsumerStatefulWidget {
 
 class _UserHomePageState extends ConsumerState<UserHomePage>
     with WidgetsBindingObserver {
-  _UserTab _tab = _UserTab.raised;
+  _UserTab _tab = _UserTab.replied;
 
   @override
   void initState() {
@@ -54,6 +56,9 @@ class _UserHomePageState extends ConsumerState<UserHomePage>
       case _UserTab.profile:
         break;
     }
+    // Refresh data used by the New Request dialog.
+    ref.invalidate(mainTypesProvider);
+    ref.invalidate(roomsProvider);
   }
 
   void _navigateTo(_UserTab tab) {
@@ -178,13 +183,13 @@ class _UserDrawer extends StatelessWidget {
       (
         title: 'MY REQUESTS',
         items: [
-          (_UserTab.raised, Icons.fiber_new_rounded, 'Raised', 0),
           (
             _UserTab.replied,
             Icons.reply_rounded,
             'Needs Response',
             repliedCount
           ),
+          (_UserTab.raised, Icons.fiber_new_rounded, 'Raised', 0),
           (_UserTab.inprogress, Icons.pending_rounded, 'In Progress', 0),
           (_UserTab.archive, Icons.task_alt_rounded, 'Archive', 0),
         ],
@@ -221,7 +226,7 @@ class _UserDrawer extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('CNCC Portal',
+                        Text(userName,
                             style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
