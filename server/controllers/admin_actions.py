@@ -125,6 +125,7 @@ def reply_to_request(db: Session, admin: User, request_id: str, comment: str) ->
         row.raised_by,
         f"{admin.name}({admin.email}) Replied to Your Request",
         f'"{_truncate(comment)}" for "{_truncate(row.description)}"',
+        {"my_requests":"replied"}
     )
     return True
 
@@ -186,6 +187,7 @@ def assign_request(db: Session, admin: User, request_id: str, staff_ids: List[st
         staff_ids,
         "You Were Assigned a Request",
         f'"{_truncate(row.description)}" at {row.room_no}',
+        {"staff":"assigned"}
     )
     return True
 

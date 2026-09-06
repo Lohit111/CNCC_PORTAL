@@ -211,6 +211,7 @@ def request_reassignment(db: Session, staff: User, request_id: str, comment: str
         UserRole.ADMIN,
         f"{staff.name}({staff.email}) Requested Reassignment",
         f'Reason: "{_truncate(comment)}"\n\non Request: "{_truncate(row.description)}"',
+        {"admin":"reassign-requested"}
     )
     return True
 
@@ -309,6 +310,7 @@ def create_store_request(db: Session, staff: User, request_id: str, description:
         UserRole.STORE,
         f"New Store Request by {staff.name}({staff.email})",
         f'"{_truncate(description)}"\n\non Request: "{_truncate(row.description)}"',
+        {"store":"pending"}
     )
     return True
 

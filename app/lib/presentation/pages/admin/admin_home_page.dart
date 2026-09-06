@@ -11,6 +11,7 @@ import 'package:cncc_portal/presentation/pages/shared/pages/my_requests/my_reque
 import 'package:cncc_portal/presentation/pages/shared/pages/my_requests/my_requests_inprogress_page.dart';
 import 'package:cncc_portal/presentation/pages/shared/pages/my_requests/my_requests_raised_page.dart';
 import 'package:cncc_portal/presentation/pages/shared/pages/my_requests/my_requests_replied_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_notifications_page.dart';
 import 'package:cncc_portal/presentation/pages/shared/pages/profile_page.dart';
 import 'package:cncc_portal/presentation/pages/shared/widgets/request-form/request_form_dialog.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
@@ -32,6 +33,7 @@ enum _AdminTab {
   manageUsers,
   manageTypes,
   manageRooms,
+  notifications,
   myRaised,
   myReplied,
   myInProgress,
@@ -107,6 +109,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         ref.invalidate(subTypesProvider);
       case _AdminTab.manageRooms:
         ref.invalidate(roomsProvider);
+      case _AdminTab.notifications:
+        break;
       case _AdminTab.profile:
         break;
     }
@@ -139,6 +143,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return 'Manage Types';
       case _AdminTab.manageRooms:
         return 'Manage Rooms';
+      case _AdminTab.notifications:
+        return 'Notifications';
       case _AdminTab.myRaised:
         return 'My Raised';
       case _AdminTab.myReplied:
@@ -158,6 +164,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
     final userName = user?.name ?? user?.email ?? '';
     final raisedCount =
         ref.watch(adminProvider('raised')).valueOrNull?.total ?? 0;
+    final reassignCount =
+        ref.watch(adminProvider('reassign-requested')).valueOrNull?.total ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -191,6 +199,7 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         currentTab: _tab,
         userName: userName,
         raisedCount: raisedCount,
+        reassignCount: reassignCount,
         onNavigate: _navigateTo,
       ),
       body: _buildBody(),
@@ -232,6 +241,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return const AdminTypesPage();
       case _AdminTab.manageRooms:
         return const AdminRoomsPage();
+      case _AdminTab.notifications:
+        return const AdminNotificationsPage();
       case _AdminTab.myRaised:
         return const MyRequestsRaisedPage();
       case _AdminTab.myReplied:
@@ -261,12 +272,14 @@ class _AdminDrawer extends StatelessWidget {
   final _AdminTab currentTab;
   final String userName;
   final int raisedCount;
+  final int reassignCount;
   final void Function(_AdminTab) onNavigate;
 
   const _AdminDrawer({
     required this.currentTab,
     required this.userName,
     required this.raisedCount,
+    required this.reassignCount,
     required this.onNavigate,
   });
 
@@ -285,7 +298,7 @@ class _AdminDrawer extends StatelessWidget {
             _AdminTab.reassignRequested,
             Icons.swap_horiz_rounded,
             'Reassign Requested',
-            0,
+            reassignCount,
           ),
           (_AdminTab.inprogress, Icons.pending_rounded, 'In Progress', 0),
           (_AdminTab.archive, Icons.task_alt_rounded, 'Archive', 0),
@@ -297,6 +310,12 @@ class _AdminDrawer extends StatelessWidget {
           (_AdminTab.manageUsers, Icons.manage_accounts_rounded, 'Users', 0),
           (_AdminTab.manageTypes, Icons.category_rounded, 'Types', 0),
           (_AdminTab.manageRooms, Icons.door_front_door_rounded, 'Rooms', 0),
+          (
+            _AdminTab.notifications,
+            Icons.notifications_rounded,
+            'Notifications',
+            0,
+          ),
         ]
       ),
       (

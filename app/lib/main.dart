@@ -14,8 +14,12 @@ import 'package:cncc_portal/presentation/pages/store/store_home_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await NotificationService().init();
-  runApp(const ProviderScope(child: MyApp()));
+  final container = ProviderContainer();
+  await NotificationService().init(container);
+  runApp(UncontrolledProviderScope(
+    container: container,
+    child: const MyApp(),
+  ));
 }
 
 class MyApp extends StatelessWidget {
@@ -29,6 +33,7 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.light,
       home: const HomeBuilder(),
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: scaffoldMessengerKey,
     );
   }
 

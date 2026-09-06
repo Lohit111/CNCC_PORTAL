@@ -1,9 +1,12 @@
 """User FCM Token Model"""
+
 from pydantic import BaseModel, Field
-from typing import List, Tuple
+from typing import List
 import uuid
-from sqlalchemy import Column, String, UniqueConstraint, ForeignKey, Enum as SAEnum
+
+from sqlalchemy import Column, String, ForeignKey, Enum as SAEnum
 from sqlalchemy.orm import Session
+
 from models.base import Base
 from models.enums import DevicePlatform
 
@@ -11,9 +14,11 @@ from models.enums import DevicePlatform
 class UserFcmTable(Base):
     """SQLAlchemy table for storing user FCM tokens.
 
-    Maintains a unique (user_id, fcm_token) pair so the same token is
-    never duplicated for a given user while still allowing multiple
-    devices per user.
+    Each FCM token represents a single device/app installation and has
+    exactly one current user owner.
+
+    A token may change owners when a different user logs in on the same
+    device. Therefore, fcm_token is globally unique.
     """
 
     __tablename__ = "user_fcm_tokens"
@@ -24,21 +29,25 @@ class UserFcmTable(Base):
         default=lambda: str(uuid.uuid4()),
         index=True,
     )
+
     user_id = Column(
         String,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    fcm_token = Column(String, nullable=False)
+
+    fcm_token = Column(
+        String,
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
     platform = Column(
         SAEnum(DevicePlatform),
         nullable=False,
         default=DevicePlatform.UNKNOWN,
-    )
-
-    __table_args__ = (
-        UniqueConstraint("user_id", "fcm_token", name="uq_user_fcm_token"),
     )
 
 
@@ -67,55 +76,69 @@ class UserFcm(BaseModel):
         fcm_token: str,
         platform: DevicePlatform = DevicePlatform.UNKNOWN,
     ) -> "UserFcm":
-        """Insert or update the (user_id, fcm_token) pair.
+        """Insert or update an FCM token.
 
-        If the token already exists for this user, updates its platform.
+        If the token already exists, its current user owner and platform
+        are updated. This handles the case where a different user logs
+        into the same device.
+
         Caller must commit.
         """
+
         existing = (
             db.query(UserFcmTable)
-            .filter(
-                UserFcmTable.user_id == user_id,
-                UserFcmTable.fcm_token == fcm_token,
-            )
+            .filter(UserFcmTable.fcm_token == fcm_token)
             .first()
         )
+
         if existing:
+            existing.user_id = user_id # pyright: ignore[reportAttributeAccessIssue]
             existing.platform = platform # pyright: ignore[reportAttributeAccessIssue]
             db.flush()
             return UserFcm.from_orm(existing)
 
         row = UserFcmTable(
-            user_id=user_id, fcm_token=fcm_token, platform=platform)
+            user_id=user_id,
+            fcm_token=fcm_token,
+            platform=platform,
+        )
+
         db.add(row)
         db.flush()
+
         return UserFcm.from_orm(row)
 
     @staticmethod
-    def delete_token(db: Session, user_id: str, fcm_token: str) -> bool:
-        """Remove a specific token for a user. Caller must commit."""
+    def delete_token(db: Session, fcm_token: str) -> bool:
+        """Remove a specific FCM token.
+
+        Caller must commit.
+        """
+
         deleted = (
             db.query(UserFcmTable)
-            .filter(
-                UserFcmTable.user_id == user_id,
-                UserFcmTable.fcm_token == fcm_token,
-            )
-            .delete()
+            .filter(UserFcmTable.fcm_token == fcm_token)
+            .delete(synchronize_session=False)
         )
+
         return deleted > 0
 
     @staticmethod
     def delete_tokens(db: Session, fcm_tokens: List[str]) -> int:
-        """Remove all rows whose fcm_token is in the given list.
+        """Remove all rows whose FCM token is in the given list.
 
         Used to purge invalid/unregistered tokens discovered during a send.
+
         Caller must commit.
         """
+
         if not fcm_tokens:
             return 0
+
         deleted = (
             db.query(UserFcmTable)
             .filter(UserFcmTable.fcm_token.in_(fcm_tokens))
             .delete(synchronize_session=False)
         )
+
         return deleted

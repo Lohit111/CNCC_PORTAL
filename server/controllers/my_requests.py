@@ -128,6 +128,7 @@ def reply_to_request(db: Session, user_id: str, request_id: str, comment: str, d
         UserRole.ADMIN,
         f"{user.name}({user.email}) Replied to a Request",
         f'"{_truncate(comment)}" for "{_truncate(row.description)}"',
+        {"admin": "raised"}
     )
     return True
 
@@ -156,5 +157,6 @@ def create_request(db: Session, user_id: str, main_type: str, sub_type: str, des
         UserRole.ADMIN,
         f"{user.name}({user.email}) Raised a Request",
         f'"{_truncate(request.description)}"',
+        {"admin": "raised"}
     )
     return {"message": "Request created successfully", "request_id": request.id}

@@ -1,10 +1,15 @@
 import 'dart:io';
+import 'package:cncc_portal/presentation/providers/admin_provider.dart';
+import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
+import 'package:cncc_portal/presentation/providers/staff_provider.dart';
+import 'package:cncc_portal/presentation/providers/store_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/firebase_options.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Global key used to display SnackBars from the notification service.
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
@@ -25,8 +30,7 @@ Future<void> firebaseMessagingBackgroundHandler(
 }
 
 class NotificationService {
-  static final NotificationService _instance =
-      NotificationService._internal();
+  static final NotificationService _instance = NotificationService._internal();
 
   factory NotificationService() => _instance;
 
@@ -34,6 +38,8 @@ class NotificationService {
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final NetworkClient _networkClient = NetworkClient();
+
+  ProviderContainer? _container;
 
   bool _initialized = false;
   bool _tokenRefreshListenerRegistered = false;
@@ -45,9 +51,10 @@ class NotificationService {
   /// - Listens for foreground messages.
   ///
   /// Call once in main() after Firebase.initializeApp().
-  Future<void> init() async {
+  Future<void> init(ProviderContainer container) async {
     if (kIsWeb) return;
     if (_initialized) return;
+    _container = container;
 
     // Register the background handler.
     FirebaseMessaging.onBackgroundMessage(
@@ -110,6 +117,39 @@ class NotificationService {
         behavior: SnackBarBehavior.floating,
       ),
     );
+
+    final data = message.data;
+
+    if (data.containsKey('my_requests')) {
+      final category = data['my_requests'];
+
+      if (category != null && category.isNotEmpty) {
+        _container?.invalidate(
+          myRequestsProvider(category),
+        );
+      }
+    } else if (data.containsKey('admin')) {
+      final category = data['admin'];
+      if (category != null && category.isNotEmpty) {
+        _container?.invalidate(
+          adminProvider(category),
+        );
+      }
+    } else if (data.containsKey('staff')) {
+      final category = data['staff'];
+      if (category != null && category.isNotEmpty) {
+        _container?.invalidate(
+          staffProvider(category),
+        );
+      }
+    } else if (data.containsKey('store')) {
+      final category = data['store'];
+      if (category != null && category.isNotEmpty) {
+        _container?.invalidate(
+          storeProvider(category),
+        );
+      }
+    }
   }
 
   /// Fetch the FCM token and sync it with the backend. Call after the user

@@ -37,6 +37,7 @@ def _build_notifications(
     devices: List[Tuple[str, DevicePlatform]],
     title: str,
     body: str,
+    data: dict[str, str] | None = None,
 ) -> List[messaging.Message]:
     messages = []
     notification = messaging.Notification(title=title, body=body)
@@ -46,6 +47,7 @@ def _build_notifications(
             msg = messaging.Message(
                 token=token,
                 notification=notification,
+                data=data or {},
                 android=messaging.AndroidConfig(
                     notification=messaging.AndroidNotification(
                         channel_id="cncc_high_importance",
@@ -56,6 +58,7 @@ def _build_notifications(
             msg = messaging.Message(
                 token=token,
                 notification=notification,
+                data=data or {},
                 apns=messaging.APNSConfig(
                     payload=messaging.APNSPayload(
                         aps=messaging.Aps(sound="default", badge=1),
@@ -63,7 +66,11 @@ def _build_notifications(
                 ),
             )
         else:
-            msg = messaging.Message(token=token, notification=notification)
+            msg = messaging.Message(
+                token=token,
+                notification=notification,
+                data=data or {}
+            )
 
         messages.append(msg)
 
@@ -206,8 +213,7 @@ def _send_notifications(
 # ---------------------------------------------------------------------------
 # Public API — each does its own JOIN to resolve devices
 # ---------------------------------------------------------------------------
-
-def send_to_uid(user_id: str, title: str, body: str) -> None:
+def send_to_uid(user_id: str, title: str, body: str, data: dict[str, str] | None = None) -> None:
     """Send to all devices of a single user."""
     try:
         db = SessionLocal()
@@ -219,7 +225,7 @@ def send_to_uid(user_id: str, title: str, body: str) -> None:
         if _DEBUG:
             logger.info("DEBUG — skipping send_to_uid(%s): '%s'", user_id, title)
             return
-        _send_notifications(db, _build_notifications(devices, title, body))
+        _send_notifications(db, _build_notifications(devices, title, body, data))
     except Exception:
         logger.exception(
             "Notification failed for user %s",
@@ -227,7 +233,7 @@ def send_to_uid(user_id: str, title: str, body: str) -> None:
         )
 
 
-def send_to_uids(user_ids: List[str], title: str, body: str) -> None:
+def send_to_uids(user_ids: List[str], title: str, body: str, data: dict[str, str] | None = None) -> None:
     """Send to all devices of a set of users."""
     try:
         db = SessionLocal()
@@ -241,7 +247,7 @@ def send_to_uids(user_ids: List[str], title: str, body: str) -> None:
         if _DEBUG:
             logger.info("DEBUG — skipping send_to_uids(%d users): '%s'", len(user_ids), title)
             return
-        _send_notifications(db, _build_notifications(devices, title, body))
+        _send_notifications(db, _build_notifications(devices, title, body, data))
     except Exception:
         logger.exception(
             "Notification failed for users %s",
@@ -249,27 +255,31 @@ def send_to_uids(user_ids: List[str], title: str, body: str) -> None:
         )
 
 
-def send_to_role(role: UserRole, title: str, body: str) -> None:
+def send_to_role(role: UserRole, title: str, body: str, data: dict[str, str] | None = None) -> None:
     """Send to all devices of every active user with the given role."""
     try:
         db = SessionLocal()
-        devices: List[Tuple[str, DevicePlatform]] = (
+        devices = (
             db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
             .join(UserTable, UserTable.id == UserFcmTable.user_id)
-            .filter(UserTable.role == role, UserTable.is_active == True)  # noqa: E712
+            .filter(
+                UserTable.role == role,
+                UserTable.is_active == True,
+            )
             .all()
         ) # pyright: ignore[reportAssignmentType]
         if _DEBUG:
             logger.info("DEBUG — skipping send_to_role(%s): '%s'", role.value, title)
             return
-        _send_notifications(db, _build_notifications(devices, title, body))
+        print("sending to role", devices)
+        _send_notifications(db, _build_notifications(devices, title, body, data))
     except Exception:
         logger.exception(
             "Notification failed for users with role %s",
             role.value,
         )
 
-def broadcast(title: str, body: str) -> None:
+def broadcast(title: str, body: str, data: dict[str, str] | None = None) -> None:
     """Send to all devices of every active user."""
     try:
         db = SessionLocal()
@@ -282,7 +292,7 @@ def broadcast(title: str, body: str) -> None:
         if _DEBUG:
             logger.info("DEBUG — skipping broadcast: '%s'", title)
             return
-        _send_notifications(db, _build_notifications(devices, title, body))
+        _send_notifications(db, _build_notifications(devices, title, body, data))
     except Exception:
         logger.exception(
             "Notification failed to broadcast to all users",
