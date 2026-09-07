@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cncc_portal/firebase_options.dart';
-import 'package:cncc_portal/core/services/notification_service.dart';
+import 'package:cncc_portal/services/notification_service.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/pages/shared/pages/login_page.dart';
 import 'package:cncc_portal/presentation/pages/shared/entry-gates/name_gate_page.dart';

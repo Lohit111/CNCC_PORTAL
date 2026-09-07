@@ -1,8 +1,15 @@
-.PHONY: up down rebuild frontend backend dev-frontend dev-backend
 include .env
 
 up:
 	docker compose up -d
+
+upsert-admin:
+	docker compose exec api \
+		uv run python upsert_admin.py
+
+db-login:
+	docker compose -f docker-compose.yml exec db \
+		psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
 
 down:
 	docker compose down
@@ -10,16 +17,6 @@ down:
 rebuild:
 	docker compose build
 	docker compose up -d
-
-frontend:
-	docker compose up -d cncc-portal
-
-backend:
-	docker compose up -d api
-
-db-login:
-	docker compose -f docker-compose.yml exec db \
-		psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
 
 dev-web:
 	cd app && flutter run -d web-server --web-port 3000 --web-hostname 0.0.0.0
@@ -31,3 +28,6 @@ dev-mobile:
 dev-backend:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
 	cd server && uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+dev-upsert-admin:
+	cd server && uv run python upsert_admin.py
