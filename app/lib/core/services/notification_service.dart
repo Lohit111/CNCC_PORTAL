@@ -12,8 +12,8 @@ import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
 import 'package:cncc_portal/presentation/providers/staff_provider.dart';
 import 'package:cncc_portal/presentation/providers/store_provider.dart';
 
-final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
-    GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<NavigatorState> navigatorKey =
+    GlobalKey<NavigatorState>();
 
 // ============================================================
 // Public notification service
@@ -40,6 +40,14 @@ class NotificationService {
     }
 
     return mobile.registerToken();
+  }
+
+  static Future<void> dispose() async {
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (_) {
+      // Non-fatal.
+    }
   }
 }
 
@@ -100,81 +108,17 @@ class MobileNotificationService {
     RemoteMessage message,
   ) {
     final notification = message.notification;
-
     if (notification == null) return;
 
     final title = notification.title ?? 'Notification';
-
     final body = notification.body ?? '';
 
-    scaffoldMessengerKey.currentState?.hideCurrentSnackBar();
-
-    scaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (body.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(body),
-            ],
-          ],
-        ),
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-      ),
+    FunctionalHelpers.showNotification(
+      title: title,
+      body: body,
     );
 
-    _invalidateProviders(message.data);
-  }
-
-  void _invalidateProviders(
-    Map<String, dynamic> data,
-  ) {
-    final container = _container;
-
-    if (container == null) return;
-
-    if (data.containsKey('my_requests')) {
-      final category = data['my_requests'];
-
-      if (category != null && category.isNotEmpty) {
-        container.invalidate(
-          myRequestsProvider(category),
-        );
-      }
-    } else if (data.containsKey('admin')) {
-      final category = data['admin'];
-
-      if (category != null && category.isNotEmpty) {
-        container.invalidate(
-          adminProvider(category),
-        );
-      }
-    } else if (data.containsKey('staff')) {
-      final category = data['staff'];
-
-      if (category != null && category.isNotEmpty) {
-        container.invalidate(
-          staffProvider(category),
-        );
-      }
-    } else if (data.containsKey('store')) {
-      final category = data['store'];
-
-      if (category != null && category.isNotEmpty) {
-        container.invalidate(
-          storeProvider(category),
-        );
-      }
-    }
+    FunctionalHelpers.invalidateProviders(_container, message.data);
   }
 
   Future<void> registerToken() async {
@@ -272,81 +216,17 @@ class WebNotificationService {
     RemoteMessage message,
   ) {
     final notification = message.notification;
-
     if (notification == null) return;
 
     final title = notification.title ?? 'Notification';
-
     final body = notification.body ?? '';
 
-    scaffoldMessengerKey.currentState?.hideCurrentSnackBar();
-
-    scaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (body.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(body),
-            ],
-          ],
-        ),
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-      ),
+    FunctionalHelpers.showNotification(
+      title: title,
+      body: body,
     );
 
-    _invalidateProviders(message.data);
-  }
-
-  void _invalidateProviders(
-    Map<String, dynamic> data,
-  ) {
-    final container = _container;
-
-    if (container == null) return;
-
-    if (data.containsKey('my_requests')) {
-      final category = data['my_requests'];
-
-      if (category != null && category.isNotEmpty) {
-        container.invalidate(
-          myRequestsProvider(category),
-        );
-      }
-    } else if (data.containsKey('admin')) {
-      final category = data['admin'];
-
-      if (category != null && category.isNotEmpty) {
-        container.invalidate(
-          adminProvider(category),
-        );
-      }
-    } else if (data.containsKey('staff')) {
-      final category = data['staff'];
-
-      if (category != null && category.isNotEmpty) {
-        container.invalidate(
-          staffProvider(category),
-        );
-      }
-    } else if (data.containsKey('store')) {
-      final category = data['store'];
-
-      if (category != null && category.isNotEmpty) {
-        container.invalidate(
-          storeProvider(category),
-        );
-      }
-    }
+    FunctionalHelpers.invalidateProviders(_container, message.data);
   }
 
   Future<void> registerToken() async {
@@ -397,6 +277,174 @@ class WebNotificationService {
       debugPrint(
         'Failed to register Web FCM token: $e',
       );
+    }
+  }
+}
+
+class FunctionalHelpers {
+  static OverlayEntry? _notificationEntry;
+
+  static void showNotification({
+    required String title,
+    required String body,
+  }) {
+    final overlay = navigatorKey.currentState?.overlay;
+    if (overlay == null) return;
+
+    _notificationEntry?.remove();
+
+    late OverlayEntry entry;
+
+    entry = OverlayEntry(
+      builder: (context) {
+        return Positioned(
+          top: MediaQuery.of(context).padding.top + 12,
+          left: 16,
+          right: 16,
+          child: SafeArea(
+            bottom: false,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 500,
+                ),
+                child: Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () {
+                      entry.remove();
+                      _notificationEntry = null;
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.notifications_rounded,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'New Notification',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  title,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                if (body.isNotEmpty) ...[
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    body,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              entry.remove();
+                              _notificationEntry = null;
+                            },
+                            icon: const Icon(Icons.close_rounded),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    _notificationEntry = entry;
+    overlay.insert(entry);
+
+    Future.delayed(const Duration(seconds: 5), () {
+      if (entry.mounted) {
+        entry.remove();
+        if (_notificationEntry == entry) {
+          _notificationEntry = null;
+        }
+      }
+    });
+  }
+
+  static void invalidateProviders(
+    ProviderContainer? container,
+    Map<String, dynamic> data,
+  ) {
+    if (container == null) return;
+
+    if (data.containsKey('my_requests')) {
+      final category = data['my_requests'];
+
+      if (category != null && category.isNotEmpty) {
+        container.invalidate(
+          myRequestsProvider(category),
+        );
+      }
+    } else if (data.containsKey('admin')) {
+      final category = data['admin'];
+
+      if (category != null && category.isNotEmpty) {
+        container.invalidate(
+          adminProvider(category),
+        );
+      }
+    } else if (data.containsKey('staff')) {
+      final category = data['staff'];
+
+      if (category != null && category.isNotEmpty) {
+        container.invalidate(
+          staffProvider(category),
+        );
+      }
+    } else if (data.containsKey('store')) {
+      final category = data['store'];
+
+      if (category != null && category.isNotEmpty) {
+        container.invalidate(
+          storeProvider(category),
+        );
+      }
     }
   }
 }

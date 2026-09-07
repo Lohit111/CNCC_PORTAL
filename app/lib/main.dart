@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.light,
       home: const HomeBuilder(),
       debugShowCheckedModeBanner: false,
-      scaffoldMessengerKey: scaffoldMessengerKey,
+      navigatorKey: navigatorKey,
     );
   }
 

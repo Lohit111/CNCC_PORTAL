@@ -56,7 +56,7 @@ def _get_requests_for_staff(db: Session, staff_id: str, statuses: list, page: in
             RequestTable.status.in_(statuses)
         )
         .distinct()
-        .order_by(RequestTable.created_at.desc())
+        .order_by(RequestTable.updated_at.desc())
     )
 
     total = query.count()
@@ -115,20 +115,16 @@ def get_archive(db: Session, staff_id: str, page: int) -> dict:
         if request and request.status in [RequestStatus.COMPLETED, RequestStatus.REJECTED]:
             confirmed_request_ids.add(assignment.request_id)
 
-    total = len(confirmed_request_ids)
-    all_ids = list(confirmed_request_ids)
-    skip = (page - 1) * PAGE_SIZE
-    page_ids = all_ids[skip: skip + PAGE_SIZE]
-    requests_page = [r for r in [Request.get(
-        db, {"id": rid}) for rid in page_ids] if r]
-
-    return {
-        "requests": [_build_request_detail(db, r) for r in requests_page],
-        "total": total,
-        "page": page,
-        "pages": -(-total // PAGE_SIZE)
-    }
-
+        skip = (page - 1) * PAGE_SIZE
+        requests_page = (
+            db.query(RequestTable)
+            .filter(RequestTable.id.in_(confirmed_request_ids))
+            .order_by(RequestTable.updated_at.desc())
+            .offset(skip)
+            .limit(PAGE_SIZE)
+            .all()
+        )
+        requests_page = [Request.from_orm(r) for r in requests_page]
 
 # --- PUT action endpoints ---
 

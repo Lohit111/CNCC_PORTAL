@@ -1,3 +1,4 @@
+import 'package:cncc_portal/core/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
@@ -241,7 +242,30 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () async {
-                await ref.read(authProvider.notifier).logout();
+                final shouldLogout = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Sign Out?'),
+                    content: const Text(
+                      'Are you sure you want to sign out of your account?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text('Sign Out'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (shouldLogout == true && mounted) {
+                  await NotificationService.dispose();
+                  await ref.read(authProvider.notifier).logout();
+                }
               },
               icon: const Icon(Icons.logout_rounded, size: 18),
               label: const Text('Sign Out'),

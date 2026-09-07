@@ -1,7 +1,7 @@
 """My Requests Controller"""
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from models.request import Request
+from models.request import Request, RequestTable
 from models.track import RequestTrack
 from models.assignment import Assignment
 from models.store_request import StoreRequest
@@ -50,14 +50,28 @@ def _paginate(db: Session, user_id: str, statuses: list, page: int) -> dict:
     """Fetch paginated requests by user and status list"""
     skip = (page - 1) * PAGE_SIZE
 
-    # Count and fetch matching requests
-    all_requests = Request.find(db, {"raised_by": user_id})
-    filtered = [r for r in all_requests if r.status in statuses]
-    total = len(filtered)
-    page_items = filtered[skip: skip + PAGE_SIZE]
+    query = (
+        db.query(RequestTable)
+        .filter(
+            RequestTable.raised_by == user_id,
+            RequestTable.status.in_(statuses),
+        )
+        .order_by(RequestTable.updated_at.desc())
+    )
+
+    total = query.count()
+
+    rows = (
+        query
+        .offset(skip)
+        .limit(PAGE_SIZE)
+        .all()
+    )
+
+    requests = [Request.from_orm(row) for row in rows]
 
     return {
-        "requests": [_build_request_detail(db, r) for r in page_items],
+        "requests": [_build_request_detail(db, r) for r in requests],
         "total": total,
         "page": page,
         "pages": -(-total // PAGE_SIZE)

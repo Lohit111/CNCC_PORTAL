@@ -64,7 +64,7 @@ def _build_store_detail(db: Session, sr: StoreRequest) -> dict:
 
 def _query_store(db: Session, filters, page: int) -> dict:
     """Run a filtered, paginated DB query and build store details"""
-    query = db.query(StoreRequestTable).filter(*filters)
+    query = db.query(StoreRequestTable).filter(*filters).order_by(StoreRequestTable.updated_at.desc())
     total = query.count()
     skip = (page - 1) * PAGE_SIZE
     rows = query.offset(skip).limit(PAGE_SIZE).all()

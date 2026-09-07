@@ -52,7 +52,7 @@ def _query_requests(db: Session, statuses: list, page: int) -> dict:
     """Filtered, paginated DB query for requests by status"""
     query = db.query(RequestTable).filter(
         RequestTable.status.in_(statuses)
-    ).order_by(RequestTable.created_at.desc())
+    ).order_by(RequestTable.updated_at.desc())
 
     total = query.count()
     skip = (page - 1) * PAGE_SIZE
