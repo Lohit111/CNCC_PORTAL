@@ -23,7 +23,7 @@ class RequestCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: cs.surface,
+        color: const Color(0xFFF4F4F6),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),

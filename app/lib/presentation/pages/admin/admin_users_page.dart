@@ -1,3 +1,4 @@
+import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
@@ -203,50 +204,10 @@ class _UserTile extends ConsumerWidget {
                     ],
                   ),
                 ),
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    Icons.more_vert_rounded,
-                    size: 20,
-                    color: cs.onSurface.withValues(alpha: 0.4),
-                  ),
-                  onSelected: (action) => _handleAction(context, ref, action),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'role',
-                      child: Row(
-                        children: [
-                          Icon(Icons.manage_accounts_rounded, size: 18),
-                          SizedBox(width: 8),
-                          Text('Change Role'),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: isInactive ? 'activate' : 'deactivate',
-                      child: Row(
-                        children: [
-                          Icon(
-                            isInactive
-                                ? Icons.person_add_alt_1_rounded
-                                : Icons.person_off_rounded,
-                            size: 18,
-                            color: isInactive
-                                ? const Color(0xFF94E2D5)
-                                : const Color(0xFFF38BA8),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            isInactive ? 'Activate' : 'Deactivate',
-                            style: TextStyle(
-                              color: isInactive
-                                  ? const Color(0xFF94E2D5)
-                                  : const Color(0xFFF38BA8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  onPressed: () => _showUserActions(context, ref),
+                  icon: const Icon(Icons.more_horiz_rounded),
+                  tooltip: 'User actions',
                 ),
               ],
             ),
@@ -256,62 +217,403 @@ class _UserTile extends ConsumerWidget {
     );
   }
 
-  void _handleAction(
+  void _showUserActions(
     BuildContext context,
     WidgetRef ref,
-    String action,
   ) {
-    if (action == 'role') {
-      _showRoleDialog(context, ref);
-    } else if (action == 'activate') {
-      _confirmActivate(context, ref);
-    } else if (action == 'deactivate') {
-      _confirmDeactivate(context, ref);
-    }
+    final cs = Theme.of(context).colorScheme;
+    final isInactive = !user.isActive;
+
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: cs.surface,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // User header
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor:
+                          _roleColor(user.role).withValues(alpha: 0.12),
+                      child: Text(
+                        (user.name ?? user.email)
+                            .characters
+                            .first
+                            .toUpperCase(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: _roleColor(user.role),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user.name ?? user.email,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (user.name != null)
+                            Text(
+                              user.email,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: cs.onSurface.withValues(alpha: 0.5),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Send notification
+                _UserActionTile(
+                  icon: Icons.notifications_rounded,
+                  title: 'Send Notification',
+                  subtitle: 'Send a notification to this user',
+                  color: cs.primary,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _showNotificationDialog(context, ref);
+                  },
+                ),
+
+                // Change role
+                _UserActionTile(
+                  icon: Icons.manage_accounts_rounded,
+                  title: 'Change Role',
+                  subtitle: 'Change this user\'s access role',
+                  color: _roleColor(user.role),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _showRoleDialog(context, ref);
+                  },
+                ),
+
+                // Activate / Deactivate
+                _UserActionTile(
+                  icon: isInactive
+                      ? Icons.person_add_alt_1_rounded
+                      : Icons.person_off_rounded,
+                  title: isInactive ? 'Activate User' : 'Deactivate User',
+                  subtitle: isInactive
+                      ? 'Allow this user to log in again'
+                      : 'Prevent this user from logging in',
+                  color: isInactive
+                      ? const Color(0xFF94E2D5)
+                      : const Color(0xFFF38BA8),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+
+                    if (isInactive) {
+                      _confirmActivate(context, ref);
+                    } else {
+                      _confirmDeactivate(context, ref);
+                    }
+                  },
+                ),
+
+                const SizedBox(height: 8),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showNotificationDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
+    final titleController = TextEditingController();
+    final bodyController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Send Notification'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 500,
+            maxHeight: 300,
+          ),
+          child: SingleChildScrollView(
+              child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'To: ${user.name ?? user.email}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: titleController,
+                maxLength: 100,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  hintText: 'Notification title',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: bodyController,
+                maxLength: 500,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Message',
+                  hintText: 'Notification message',
+                  alignLabelWithHint: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          )),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            icon: const Icon(Icons.send_rounded),
+            label: const Text('Send'),
+            onPressed: () async {
+              final title = titleController.text.trim();
+              final body = bodyController.text.trim();
+
+              if (title.isEmpty || body.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Title and message are required.'),
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(ctx);
+
+              final success =
+                  await ref.read(adminProvider('raised').notifier).sendToUser(
+                        user.id,
+                        title,
+                        body,
+                      );
+
+              if (!context.mounted) return;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    success
+                        ? 'Notification sent successfully.'
+                        : 'Failed to send notification.',
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void _showRoleDialog(BuildContext context, WidgetRef ref) {
     String selected = user.role;
-    final roles = ['USER', 'ADMIN', 'STAFF', 'STORE'];
+
+    final roles = [
+      (
+        value: 'USER',
+        label: 'User',
+        icon: Icons.person_outline_rounded,
+      ),
+      (
+        value: 'ADMIN',
+        label: 'Admin',
+        icon: Icons.admin_panel_settings_outlined,
+      ),
+      (
+        value: 'STAFF',
+        label: 'Staff',
+        icon: Icons.badge_outlined,
+      ),
+      (
+        value: 'STORE',
+        label: 'Store',
+        icon: Icons.storefront_outlined,
+      ),
+    ];
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: Text('Change Role — ${user.name ?? user.email}'),
-          content: DropdownButtonFormField<String>(
-            initialValue: selected,
-            decoration: const InputDecoration(labelText: 'Role'),
-            items: roles
-                .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                .toList(),
-            onChanged: (v) => setState(() => selected = v!),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                final result = await ref
-                    .read(usersProvider.notifier)
-                    .updateRole(user.id, selected);
-                if (!context.mounted) return;
-                if (result.success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('User Role changed successfully'),
-                    ),
-                  );
-                } else if (context.mounted) {
-                  _showConflictSnackBar(context, result);
-                }
-              },
-              child: const Text('Update'),
+        builder: (ctx, setState) {
+          final cs = Theme.of(context).colorScheme;
+
+          return AlertDialog(
+            title: Text(
+              'Change Role',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ],
-        ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    user.name ?? user.email,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: cs.onSurface.withValues(alpha: 0.55),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ...roles.map(
+                  (role) {
+                    final isSelected = selected == role.value;
+                    final roleColor = _roleColor(role.value);
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          setState(() => selected = role.value);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? roleColor.withValues(alpha: 0.10)
+                                : cs.onSurface.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? roleColor.withValues(alpha: 0.5)
+                                  : cs.onSurface.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: roleColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Icon(
+                                  role.icon,
+                                  size: 20,
+                                  color: roleColor,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  role.label,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 150),
+                                child: isSelected
+                                    ? Icon(
+                                        Icons.check_circle_rounded,
+                                        key: const ValueKey('selected'),
+                                        size: 21,
+                                        color: roleColor,
+                                      )
+                                    : Icon(
+                                        Icons.radio_button_unchecked_rounded,
+                                        key: const ValueKey('unselected'),
+                                        size: 21,
+                                        color: cs.onSurface
+                                            .withValues(alpha: 0.25),
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: selected == user.role
+                    ? null
+                    : () async {
+                        Navigator.pop(ctx);
+
+                        final result = await ref
+                            .read(usersProvider.notifier)
+                            .updateRole(user.id, selected);
+
+                        if (!context.mounted) return;
+
+                        if (result.success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'User Role changed successfully',
+                              ),
+                            ),
+                          );
+                        } else {
+                          _showConflictSnackBar(context, result);
+                        }
+                      },
+                child: const Text('Update Role'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -731,41 +1033,81 @@ class _StoreRequestItem extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Pagination row
-// ---------------------------------------------------------------------------
+class _UserActionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
 
-class _PaginationRow extends StatelessWidget {
-  final int page;
-  final int pages;
-  final VoidCallback onPrev;
-  final VoidCallback onNext;
-
-  const _PaginationRow({
-    required this.page,
-    required this.pages,
-    required this.onPrev,
-    required this.onNext,
+  const _UserActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            onPressed: page > 1 ? onPrev : null,
-            icon: const Icon(Icons.chevron_left_rounded),
+    final cs = Theme.of(context).colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 10,
           ),
-          Text('$page / $pages',
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-          IconButton(
-            onPressed: page < pages ? onNext : null,
-            icon: const Icon(Icons.chevron_right_rounded),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: cs.onSurface.withValues(alpha: 0.25),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -15,7 +15,6 @@ class _AdminNotificationsPageState
     extends ConsumerState<AdminNotificationsPage> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
-  final _userIdController = TextEditingController();
 
   _NotificationTarget _target = _NotificationTarget.broadcast;
   String _role = 'STAFF';
@@ -25,7 +24,6 @@ class _AdminNotificationsPageState
   void dispose() {
     _titleController.dispose();
     _bodyController.dispose();
-    _userIdController.dispose();
     super.dispose();
   }
 
@@ -35,12 +33,6 @@ class _AdminNotificationsPageState
 
     if (title.isEmpty || body.isEmpty) {
       _showMessage('Title and body are required.');
-      return;
-    }
-
-    if (_target == _NotificationTarget.user &&
-        _userIdController.text.trim().isEmpty) {
-      _showMessage('Enter a user ID.');
       return;
     }
 
@@ -62,14 +54,6 @@ class _AdminNotificationsPageState
           body,
         );
         break;
-
-      case _NotificationTarget.user:
-        success = await notifier.sendToUser(
-          _userIdController.text.trim(),
-          title,
-          body,
-        );
-        break;
     }
 
     if (!mounted) return;
@@ -81,7 +65,6 @@ class _AdminNotificationsPageState
 
       _titleController.clear();
       _bodyController.clear();
-      _userIdController.clear();
     } else {
       _showMessage('Failed to send notification.');
     }
@@ -100,13 +83,13 @@ class _AdminNotificationsPageState
     final cs = Theme.of(context).colorScheme;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 700),
           child: Card(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -126,7 +109,7 @@ class _AdminNotificationsPageState
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
                   // Target
                   Text(
@@ -162,68 +145,77 @@ class _AdminNotificationsPageState
                           setState(() => _target = _NotificationTarget.role);
                         },
                       ),
-                      // const SizedBox(height: 8),
-                      // _NotificationTargetTile(
-                      //   icon: Icons.person_rounded,
-                      //   title: 'User',
-                      //   subtitle: 'Send to a specific user',
-                      //   selected: _target == _NotificationTarget.user,
-                      //   enabled: !_isSending,
-                      //   onTap: () {
-                      //     setState(() => _target = _NotificationTarget.user);
-                      //   },
-                      // ),
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
                   // Role selector
                   if (_target == _NotificationTarget.role) ...[
-                    DropdownButtonFormField<String>(
-                      initialValue: _role,
-                      decoration: const InputDecoration(
-                        labelText: 'Role',
-                        border: OutlineInputBorder(),
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: cs.outlineVariant,
+                        ),
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'ADMIN',
-                          child: Text('Admin'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Select Role',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                _RoleChip(
+                                  label: 'Admin',
+                                  value: 'ADMIN',
+                                  icon: Icons.admin_panel_settings_rounded,
+                                  selected: _role == 'ADMIN',
+                                  enabled: !_isSending,
+                                  onTap: () => setState(() => _role = 'ADMIN'),
+                                ),
+                                _RoleChip(
+                                  label: 'Staff',
+                                  value: 'STAFF',
+                                  icon: Icons.badge_rounded,
+                                  selected: _role == 'STAFF',
+                                  enabled: !_isSending,
+                                  onTap: () => setState(() => _role = 'STAFF'),
+                                ),
+                                _RoleChip(
+                                  label: 'Store',
+                                  value: 'STORE',
+                                  icon: Icons.store_rounded,
+                                  selected: _role == 'STORE',
+                                  enabled: !_isSending,
+                                  onTap: () => setState(() => _role = 'STORE'),
+                                ),
+                                _RoleChip(
+                                  label: 'User',
+                                  value: 'USER',
+                                  icon: Icons.person_rounded,
+                                  selected: _role == 'USER',
+                                  enabled: !_isSending,
+                                  onTap: () => setState(() => _role = 'USER'),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        DropdownMenuItem(
-                          value: 'STAFF',
-                          child: Text('Staff'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'STORE',
-                          child: Text('Store'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'USER',
-                          child: Text('User'),
-                        ),
-                      ],
-                      onChanged: _isSending
-                          ? null
-                          : (value) {
-                              if (value != null) {
-                                setState(() => _role = value);
-                              }
-                            },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // User ID
-                  if (_target == _NotificationTarget.user) ...[
-                    TextField(
-                      controller: _userIdController,
-                      enabled: !_isSending,
-                      decoration: const InputDecoration(
-                        labelText: 'User ID',
-                        hintText: 'Enter the user ID',
-                        border: OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -288,7 +280,7 @@ class _AdminNotificationsPageState
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
                   SizedBox(
                     width: double.infinity,
@@ -316,6 +308,7 @@ class _AdminNotificationsPageState
       ),
     );
   }
+  
 
   String get _targetDescription {
     switch (_target) {
@@ -324,9 +317,6 @@ class _AdminNotificationsPageState
 
       case _NotificationTarget.role:
         return 'This notification will be sent to every active user with the selected role.';
-
-      case _NotificationTarget.user:
-        return 'This notification will be sent to every registered device belonging to this user.';
     }
   }
 }
@@ -407,8 +397,84 @@ class _NotificationTargetTile extends StatelessWidget {
   }
 }
 
+class _RoleChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _RoleChip({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 9,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? cs.primaryContainer
+              : cs.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? cs.primary
+                : cs.outlineVariant,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 19,
+              color: selected
+                  ? cs.primary
+                  : cs.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight:
+                    selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected
+                    ? cs.primary
+                    : cs.onSurface,
+              ),
+            ),
+            if (selected) ...[
+              const SizedBox(width: 8),
+              Icon(
+                Icons.check_rounded,
+                size: 18,
+                color: cs.primary,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 enum _NotificationTarget {
   broadcast,
   role,
-  user,
 }

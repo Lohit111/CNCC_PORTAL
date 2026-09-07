@@ -25,7 +25,7 @@ class RequestDialog extends ConsumerWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Scaffold(
-          backgroundColor: cs.surface,
+          backgroundColor: const Color(0xFFF4F4F6),
           appBar: AppBar(
             title: Text(
               '${req.mainType} · ${req.subType}',
@@ -57,7 +57,7 @@ class RequestDialog extends ConsumerWidget {
               if (isAdmin) ...[
                 IconButton(
                   icon: const Icon(Icons.cancel_outlined,
-                      color: Color(0xFFF9E2AF)),
+                      color: Color.fromARGB(255, 189, 172, 133)),
                   tooltip: 'Reject',
                   onPressed: () => _showRejectDialog(context, ref),
                 ),

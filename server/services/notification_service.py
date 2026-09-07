@@ -65,6 +65,12 @@ def _build_notifications(
                     ),
                 ),
             )
+        elif platform == DevicePlatform.WEB:
+            msg = messaging.Message(
+                token=token,
+                notification=notification,
+                data=data or {}
+            )
         else:
             msg = messaging.Message(
                 token=token,

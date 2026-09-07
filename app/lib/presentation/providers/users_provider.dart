@@ -113,9 +113,12 @@ class UsersNotifier extends StateNotifier<UsersState> {
     try {
       final res = await _client.get('/users/');
       state = UsersState(
-        users: (res.data as List) .map((e) => User.fromJson(e as Map<String, dynamic>)) .toList(),
+        users: (res.data as List)
+            .map((e) => User.fromJson(e as Map<String, dynamic>))
+            .toList(),
         isLoading: false,
       );
+      print(res);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -156,16 +159,16 @@ class UsersNotifier extends StateNotifier<UsersState> {
   }
 
   Future<UserActionResult> activateUser(String userId) async {
-  try {
-    await _client.put('/users/$userId/activate');
-    await fetch();
-    return const UserActionResult.ok();
-  } on DioException catch (e) {
-    return _handleError(e);
-  } catch (e) {
-    return UserActionResult.error(e.toString());
+    try {
+      await _client.put('/users/$userId/activate');
+      await fetch();
+      return const UserActionResult.ok();
+    } on DioException catch (e) {
+      return _handleError(e);
+    } catch (e) {
+      return UserActionResult.error(e.toString());
+    }
   }
-}
 
   UserActionResult _handleError(DioException e) {
     final data = e.response?.data;

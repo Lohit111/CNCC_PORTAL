@@ -55,7 +55,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = User.fromJson(response.data);
 
       state = AuthState(user: user, isLoading: false);
-      await NotificationService().registerToken();
+      await NotificationService.registerToken();
     } catch (error) {
       final appError = ErrorHandler.handle(error);
       state = AuthState(

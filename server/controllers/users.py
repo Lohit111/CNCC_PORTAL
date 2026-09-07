@@ -118,7 +118,7 @@ def _assert_no_participation(db: Session, user_id: str, action: str) -> None:
 
 def get_users(db: Session) -> dict:
     """Get all active users"""
-    users = User.find(db, {"is_active": True})
+    users = User.find(db, {})
     return users
 
 def create_user(db: Session, email: str, role: UserRole) -> User:

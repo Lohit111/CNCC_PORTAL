@@ -92,7 +92,7 @@ class _TimelineItem extends StatelessWidget {
         children: [
           // Timeline line + dot
           SizedBox(
-            width: 32,
+            width: 25,
             child: Column(
               children: [
                 Container(

@@ -43,4 +43,5 @@ class StoreRequestStatus(str, Enum):
 class DevicePlatform(str, Enum):
     ANDROID = "android"
     IOS = "ios"
+    WEB = "web"
     UNKNOWN = "unknown"

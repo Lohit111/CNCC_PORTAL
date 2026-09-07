@@ -15,7 +15,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   final container = ProviderContainer();
-  await NotificationService().init(container);
+  await NotificationService.init(container);
   runApp(UncontrolledProviderScope(
     container: container,
     child: const MyApp(),
@@ -38,116 +38,438 @@ class MyApp extends StatelessWidget {
   }
 
   ThemeData _buildLightTheme() {
-    const seed = Color(0xFF6C63FF); // indigo-violet accent
+    // Primary accent: professional indigo-blue.
+    const seed = Color(0xFF5B5FC7);
+
+    // Neutral surfaces.
+    const background = Color(0xFFE9EAEE);
+    const textPrimary = Color(0xFF202124);
+    const textSecondary = Color(0xFF6B6F78);
+
     final cs = ColorScheme.fromSeed(
       seedColor: seed,
       brightness: Brightness.light,
       surface: Colors.white,
-      onSurface: const Color(0xFF1C1B1F),
+      onSurface: textPrimary,
     );
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: cs,
-      scaffoldBackgroundColor: const Color(0xFFF4F4F8),
+
+      // ----------------------------------------------------------
+      // GENERAL
+      // ----------------------------------------------------------
+
+      scaffoldBackgroundColor: background,
+
+      fontFamily: 'Roboto',
+
+      visualDensity: VisualDensity.standard,
+
+      // ----------------------------------------------------------
+      // APP BAR
+      // ----------------------------------------------------------
+
+      appBarTheme: const AppBarTheme(
+        backgroundColor: background,
+        foregroundColor: textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          color: textPrimary,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.2,
+        ),
+      ),
+
+      // ----------------------------------------------------------
+      // CARDS
+      // ----------------------------------------------------------
+
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 0,
+        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.black.withValues(alpha: 0.06)),
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: Colors.black.withValues(alpha: 0.07),
+          ),
         ),
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFF4F4F8),
-        foregroundColor: Color(0xFF1C1B1F),
-        elevation: 0,
-        centerTitle: false,
-        titleTextStyle: TextStyle(
-          color: Color(0xFF1C1B1F),
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+
+      // ----------------------------------------------------------
+      // NAVIGATION BAR
+      // ----------------------------------------------------------
+
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white,
-        indicatorColor: seed.withValues(alpha: 0.18),
+        elevation: 0,
+        height: 68,
+        indicatorColor: seed.withValues(alpha: 0.14),
         labelTextStyle: WidgetStateProperty.all(
-          const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) {
+            if (states.contains(WidgetState.selected)) {
+              return const IconThemeData(
+                color: seed,
+                size: 23,
+              );
+            }
+
+            return const IconThemeData(
+              color: textSecondary,
+              size: 23,
+            );
+          },
         ),
       ),
+
+      // ----------------------------------------------------------
+      // FLOATING ACTION BUTTON
+      // ----------------------------------------------------------
+
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: seed,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
       ),
-      chipTheme: ChipThemeData(
-        backgroundColor: const Color(0xFFE8EAF0),
-        selectedColor: seed.withValues(alpha: 0.2),
-        labelStyle: const TextStyle(fontSize: 12),
-        side: BorderSide.none,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
+
+      // ----------------------------------------------------------
+      // INPUT FIELDS
+      // ----------------------------------------------------------
+
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFFEEEEF5),
+        fillColor: const Color(0xFFF2F3F6),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(11),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
+          borderRadius: BorderRadius.circular(11),
+          borderSide: BorderSide(
+            color: Colors.black.withValues(alpha: 0.08),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: seed, width: 1.5),
+          borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(
+            color: seed,
+            width: 1.5,
+          ),
         ),
-        labelStyle: const TextStyle(color: Color(0xFF6B6B80)),
-        hintStyle: const TextStyle(color: Color(0xFF9E9EAF)),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(
+            color: Color(0xFFD32F2F),
+            width: 1,
+          ),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(
+            color: Color(0xFFD32F2F),
+            width: 1.5,
+          ),
+        ),
+        labelStyle: const TextStyle(
+          color: textSecondary,
+          fontSize: 14,
+        ),
+        hintStyle: const TextStyle(
+          color: Color(0xFF9699A3),
+          fontSize: 14,
+        ),
+        prefixIconColor: textSecondary,
+        suffixIconColor: textSecondary,
       ),
+
+      // ----------------------------------------------------------
+      // ELEVATED BUTTON
+      // ----------------------------------------------------------
+
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: seed,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          minimumSize: const Size(0, 46),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 12,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(11),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
+
+      // ----------------------------------------------------------
+      // OUTLINED BUTTON
+      // ----------------------------------------------------------
+
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: textPrimary,
+          minimumSize: const Size(0, 46),
+          side: BorderSide(
+            color: Colors.black.withValues(alpha: 0.16),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(11),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 12,
+          ),
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+
+      // ----------------------------------------------------------
+      // TEXT BUTTON
+      // ----------------------------------------------------------
+
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: seed,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          minimumSize: const Size(0, 42),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(9),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF1C1B1F),
-          side: BorderSide(color: Colors.black.withValues(alpha: 0.15)),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+
+      // ----------------------------------------------------------
+      // CHIPS
+      // ----------------------------------------------------------
+
+      chipTheme: ChipThemeData(
+        backgroundColor: const Color(0xFFE1E2E7),
+        selectedColor: seed.withValues(alpha: 0.15),
+        disabledColor: const Color(0xFFE5E5E7),
+        labelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: textPrimary,
+        ),
+        secondaryLabelStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+        side: BorderSide.none,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 4,
+          vertical: 2,
         ),
       ),
+
+      // ----------------------------------------------------------
+      // DIVIDERS
+      // ----------------------------------------------------------
+
       dividerTheme: DividerThemeData(
         color: Colors.black.withValues(alpha: 0.08),
         thickness: 1,
+        space: 1,
       ),
+
+      // ----------------------------------------------------------
+      // DIALOGS
+      // ----------------------------------------------------------
+
       dialogTheme: DialogThemeData(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
         titleTextStyle: const TextStyle(
-          color: Color(0xFF1C1B1F),
-          fontSize: 18,
+          color: textPrimary,
+          fontSize: 19,
           fontWeight: FontWeight.w600,
         ),
+        contentTextStyle: const TextStyle(
+          color: textSecondary,
+          fontSize: 14,
+          height: 1.4,
+        ),
       ),
+
+      // ----------------------------------------------------------
+      // BOTTOM SHEETS
+      // ----------------------------------------------------------
+
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(20),
+          ),
+        ),
+      ),
+
+      // ----------------------------------------------------------
+      // DROPDOWNS / MENUS
+      // ----------------------------------------------------------
+
+      popupMenuTheme: PopupMenuThemeData(
+        color: Colors.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        textStyle: const TextStyle(
+          color: textPrimary,
+          fontSize: 14,
+        ),
+      ),
+
+      // ----------------------------------------------------------
+      // LIST TILES
+      // ----------------------------------------------------------
+
+      listTileTheme: const ListTileThemeData(
+        iconColor: textSecondary,
+        textColor: textPrimary,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 2,
+        ),
+        titleTextStyle: TextStyle(
+          color: textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        subtitleTextStyle: TextStyle(
+          color: textSecondary,
+          fontSize: 12,
+        ),
+      ),
+
+      // ----------------------------------------------------------
+      // PROGRESS INDICATORS
+      // ----------------------------------------------------------
+
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: seed,
+        linearTrackColor: Color(0xFFE0E1E6),
+        circularTrackColor: Color(0xFFE0E1E6),
+      ),
+
+      // ----------------------------------------------------------
+      // CHECKBOX
+      // ----------------------------------------------------------
+
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
+        side: BorderSide(
+          color: Colors.black.withValues(alpha: 0.3),
+        ),
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) {
+            if (states.contains(WidgetState.selected)) {
+              return seed;
+            }
+
+            return Colors.transparent;
+          },
+        ),
+      ),
+
+      // ----------------------------------------------------------
+      // SNACKBAR
+      // ----------------------------------------------------------
+
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: const Color.fromARGB(255, 95, 95, 95),
-        contentTextStyle: const TextStyle(color: Colors.white),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: const Color(0xFF323338),
+        elevation: 4,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(11),
+        ),
+        contentTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+        ),
+        actionTextColor: Colors.white,
+      ),
+
+      // ----------------------------------------------------------
+      // TOOLTIP
+      // ----------------------------------------------------------
+
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: const Color(0xFF323338),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        textStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+        ),
+      ),
+
+      // ----------------------------------------------------------
+      // ICONS
+      // ----------------------------------------------------------
+
+      iconTheme: const IconThemeData(
+        color: textSecondary,
+        size: 22,
+      ),
+
+      // ----------------------------------------------------------
+      // TABS
+      // ----------------------------------------------------------
+
+      tabBarTheme: const TabBarThemeData(
+        labelColor: seed,
+        unselectedLabelColor: textSecondary,
+        labelStyle: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        indicatorColor: seed,
+        indicatorSize: TabBarIndicatorSize.label,
       ),
     );
   }

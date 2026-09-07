@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
 import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
+import 'package:cncc_portal/presentation/pages/shared/widgets/searchable_selection_sheet.dart';
 
 /// Shared "New Request" dialog used by all role home pages.
 class RequestFormDialog extends ConsumerStatefulWidget {
@@ -51,24 +52,36 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                 mainTypesAsync.when(
                   loading: () => const CircularProgressIndicator(),
                   error: (e, _) => Text('Failed to load types: $e'),
-                  data: (mainTypes) => DropdownButtonFormField<int>(
-                    decoration: const InputDecoration(labelText: 'Main Type'),
-                    initialValue: _selectedMainId,
-                    items: mainTypes
-                        .map((t) =>
-                            DropdownMenuItem(value: t.id, child: Text(t.name)))
-                        .toList(),
-                    onChanged: (val) {
-                      final mt = mainTypes.firstWhere((t) => t.id == val);
+                  data: (mainTypes) => _SelectionField(
+                    label: 'Main Type',
+                    value: _selectedMainName,
+                    hint: 'Select a type',
+                    onTap: () async {
+                      final selected = await showSearchableSelectionSheet(
+                        context: context,
+                        title: 'Select Main Type',
+                        searchHint: 'Search types...',
+                        items: mainTypes,
+                        selectedItem: _selectedMainId == null
+                            ? null
+                            : mainTypes.firstWhere(
+                                (t) => t.id == _selectedMainId,
+                              ),
+                        labelBuilder: (type) => type.name,
+                      );
+
+                      if (selected == null || !mounted) return;
+
                       setState(() {
-                        _selectedMainId = val;
-                        _selectedMainName = mt.name;
+                        _selectedMainId = selected.id;
+                        _selectedMainName = selected.name;
                         _selectedSubId = null;
                         _selectedSubName = null;
                       });
                     },
-                    validator: (v) =>
-                        v == null ? 'Please select a main type' : null,
+                    validator: () => _selectedMainId == null
+                        ? 'Please select a main type'
+                        : null,
                   ),
                 ),
 
@@ -82,23 +95,34 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                     return subAsync.when(
                       loading: () => const CircularProgressIndicator(),
                       error: (e, _) => Text('Failed to load sub types: $e'),
-                      data: (subs) => DropdownButtonFormField<int>(
-                        decoration:
-                            const InputDecoration(labelText: 'Sub Type'),
-                        initialValue: _selectedSubId,
-                        items: subs
-                            .map((t) => DropdownMenuItem(
-                                value: t.id, child: Text(t.name)))
-                            .toList(),
-                        onChanged: (val) {
-                          final st = subs.firstWhere((t) => t.id == val);
+                      data: (subs) => _SelectionField(
+                        label: 'Sub Type',
+                        value: _selectedSubName,
+                        hint: 'Select a sub type',
+                        onTap: () async {
+                          final selected = await showSearchableSelectionSheet(
+                            context: context,
+                            title: 'Select Sub Type',
+                            searchHint: 'Search sub types...',
+                            items: subs,
+                            selectedItem: _selectedSubId == null
+                                ? null
+                                : subs.firstWhere(
+                                    (t) => t.id == _selectedSubId,
+                                  ),
+                            labelBuilder: (type) => type.name,
+                          );
+
+                          if (selected == null || !mounted) return;
+
                           setState(() {
-                            _selectedSubId = val;
-                            _selectedSubName = st.name;
+                            _selectedSubId = selected.id;
+                            _selectedSubName = selected.name;
                           });
                         },
-                        validator: (v) =>
-                            v == null ? 'Please select a sub type' : null,
+                        validator: () => _selectedSubId == null
+                            ? 'Please select a sub type'
+                            : null,
                       ),
                     );
                   }),
@@ -109,21 +133,33 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                 roomsAsync.when(
                   loading: () => const CircularProgressIndicator(),
                   error: (e, _) => Text('Failed to load rooms: $e'),
-                  data: (rooms) => DropdownButtonFormField<int>(
-                    decoration: const InputDecoration(labelText: 'Room'),
-                    initialValue: _selectedRoomId,
-                    items: rooms
-                        .map((r) => DropdownMenuItem(
-                            value: r.id, child: Text(r.roomNo)))
-                        .toList(),
-                    onChanged: (val) {
-                      final room = rooms.firstWhere((r) => r.id == val);
+                  data: (rooms) => _SelectionField(
+                    label: 'Room',
+                    value: _selectedRoomNo,
+                    hint: 'Select a room',
+                    onTap: () async {
+                      final selected = await showSearchableSelectionSheet(
+                        context: context,
+                        title: 'Select Room',
+                        searchHint: 'Search rooms...',
+                        items: rooms,
+                        selectedItem: _selectedRoomId == null
+                            ? null
+                            : rooms.firstWhere(
+                                (r) => r.id == _selectedRoomId,
+                              ),
+                        labelBuilder: (room) => room.roomNo,
+                      );
+
+                      if (selected == null || !mounted) return;
+
                       setState(() {
-                        _selectedRoomId = val;
-                        _selectedRoomNo = room.roomNo;
+                        _selectedRoomId = selected.id;
+                        _selectedRoomNo = selected.roomNo;
                       });
                     },
-                    validator: (v) => v == null ? 'Please select a room' : null,
+                    validator: () =>
+                        _selectedRoomId == null ? 'Please select a room' : null,
                   ),
                 ),
 
@@ -179,5 +215,50 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
       Navigator.pop(context);
       if (success) widget.onSuccess();
     }
+  }
+}
+
+class _SelectionField extends StatelessWidget {
+  final String label;
+  final String? value;
+  final String hint;
+  final VoidCallback onTap;
+  final String? Function()? validator;
+
+  const _SelectionField({
+    required this.label,
+    required this.value,
+    required this.hint,
+    required this.onTap,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FormField<String>(
+      validator: (_) => validator?.call(),
+      builder: (field) {
+        return InkWell(
+          onTap: () {
+            field.reset();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: label,
+              errorText: field.errorText,
+              suffixIcon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+              ),
+            ),
+            child: Text(
+              value ?? hint,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ),
+        );
+      },
+    );
   }
 }
