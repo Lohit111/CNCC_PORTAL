@@ -12,8 +12,7 @@ import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
 import 'package:cncc_portal/presentation/providers/staff_provider.dart';
 import 'package:cncc_portal/presentation/providers/store_provider.dart';
 
-final GlobalKey<NavigatorState> navigatorKey =
-    GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 // ============================================================
 // Public notification service

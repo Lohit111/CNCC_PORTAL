@@ -150,7 +150,7 @@ class _UserTile extends ConsumerWidget {
                       ),
                       if (user.name != null)
                         Text(
-                          user.email,
+                          '${user.email} • ${user.phone}',
                           style: TextStyle(
                             fontSize: 12,
                             color: cs.onSurface.withValues(alpha: 0.5),
@@ -478,9 +478,9 @@ class _UserTile extends ConsumerWidget {
           final cs = Theme.of(context).colorScheme;
 
           return AlertDialog(
-            title: Text(
+            title: const Text(
               'Change Role',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
               ),
             ),

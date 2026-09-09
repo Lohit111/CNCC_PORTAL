@@ -332,12 +332,6 @@ class _AdminDrawer extends StatelessWidget {
           (_AdminTab.myArchive, Icons.archive_rounded, 'Archive', 0),
         ]
       ),
-      (
-        title: 'ACCOUNT',
-        items: [
-          (_AdminTab.profile, Icons.account_circle_rounded, 'Profile', 0),
-        ]
-      ),
     ];
 
     return Drawer(
@@ -347,36 +341,62 @@ class _AdminDrawer extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: cs.primary.withValues(alpha: 0.15),
-                    child: Text(
-                      userName.isNotEmpty ? userName[0].toUpperCase() : '?',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700, color: cs.primary),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => onNavigate(_AdminTab.profile),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
                       children: [
-                        Text(userName,
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: cs.primary.withValues(alpha: 0.15),
+                          child: Text(
+                            userName.isNotEmpty
+                                ? userName[0].toUpperCase()
+                                : '?',
                             style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: cs.onSurface)),
-                        Text('Admin',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: cs.onSurface.withValues(alpha: 0.45))),
+                              fontWeight: FontWeight.w700,
+                              color: cs.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                userName,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: cs.onSurface,
+                                ),
+                              ),
+                              Text(
+                                'Admin',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: cs.onSurface.withValues(alpha: 0.45),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 20,
+                          color: cs.onSurface.withValues(alpha: 0.35),
+                        ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
             Divider(color: cs.onSurface.withValues(alpha: 0.08)),

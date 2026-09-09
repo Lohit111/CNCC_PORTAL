@@ -2,14 +2,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
 from models.user import User
 from models.enums import UserRole
 from middleware.auth import require_role, get_current_user
 from controllers.store_actions import (
     approve_store_request, reject_store_request,
     fulfil_store_request, send_chat_message,
-    get_pending, get_approved, get_archive
+    get_pending, get_approved, get_archive, get_store_chat
 )
 from config.database import get_db
 
@@ -59,6 +58,17 @@ async def list_archive(
 ):
     """All store requests with REJECTED or FULFILLED status (paginated, 30 per page)"""
     return get_archive(db, page=page)
+
+@router.get("/chat/{store_request_id}")
+async def list_chat(
+    store_request_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all chat messages for a store request"""
+    messages = get_store_chat(db, store_id=user.id,
+                              store_request_id=store_request_id)
+    return [m.model_dump() for m in messages]
 
 
 # --- PUT Action Endpoints ---

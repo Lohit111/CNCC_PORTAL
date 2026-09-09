@@ -308,7 +308,6 @@ class _AdminNotificationsPageState
       ),
     );
   }
-  
 
   String get _targetDescription {
     switch (_target) {
@@ -428,14 +427,10 @@ class _RoleChip extends StatelessWidget {
           vertical: 9,
         ),
         decoration: BoxDecoration(
-          color: selected
-              ? cs.primaryContainer
-              : cs.surface,
+          color: selected ? cs.primaryContainer : cs.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected
-                ? cs.primary
-                : cs.outlineVariant,
+            color: selected ? cs.primary : cs.outlineVariant,
           ),
         ),
         child: Row(
@@ -444,19 +439,14 @@ class _RoleChip extends StatelessWidget {
             Icon(
               icon,
               size: 19,
-              color: selected
-                  ? cs.primary
-                  : cs.onSurfaceVariant,
+              color: selected ? cs.primary : cs.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                fontWeight:
-                    selected ? FontWeight.w600 : FontWeight.w500,
-                color: selected
-                    ? cs.primary
-                    : cs.onSurface,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected ? cs.primary : cs.onSurface,
               ),
             ),
             if (selected) ...[

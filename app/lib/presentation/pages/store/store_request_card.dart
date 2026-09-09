@@ -88,14 +88,15 @@ class StoreRequestCard extends ConsumerWidget {
                     if (parent != null) ...[
                       const SizedBox(height: 8),
                       _InfoRow(
-                        label: 'Request',
+                        label: 'Store Request ID',
                         value:
-                            '${parent.request.mainType} · ${parent.request.subType}',
+                            sr.id.substring(0, 8).toUpperCase(),
                       ),
                       const SizedBox(height: 3),
                       _InfoRow(
-                        label: 'Room',
-                        value: parent.request.roomNo,
+                        label: 'Parent Request ID',
+                        value:
+                            parent.request.id.substring(0, 8).toUpperCase(),
                       ),
                       const SizedBox(height: 3),
                       _InfoRow(
@@ -104,6 +105,16 @@ class StoreRequestCard extends ConsumerWidget {
                           final u = parent.users[sr.requestedBy];
                           return u?.name ?? u?.email ?? sr.requestedBy;
                         }(),
+                      ),
+                      const SizedBox(height: 3),
+                      _InfoRow(
+                        label: 'Created',
+                        value: _fmtDateTime(sr.createdAt),
+                      ),
+                      const SizedBox(height: 3),
+                      _InfoRow(
+                        label: 'Updated',
+                        value: _fmtDateTime(sr.updatedAt),
                       ),
                     ],
                   ],
@@ -182,6 +193,12 @@ class StoreRequestCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _fmtDateTime(DateTime d) {
+    return '${d.day}/${d.month}/${d.year} '
+        '${d.hour.toString().padLeft(2, '0')}:'
+        '${d.minute.toString().padLeft(2, '0')}';
   }
 
   void _approve(BuildContext context, WidgetRef ref) {
@@ -310,7 +327,7 @@ class _InfoRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 88,
+          width: 120,
           child: Text('$label:',
               style: TextStyle(
                   fontSize: 11, color: cs.onSurface.withValues(alpha: 0.45))),

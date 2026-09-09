@@ -55,8 +55,7 @@ class AdminRoomsPage extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               if (ctrl.text.trim().isEmpty) return;
@@ -89,8 +88,8 @@ class _RoomTile extends ConsumerWidget {
             color: cs.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(Icons.door_front_door_rounded,
-              size: 18, color: cs.primary),
+          child:
+              Icon(Icons.door_front_door_rounded, size: 18, color: cs.primary),
         ),
         title: Text(
           room.roomNo,
@@ -128,8 +127,7 @@ class _RoomTile extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               if (ctrl.text.trim().isEmpty) return;
@@ -153,8 +151,7 @@ class _RoomTile extends ConsumerWidget {
         content: Text('Delete room "${room.roomNo}"?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF38BA8)),
@@ -162,8 +159,7 @@ class _RoomTile extends ConsumerWidget {
               Navigator.pop(ctx);
               await ref.read(roomsProvider.notifier).delete(room.id);
             },
-            child: const Text('Delete',
-                style: TextStyle(color: Colors.white)),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

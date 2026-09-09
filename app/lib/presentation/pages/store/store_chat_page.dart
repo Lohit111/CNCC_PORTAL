@@ -48,7 +48,7 @@ class _StoreChatPageState extends ConsumerState<StoreChatPage> {
     setState(() => _isLoading = true);
     try {
       final res =
-          await NetworkClient().get('/staff/chat/${widget.storeRequestId}');
+          await NetworkClient().get('/store/chat/${widget.storeRequestId}');
       final msgs = (res.data as List)
           .map((e) => StoreChat.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -68,7 +68,7 @@ class _StoreChatPageState extends ConsumerState<StoreChatPage> {
     if (!mounted) return;
     try {
       final res =
-          await NetworkClient().get('/staff/chat/${widget.storeRequestId}');
+          await NetworkClient().get('/store/chat/${widget.storeRequestId}');
       final msgs = (res.data as List)
           .map((e) => StoreChat.fromJson(e as Map<String, dynamic>))
           .toList();

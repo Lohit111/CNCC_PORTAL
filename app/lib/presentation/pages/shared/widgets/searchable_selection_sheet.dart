@@ -79,10 +79,7 @@ class _SearchableSelectionSheetState<T>
         _filteredItems = widget.items;
       } else {
         _filteredItems = widget.items.where((item) {
-          return widget
-              .labelBuilder(item)
-              .toLowerCase()
-              .contains(query);
+          return widget.labelBuilder(item).toLowerCase().contains(query);
         }).toList();
       }
     });
@@ -98,8 +95,7 @@ class _SearchableSelectionSheetState<T>
   }
 
   bool _isSelected(T item) {
-    return widget.selectedItem != null &&
-        widget.selectedItem == item;
+    return widget.selectedItem != null && widget.selectedItem == item;
   }
 
   @override
@@ -255,9 +251,7 @@ class _SelectionItem<T> extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Material(
-        color: selected
-            ? colorScheme.primaryContainer
-            : Colors.transparent,
+        color: selected ? colorScheme.primaryContainer : Colors.transparent,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
@@ -281,8 +275,7 @@ class _SelectionItem<T> extends StatelessWidget {
                   child: Text(
                     label,
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight:
-                          selected ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                       color: selected
                           ? colorScheme.onPrimaryContainer
                           : colorScheme.onSurface,
@@ -338,9 +331,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            searchQuery.isEmpty
-                ? 'No items available'
-                : 'No results found',
+            searchQuery.isEmpty ? 'No items available' : 'No results found',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),

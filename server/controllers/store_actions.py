@@ -224,3 +224,10 @@ def get_archive(db: Session, page: int) -> dict:
             StoreRequestTable.status == StoreRequestStatus.FULFILLED
         )
     ], page)
+
+def get_store_chat(db: Session, store_id: str, store_request_id: str) -> list:
+    """Get all chat messages for a store request"""
+    sr = StoreRequest.get(db, {"id": store_request_id})
+    if not sr:
+        raise HTTPException(status_code=404, detail="Store request not found")
+    return StoreChat.find(db, {"store_request_id": store_request_id})

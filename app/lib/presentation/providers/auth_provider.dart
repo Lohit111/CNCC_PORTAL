@@ -80,9 +80,6 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier();
 });
 
-
-
-
 class AppException implements Exception {
   final String message;
   AppException(this.message);

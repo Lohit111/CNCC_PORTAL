@@ -115,14 +115,16 @@ class AdminNotifier extends FamilyAsyncNotifier<AdminRequestsState, String> {
 
   Future<String?> deleteStoreRequest(String storeRequestId) async {
     try {
-      final response = await _client.delete('/admin/store-request/$storeRequestId');
+      final response =
+          await _client.delete('/admin/store-request/$storeRequestId');
       await refresh();
       return response.data['message'] as String?;
     } catch (_) {
       return null;
     }
   }
-    Future<bool> sendBroadcast(
+
+  Future<bool> sendBroadcast(
     String title,
     String body, {
     Map<String, String>? data,

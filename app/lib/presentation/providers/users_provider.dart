@@ -118,9 +118,17 @@ class UsersNotifier extends StateNotifier<UsersState> {
             .toList(),
         isLoading: false,
       );
-      print(res);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<User?> getUser(String userId) async {
+    try {
+      final res = await _client.get('/users/$userId');
+      return User.fromJson(res.data as Map<String, dynamic>);
+    } catch (_) {
+      return null;
     }
   }
 

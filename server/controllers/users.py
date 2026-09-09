@@ -121,6 +121,13 @@ def get_users(db: Session) -> dict:
     users = User.find(db, {})
     return users
 
+def get_user(db: Session, user_id: str) -> User:
+    """Get a user by ID"""
+    user = User.get(db, {"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
 def create_user(db: Session, email: str, role: UserRole) -> User:
     """Create a new active user with given email and role"""
     existing = User.get(db, {"email": email})

@@ -28,7 +28,7 @@ class RequestDialog extends ConsumerWidget {
           backgroundColor: const Color(0xFFF4F4F6),
           appBar: AppBar(
             title: Text(
-              '${req.mainType} · ${req.subType}',
+              'Request ID: ${req.id.substring(0, 8).toUpperCase()}',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             leading: IconButton(
@@ -146,12 +146,26 @@ class RequestDialog extends ConsumerWidget {
                               const SizedBox(width: 8),
 
                               Expanded(
-                                child: Text(
-                                  name,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      name,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    if (staff?.email != null)
+                                      Text(
+                                        staff!.email,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: cs.onSurface
+                                              .withValues(alpha: 0.45),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
 
@@ -203,17 +217,33 @@ class RequestDialog extends ConsumerWidget {
                 ],
 
                 // Store requests (if any)
+                // Store requests (if any)
                 if (detail.storeRequests.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   _Section(
                     title: 'Store Requests',
                     child: Column(
                       children: detail.storeRequests.map((sr) {
+                        // Requested By
                         final requester = detail.users[sr.requestedBy];
                         final requesterPhone = requester?.phone;
                         final requesterName = requester?.name ??
                             requester?.email ??
                             sr.requestedBy;
+                        final requesterEmail =
+                            requester?.email ?? sr.requestedBy;
+
+                        // Responded By
+                        final responderId = sr.respondedBy;
+                        final responder = responderId != null
+                            ? detail.users[responderId]
+                            : null;
+                        final responderPhone = responder?.phone;
+                        final responderName =
+                            responder?.name ?? responder?.email ?? responderId;
+                        final responderEmail =
+                            responder?.email ?? sr.respondedBy;
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: Container(
@@ -225,35 +255,61 @@ class RequestDialog extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Store description
+                                Text(
+                                  sr.description,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+
+                                const SizedBox(height: 12),
+
+                                // Status
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _srStatusColor(sr.status)
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: Text(
+                                    sr.statusDisplayText,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: _srStatusColor(sr.status),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 12),
+                                // Requested By
+                                Text(
+                                  'Requested By:',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: cs.onSurface.withValues(alpha: 0.5),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+
                                 Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            sr.description,
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'By $requesterName',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: cs.onSurface
-                                                  .withValues(alpha: 0.45),
-                                            ),
-                                          ),
-                                        ],
+                                      child: Text(
+                                        '$requesterName · $requesterEmail',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
                                     ),
-
-                                    // Call requester
                                     if (requesterPhone != null)
                                       IconButton(
                                         icon: Icon(
@@ -272,39 +328,55 @@ class RequestDialog extends ConsumerWidget {
                                           }
                                         },
                                       ),
-
-                                    const SizedBox(width: 4),
-
-                                    // Status
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: _srStatusColor(sr.status)
-                                            .withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(5),
-                                      ),
-                                      child: Text(
-                                        sr.statusDisplayText,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: _srStatusColor(sr.status),
-                                        ),
-                                      ),
-                                    ),
                                   ],
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'By $requesterName',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: cs.onSurface.withValues(alpha: 0.45),
+
+                                // Responded By
+                                if (responderId != null) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Responded By:',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          cs.onSurface.withValues(alpha: 0.5),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '$responderName · $responderEmail',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                      if (responderPhone != null)
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.phone_forwarded_rounded,
+                                            size: 18,
+                                            color: cs.primary,
+                                          ),
+                                          tooltip:
+                                              'Call ${responderName ?? responderId}',
+                                          onPressed: () async {
+                                            final uri = Uri(
+                                              scheme: 'tel',
+                                              path: responderPhone,
+                                            );
+                                            if (await canLaunchUrl(uri)) {
+                                              await launchUrl(uri);
+                                            }
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                ],
                               ],
                             ),
                           ),

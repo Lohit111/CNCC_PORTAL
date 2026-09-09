@@ -6,7 +6,7 @@ from models.user import User
 from models.user_fcm import UserFcm
 from models.enums import UserRole, DevicePlatform
 from middleware.auth import get_current_user, require_role
-from controllers.users import get_users, create_user, update_user_role, update_user_profile, deactivate_user, activate_user
+from controllers.users import get_users, get_user, create_user, update_user_role, update_user_profile, deactivate_user, activate_user
 from config.database import get_db
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -59,6 +59,14 @@ async def list_users(
     """Get all active users"""
     return get_users(db)
 
+@router.get("/{user_id}")
+async def get_user_by_id(
+    user_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get a user by ID"""
+    return get_user(db, user_id)
 
 @router.post("/")
 async def create(
