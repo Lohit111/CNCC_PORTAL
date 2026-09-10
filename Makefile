@@ -26,7 +26,7 @@ dev-mobile:
 	cd app && flutter run
 
 dev-backend:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db minio
 	cd server && uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 dev-upsert-admin:

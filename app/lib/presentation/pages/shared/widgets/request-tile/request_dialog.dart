@@ -501,14 +501,14 @@ class RequestDialog extends ConsumerWidget {
                             'its timeline events, assignments, store requests, '
                             'and chat messages.');
                     if (!confirmed) return;
-                    final message = await ref
+                    final success = await ref
                         .read(adminProvider(_categoryForStatus(req.status))
                             .notifier)
                         .deleteRequest(req.id);
                     if (context.mounted) {
                       Navigator.pop(context); // close the RequestDialog
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(message ?? 'Null'),
+                        content: Text(success ? 'Request deleted successfully.' : 'Delete failed.'),
                       ));
                     }
                   },
@@ -541,7 +541,7 @@ class RequestDialog extends ConsumerWidget {
                               '"${sr.description}" and its chat messages will '
                                   'be permanently removed.');
                           if (!confirmed) return;
-                          final message = await ref
+                          final success = await ref
                               .read(
                                   adminProvider(_categoryForStatus(req.status))
                                       .notifier)
@@ -549,7 +549,7 @@ class RequestDialog extends ConsumerWidget {
                           if (context.mounted) {
                             Navigator.pop(context); // close RequestDialog
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text(message ?? 'Null'),
+                              content: Text(success ? 'Store request deleted successfully.' : 'Delete failed.'),
                             ));
                           }
                         },

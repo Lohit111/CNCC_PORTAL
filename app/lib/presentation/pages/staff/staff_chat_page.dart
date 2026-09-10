@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/staff_provider.dart';
 import 'package:cncc_portal/domain/entities/store_chat_entity.dart';
-import 'package:cncc_portal/core/network/network_client.dart';
 
 /// Chat page for staff to communicate about a store request.
 /// Uses the staff-specific POST /staff/chat/{id} endpoint.
@@ -49,15 +48,14 @@ class _StaffChatPageState extends ConsumerState<StaffChatPage> {
   Future<void> _loadMessages() async {
     setState(() => _isLoading = true);
     try {
-      final res =
-          await NetworkClient().get('/staff/chat/${widget.storeRequestId}');
-      final msgs = (res.data as List)
-          .map((e) => StoreChat.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final msgs =
+          await ref.read(storeChatProvider(widget.storeRequestId).future);
+
       setState(() {
         _messages = msgs;
         _isLoading = false;
       });
+
       _scrollToBottom();
     } catch (_) {
       setState(() => _isLoading = false);
@@ -69,11 +67,11 @@ class _StaffChatPageState extends ConsumerState<StaffChatPage> {
   Future<void> _pollMessages() async {
     if (!mounted) return;
     try {
-      final res =
-          await NetworkClient().get('/staff/chat/${widget.storeRequestId}');
-      final msgs = (res.data as List)
-          .map((e) => StoreChat.fromJson(e as Map<String, dynamic>))
-          .toList();
+    final msgs = await ref
+        .read(storeChatProvider(widget.storeRequestId).notifier)
+        .fetchMessages();
+
+    if (!mounted) return;
       if (!mounted) return;
       final hadNew = msgs.length > _messages.length;
       setState(() => _messages = msgs);

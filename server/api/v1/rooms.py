@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from models.user import User
 from models.enums import UserRole
-from middleware.auth import get_current_user, require_role
+from middleware.auth import require_role
 from controllers.rooms import get_rooms, create_room, update_room, delete_room
 from config.database import get_db
 

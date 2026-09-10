@@ -9,7 +9,7 @@ Public API (all accept db, title, body only):
 Each function resolves devices via a single JOIN query, then calls
 _build_notifications → _send_notifications.
 
-Set DEBUG=true in .env to skip FCM sends (logs instead).
+Set PREVENT_NOTIFICATIONS=true in .env to skip FCM sends (logs instead).
 """
 import os
 import logging
@@ -25,7 +25,7 @@ from config.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
-_DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+_PREVENT_NOTIFICATIONS = os.getenv("PREVENT_NOTIFICATIONS", "false").lower() == "true"
 _BATCH_SIZE = 500
 
 
@@ -228,8 +228,8 @@ def send_to_uid(user_id: str, title: str, body: str, data: dict[str, str] | None
             .filter(UserFcmTable.user_id == user_id)
             .all()
         ) # pyright: ignore[reportAssignmentType]
-        if _DEBUG:
-            logger.info("DEBUG — skipping send_to_uid(%s): '%s'", user_id, title)
+        if _PREVENT_NOTIFICATIONS:
+            logger.info("PREVENT_NOTIFICATIONS Enabled — skipping send_to_uid(%s): '%s'", user_id, title)
             return
         _send_notifications(db, _build_notifications(devices, title, body, data))
     except Exception:
@@ -250,8 +250,8 @@ def send_to_uids(user_ids: List[str], title: str, body: str, data: dict[str, str
             .filter(UserFcmTable.user_id.in_(user_ids))
             .all()
         ) # pyright: ignore[reportAssignmentType]
-        if _DEBUG:
-            logger.info("DEBUG — skipping send_to_uids(%d users): '%s'", len(user_ids), title)
+        if _PREVENT_NOTIFICATIONS:
+            logger.info("PREVENT_NOTIFICATIONS Enabled — skipping send_to_uids(%d users): '%s'", len(user_ids), title)
             return
         _send_notifications(db, _build_notifications(devices, title, body, data))
     except Exception:
@@ -274,8 +274,8 @@ def send_to_role(role: UserRole, title: str, body: str, data: dict[str, str] | N
             )
             .all()
         ) # pyright: ignore[reportAssignmentType]
-        if _DEBUG:
-            logger.info("DEBUG — skipping send_to_role(%s): '%s'", role.value, title)
+        if _PREVENT_NOTIFICATIONS:
+            logger.info("PREVENT_NOTIFICATIONS Enabled — skipping send_to_role(%s): '%s'", role.value, title)
             return
         print("sending to role", devices)
         _send_notifications(db, _build_notifications(devices, title, body, data))
@@ -295,8 +295,8 @@ def broadcast(title: str, body: str, data: dict[str, str] | None = None) -> None
             .filter(UserTable.is_active == True)  # noqa: E712
             .all()
         ) # pyright: ignore[reportAssignmentType]
-        if _DEBUG:
-            logger.info("DEBUG — skipping broadcast: '%s'", title)
+        if _PREVENT_NOTIFICATIONS:
+            logger.info("PREVENT_NOTIFICATIONS Enabled — skipping broadcast: '%s'", title)
             return
         _send_notifications(db, _build_notifications(devices, title, body, data))
     except Exception:

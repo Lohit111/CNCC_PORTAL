@@ -1,7 +1,7 @@
+import 'package:cncc_portal/presentation/providers/users_provider.dart';
 import 'package:cncc_portal/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 
@@ -30,22 +30,30 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isSaving = true);
-    try {
-      await NetworkClient().put('/users/me/profile', data: {
-        'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-      });
+
+    final success = await ref.read(usersProvider.notifier).updateMyProfile(
+          _nameController.text.trim(),
+          _phoneController.text.trim(),
+        );
+
+    if (success) {
       await ref.read(authProvider.notifier).refresh();
-      if (mounted) setState(() => _isEditing = false);
-    } catch (_) {
+
+      if (mounted) {
+        setState(() => _isEditing = false);
+      }
+    } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to update profile')),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
+    }
+
+    if (mounted) {
+      setState(() => _isSaving = false);
     }
   }
 

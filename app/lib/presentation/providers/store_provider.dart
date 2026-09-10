@@ -1,3 +1,4 @@
+import 'package:cncc_portal/domain/entities/store_chat_entity.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/domain/entities/store_request_detail_entity.dart';
@@ -59,6 +60,14 @@ class StoreNotifier extends FamilyAsyncNotifier<StoreRequestsState, String> {
       pages: data['pages'] as int,
       isLoading: false,
     );
+  }
+
+  Future<List<StoreChat>> fetchMessages() async {
+    final res = await _client.get('/store/chat/$arg');
+
+    return (res.data as List)
+        .map((e) => StoreChat.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> refresh() async {

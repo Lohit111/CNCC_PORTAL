@@ -1,5 +1,5 @@
-import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
+import 'package:cncc_portal/presentation/providers/users_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,12 +33,22 @@ class NameGatePageState extends ConsumerState<NameGatePage> {
     });
 
     try {
-      final client = NetworkClient();
-      await client.put('/users/me/profile', data: {
-        'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-      });
-      await ref.read(authProvider.notifier).refresh();
+      final success = await ref.read(usersProvider.notifier).updateMyProfile(
+            _nameController.text.trim(),
+            _phoneController.text.trim(),
+          );
+
+      if (success) {
+        await ref.read(authProvider.notifier).refresh();
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to save details. Please try again.';
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
         _error = 'Failed to save details. Please try again.';

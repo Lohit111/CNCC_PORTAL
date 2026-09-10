@@ -178,6 +178,21 @@ class UsersNotifier extends StateNotifier<UsersState> {
     }
   }
 
+  Future<bool> updateMyProfile(String name, String phone) async {
+    try {
+      await _client.put(
+        '/users/me/profile',
+        data: {
+          'name': name,
+          'phone': phone,
+        },
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   UserActionResult _handleError(DioException e) {
     final data = e.response?.data;
     if (e.response?.statusCode == 409 && data is Map<String, dynamic>) {

@@ -154,6 +154,10 @@ class StoreChatNotifier extends FamilyAsyncNotifier<List<StoreChat>, String> {
         .toList();
   }
 
+  Future<List<StoreChat>> fetchMessages() async {
+    return _fetch(arg);
+  }
+
   Future<void> refresh() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() => _fetch(arg));

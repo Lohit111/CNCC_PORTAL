@@ -1,11 +1,10 @@
-import 'package:cncc_portal/presentation/providers/admin_provider.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/domain/entities/request_entity.dart';
 import 'package:cncc_portal/domain/entities/store_request_entity.dart';
 import 'package:cncc_portal/domain/entities/user_entity.dart';
+import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 import 'package:cncc_portal/presentation/providers/users_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AdminUsersPage extends ConsumerWidget {
   const AdminUsersPage({super.key});
@@ -733,18 +732,17 @@ class _UserTile extends ConsumerWidget {
 // Conflict bottom sheet
 // ---------------------------------------------------------------------------
 
-class _ConflictSheet extends StatefulWidget {
+class _ConflictSheet extends ConsumerStatefulWidget  {
   final String userName;
   final UserParticipation conflict;
 
   const _ConflictSheet({required this.userName, required this.conflict});
 
   @override
-  State<_ConflictSheet> createState() => _ConflictSheetState();
+  ConsumerState<_ConflictSheet> createState() => _ConflictSheetState();
 }
 
-class _ConflictSheetState extends State<_ConflictSheet> {
-  final _client = NetworkClient();
+class _ConflictSheetState extends ConsumerState<_ConflictSheet> {
 
   // local mutable copies so items disappear after action
   late List<Request> _raisedRequests;
@@ -877,48 +875,38 @@ class _ConflictSheetState extends State<_ConflictSheet> {
   }
 
   Future<void> _deleteRequest(Request r) async {
-    try {
-      await _client.delete('/admin/request/${r.id}');
-      setState(() {
-        _raisedRequests.remove(r);
-        _assignedRequests.remove(r);
-      });
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Delete failed.')));
-      }
+    final success =
+        await ref.read(adminProvider('raised').notifier).deleteRequest(r.id);
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Delete failed.')),
+      );
     }
   }
 
   Future<void> _rejectRequest(Request r) async {
-    try {
-      await _client.put('/admin/reject/${r.id}',
-          data: {'comment': 'Rejected by admin during user management.'});
-      setState(() {
-        _raisedRequests.remove(r);
-        _assignedRequests.remove(r);
-      });
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Reject failed.')));
-      }
+    final success = await ref.read(adminProvider('raised').notifier).reject(
+          r.id,
+          'Rejected by admin during user management.',
+        );
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reject failed.')),
+      );
     }
   }
 
   Future<void> _deleteStoreRequest(StoreRequest sr) async {
-    try {
-      await _client.delete('/admin/store-request/${sr.id}');
-      setState(() {
-        _requestedSRs.remove(sr);
-        _respondedSRs.remove(sr);
-      });
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Delete failed.')));
-      }
+    final success = await ref
+        .read(adminProvider('requested-store-requests').notifier)
+        .deleteStoreRequest(sr.id);
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Delete failed.')),
+      );
     }
   }
 }

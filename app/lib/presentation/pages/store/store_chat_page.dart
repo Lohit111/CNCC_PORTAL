@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/store_provider.dart';
 import 'package:cncc_portal/domain/entities/store_chat_entity.dart';
-import 'package:cncc_portal/core/network/network_client.dart';
 
 class StoreChatPage extends ConsumerStatefulWidget {
   final String storeRequestId;
@@ -47,11 +46,9 @@ class _StoreChatPageState extends ConsumerState<StoreChatPage> {
   Future<void> _loadMessages() async {
     setState(() => _isLoading = true);
     try {
-      final res =
-          await NetworkClient().get('/store/chat/${widget.storeRequestId}');
-      final msgs = (res.data as List)
-          .map((e) => StoreChat.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final msgs = await ref
+          .read(storeProvider(widget.storeRequestId).notifier)
+          .fetchMessages();
       setState(() {
         _messages = msgs;
         _isLoading = false;
@@ -67,11 +64,9 @@ class _StoreChatPageState extends ConsumerState<StoreChatPage> {
   Future<void> _pollMessages() async {
     if (!mounted) return;
     try {
-      final res =
-          await NetworkClient().get('/store/chat/${widget.storeRequestId}');
-      final msgs = (res.data as List)
-          .map((e) => StoreChat.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final msgs = await ref
+          .read(storeProvider(widget.storeRequestId).notifier)
+          .fetchMessages();
       if (!mounted) return;
       final hadNew = msgs.length > _messages.length;
       setState(() => _messages = msgs);
