@@ -4,6 +4,7 @@ from models.user import User, UserTable
 from models.user_fcm import UserFcm, UserFcmTable
 from models.room import Room, RoomTable
 from models.request import Request, RequestTable
+from models.request_file import RequestFile, RequestFileTable
 from models.request_type import MainType, MainTypeTable, SubType, SubTypeTable
 from models.track import RequestTrack, RequestTrackTable
 from models.assignment import Assignment, AssignmentTable
@@ -22,6 +23,8 @@ __all__ = [
     "MainTypeTable",
     "SubType",
     "SubTypeTable",
+    "RequestFile",
+    "RequestFileTable",
     "RequestTrack",
     "RequestTrackTable",
     "Room",

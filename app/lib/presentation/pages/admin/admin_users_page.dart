@@ -732,7 +732,7 @@ class _UserTile extends ConsumerWidget {
 // Conflict bottom sheet
 // ---------------------------------------------------------------------------
 
-class _ConflictSheet extends ConsumerStatefulWidget  {
+class _ConflictSheet extends ConsumerStatefulWidget {
   final String userName;
   final UserParticipation conflict;
 
@@ -743,7 +743,6 @@ class _ConflictSheet extends ConsumerStatefulWidget  {
 }
 
 class _ConflictSheetState extends ConsumerState<_ConflictSheet> {
-
   // local mutable copies so items disappear after action
   late List<Request> _raisedRequests;
   late List<Request> _assignedRequests;
@@ -875,12 +874,14 @@ class _ConflictSheetState extends ConsumerState<_ConflictSheet> {
   }
 
   Future<void> _deleteRequest(Request r) async {
-    final success =
+    final message =
         await ref.read(adminProvider('raised').notifier).deleteRequest(r.id);
 
-    if (!success && mounted) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Delete failed.')),
+        SnackBar(
+          content: Text(message ?? 'Delete failed.'),
+        ),
       );
     }
   }
@@ -899,13 +900,15 @@ class _ConflictSheetState extends ConsumerState<_ConflictSheet> {
   }
 
   Future<void> _deleteStoreRequest(StoreRequest sr) async {
-    final success = await ref
+    final message = await ref
         .read(adminProvider('requested-store-requests').notifier)
         .deleteStoreRequest(sr.id);
 
-    if (!success && mounted) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Delete failed.')),
+        SnackBar(
+          content: Text(message ?? 'Delete failed.'),
+        ),
       );
     }
   }

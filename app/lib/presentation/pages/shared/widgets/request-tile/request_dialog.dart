@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cncc_portal/core/utils/file_opener.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
+import 'package:cncc_portal/domain/entities/request_file_entity.dart';
 import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/timeline_widget.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
+import 'package:cncc_portal/presentation/providers/request_file_provider.dart';
 
 /// Full-detail dialog for a request.
 /// Shows request info, timeline, assignments, and store requests.
@@ -108,6 +112,16 @@ class RequestDialog extends ConsumerWidget {
                       const SizedBox(height: 14),
                       _CallCreatorRow(detail: detail),
                     ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                _Section(
+                  title: 'Attachments',
+                  child: _AttachmentsSection(
+                    requestId: req.id,
+                    raisedBy: req.raisedBy,
                   ),
                 ),
 
@@ -501,15 +515,19 @@ class RequestDialog extends ConsumerWidget {
                             'its timeline events, assignments, store requests, '
                             'and chat messages.');
                     if (!confirmed) return;
-                    final success = await ref
+                    final message = await ref
                         .read(adminProvider(_categoryForStatus(req.status))
                             .notifier)
                         .deleteRequest(req.id);
+
                     if (context.mounted) {
                       Navigator.pop(context); // close the RequestDialog
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(success ? 'Request deleted successfully.' : 'Delete failed.'),
-                      ));
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(message ?? 'Delete failed.'),
+                        ),
+                      );
                     }
                   },
                 ),
@@ -541,16 +559,21 @@ class RequestDialog extends ConsumerWidget {
                               '"${sr.description}" and its chat messages will '
                                   'be permanently removed.');
                           if (!confirmed) return;
-                          final success = await ref
+                          final message = await ref
                               .read(
                                   adminProvider(_categoryForStatus(req.status))
                                       .notifier)
                               .deleteStoreRequest(sr.id);
+
                           if (context.mounted) {
-                            Navigator.pop(context); // close RequestDialog
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text(success ? 'Store request deleted successfully.' : 'Delete failed.'),
-                            ));
+                            Navigator.pop(
+                                context); // close the StoreRequestDialog
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(message ?? 'Delete failed.'),
+                              ),
+                            );
                           }
                         },
                       )),
@@ -853,5 +876,226 @@ class _CallCreatorRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _AttachmentsSection extends ConsumerStatefulWidget {
+  final String requestId;
+  final String raisedBy;
+
+  const _AttachmentsSection({required this.requestId, required this.raisedBy});
+
+  @override
+  ConsumerState<_AttachmentsSection> createState() =>
+      _AttachmentsSectionState();
+}
+
+class _AttachmentsSectionState extends ConsumerState<_AttachmentsSection> {
+  bool _isUploading = false;
+
+  /// Tracks which file is currently being downloaded (by file id).
+  String? _downloadingFileId;
+
+  Future<void> _pickAndUpload() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    setState(() => _isUploading = true);
+    try {
+      await ref
+          .read(requestFileProvider(widget.requestId).notifier)
+          .upload(result.files);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Upload failed.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  /// Downloads the file bytes through the server proxy, then opens/downloads
+  /// the file using the platform-appropriate handler.
+  Future<void> _openFile(RequestFile file) async {
+    if (_downloadingFileId != null) return; // already downloading one
+
+    setState(() => _downloadingFileId = file.id);
+
+    try {
+      final result = await ref
+          .read(requestFileProvider(widget.requestId).notifier)
+          .downloadFile(file);
+
+      await openFileBytes(
+        bytes: result.bytes,
+        fileName: result.fileName,
+        contentType: result.contentType,
+      );
+    } catch (e, st) {
+      debugPrint('_openFile error: $e\n$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Download failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloadingFileId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final filesAsync = ref.watch(requestFileProvider(widget.requestId));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        filesAsync.when(
+          loading: () => const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+          error: (_, __) => Text(
+            'Failed to load attachments',
+            style: TextStyle(fontSize: 12, color: cs.error),
+          ),
+          data: (files) {
+            if (files.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'No attachments',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: cs.onSurface.withValues(alpha: 0.4),
+                  ),
+                ),
+              );
+            }
+
+            return Column(
+              children: files.map((file) {
+                final isDownloading = _downloadingFileId == file.id;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: isDownloading ? null : () => _openFile(file),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: cs.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              _fileIcon(file.contentType),
+                              size: 20,
+                              color: cs.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  file.fileName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  _formatFileSize(file.fileSize),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color:
+                                        cs.onSurface.withValues(alpha: 0.45),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isDownloading)
+                            const SizedBox(
+                              width: 17,
+                              height: 17,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else
+                            Icon(
+                              Icons.download_rounded,
+                              size: 17,
+                              color: cs.onSurface.withValues(alpha: 0.4),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
+
+        // Upload button — only visible to the user who raised the request
+        if (ref.watch(authProvider).user?.id == widget.raisedBy)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isUploading ? null : _pickAndUpload,
+              icon: _isUploading
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.attach_file_rounded, size: 16),
+              label: Text(_isUploading ? 'Uploading...' : 'Add Files'),
+            ),
+          ),
+      ],
+    );
+  }
+
+  IconData _fileIcon(String contentType) {
+    if (contentType.startsWith('image/')) return Icons.image_rounded;
+    if (contentType.startsWith('video/')) return Icons.video_file_rounded;
+    if (contentType.startsWith('audio/')) return Icons.audio_file_rounded;
+    if (contentType == 'application/pdf') return Icons.picture_as_pdf_rounded;
+    return Icons.insert_drive_file_rounded;
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }
