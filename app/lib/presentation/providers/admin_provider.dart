@@ -200,3 +200,35 @@ class AdminNotifier extends FamilyAsyncNotifier<AdminRequestsState, String> {
 final adminProvider =
     AsyncNotifierProviderFamily<AdminNotifier, AdminRequestsState, String>(
         AdminNotifier.new);
+
+// ---------------------------------------------------------------------------
+// Search provider
+// ---------------------------------------------------------------------------
+
+class AdminSearchNotifier
+    extends FamilyAsyncNotifier<List<RequestDetail>, String> {
+  final _client = NetworkClient();
+
+  @override
+  Future<List<RequestDetail>> build(String prefix) async {
+    if (prefix.trim().isEmpty) return [];
+    return _search(prefix.trim());
+  }
+
+  Future<List<RequestDetail>> _search(String prefix) async {
+    final res = await _client.get(
+      '/admin/search-prefix',
+      queryParameters: {'id': prefix},
+    );
+    final data = res.data as Map<String, dynamic>;
+    return (data['requests'] as List)
+        .map((e) => RequestDetail.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+}
+
+/// Usage: ref.watch(adminSearchProvider(prefix))
+/// Pass the current text-field value as the family argument.
+final adminSearchProvider =
+    AsyncNotifierProviderFamily<AdminSearchNotifier, List<RequestDetail>, String>(
+        AdminSearchNotifier.new);

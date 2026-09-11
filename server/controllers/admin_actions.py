@@ -73,6 +73,29 @@ def _truncate(text: str, max_length: int = 80) -> str:
 
 # --- GET endpoints ---
 
+def search_requests(db: Session, prefix: str) -> dict:
+    """Return full request details for all requests whose ID starts with prefix.
+
+    The search is case-insensitive and matches across all statuses.
+    No pagination — the result set is expected to be small.
+    """
+    if not prefix or not prefix.strip():
+        return {"requests": []}
+
+    rows = (
+        db.query(RequestTable)
+        .filter(RequestTable.id.ilike(f"{prefix.strip()}%"))
+        .order_by(RequestTable.updated_at.desc())
+        .all()
+    )
+
+    requests = [Request.from_orm(r) for r in rows]
+
+    return {
+        "requests": [_build_request_detail(db, r) for r in requests],
+    }
+
+
 def get_raised(db: Session, page: int) -> dict:
     return _query_requests(db, [RequestStatus.RAISED], page)
 

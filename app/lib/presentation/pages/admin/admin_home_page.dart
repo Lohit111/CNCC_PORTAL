@@ -5,6 +5,7 @@ import 'package:cncc_portal/presentation/pages/admin/admin_raised_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_reassign_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_replied_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_rooms_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_search_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_types_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_users_page.dart';
 import 'package:cncc_portal/presentation/pages/shared/pages/my_requests/my_requests_archive_page.dart';
@@ -30,6 +31,7 @@ enum _AdminTab {
   reassignRequested,
   inprogress,
   archive,
+  search,
   manageUsers,
   manageTypes,
   manageRooms,
@@ -86,6 +88,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         ref.invalidate(adminProvider('inprogress'));
       case _AdminTab.archive:
         ref.invalidate(adminProvider('archive'));
+      case _AdminTab.search:
+        break; // search is user-driven, nothing to pre-fetch
       case _AdminTab.myRaised:
         ref.invalidate(myRequestsProvider('raised'));
         ref.invalidate(mainTypesProvider);
@@ -137,6 +141,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return 'In Progress';
       case _AdminTab.archive:
         return 'Archive';
+      case _AdminTab.search:
+        return 'Search Requests';
       case _AdminTab.manageUsers:
         return 'Manage Users';
       case _AdminTab.manageTypes:
@@ -235,6 +241,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return const AdminInProgressPage();
       case _AdminTab.archive:
         return const AdminArchivePage();
+      case _AdminTab.search:
+        return const AdminSearchPage();
       case _AdminTab.manageUsers:
         return const AdminUsersPage();
       case _AdminTab.manageTypes:
@@ -302,6 +310,7 @@ class _AdminDrawer extends StatelessWidget {
           ),
           (_AdminTab.inprogress, Icons.pending_rounded, 'In Progress', 0),
           (_AdminTab.archive, Icons.task_alt_rounded, 'Archive', 0),
+          (_AdminTab.search, Icons.manage_search_rounded, 'Search', 0),
         ]
       ),
       (

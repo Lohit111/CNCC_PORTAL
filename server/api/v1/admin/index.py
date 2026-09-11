@@ -10,6 +10,7 @@ from middleware.auth import require_role, get_current_user
 from controllers.admin_actions import (
     get_raised, get_replied, get_assigned,
     get_reassign_requested, get_inprogress, get_archive,
+    search_requests,
     reply_to_request, assign_request, reject_request,
     delete_request, delete_store_request
 )
@@ -69,6 +70,12 @@ async def list_inprogress(page: int = 1, db: Session = Depends(get_db)):
 async def list_archive(page: int = 1, db: Session = Depends(get_db)):
     """All requests in COMPLETED or REJECTED status (paginated, 30 per page)"""
     return get_archive(db, page=page)
+
+
+@router.get("/search-prefix")
+async def search_by_prefix(id: str, db: Session = Depends(get_db)):
+    """Search requests by ID prefix across all statuses — returns full detail, no pagination"""
+    return search_requests(db, prefix=id)
 
 
 # --- PUT Action Endpoints ---
