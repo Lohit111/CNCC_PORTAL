@@ -1,6 +1,6 @@
 """Admin API Endpoints"""
 import os
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -10,6 +10,7 @@ from middleware.auth import require_role, get_current_user
 from controllers.admin_actions import (
     get_raised, get_replied, get_assigned,
     get_reassign_requested, get_inprogress, get_archive,
+    get_dashboard_stats,
     search_requests,
     reply_to_request, assign_request, reject_request,
     delete_request, delete_store_request
@@ -76,6 +77,33 @@ async def list_archive(page: int = 1, db: Session = Depends(get_db)):
 async def search_by_prefix(id: str, db: Session = Depends(get_db)):
     """Search requests by ID prefix across all statuses — returns full detail, no pagination"""
     return search_requests(db, prefix=id)
+
+
+@router.get("/dashboard")
+async def dashboard(
+    db: Session = Depends(get_db),
+    id_prefix: Optional[str] = None,
+    status: Optional[str] = None,
+    room_no: Optional[str] = None,
+    main_type: Optional[str] = None,
+    sub_type: Optional[str] = None,
+    raised_by: Optional[str] = None,
+):
+    """Ticket statistics dashboard.
+
+    Returns daily counts for the current month, monthly counts for the current
+    year, and yearly counts across all time — all filtered by the supplied
+    query parameters.
+    """
+    return get_dashboard_stats(
+        db,
+        id_prefix=id_prefix,
+        status=status,
+        room_no=room_no,
+        main_type=main_type,
+        sub_type=sub_type,
+        raised_by=raised_by,
+    )
 
 
 # --- PUT Action Endpoints ---

@@ -1,5 +1,6 @@
 import 'package:cncc_portal/presentation/pages/admin/admin_archive_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_assigned_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_dashboard_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_inprogress_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_raised_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_reassign_page.dart';
@@ -32,6 +33,7 @@ enum _AdminTab {
   inprogress,
   archive,
   search,
+  dashboard,
   manageUsers,
   manageTypes,
   manageRooms,
@@ -90,6 +92,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         ref.invalidate(adminProvider('archive'));
       case _AdminTab.search:
         break; // search is user-driven, nothing to pre-fetch
+      case _AdminTab.dashboard:
+        break; // dashboard fetches on filter apply, nothing to pre-invalidate
       case _AdminTab.myRaised:
         ref.invalidate(myRequestsProvider('raised'));
         ref.invalidate(mainTypesProvider);
@@ -143,6 +147,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return 'Archive';
       case _AdminTab.search:
         return 'Search Requests';
+      case _AdminTab.dashboard:
+        return 'Dashboard';
       case _AdminTab.manageUsers:
         return 'Manage Users';
       case _AdminTab.manageTypes:
@@ -243,6 +249,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return const AdminArchivePage();
       case _AdminTab.search:
         return const AdminSearchPage();
+      case _AdminTab.dashboard:
+        return const AdminDashboardPage();
       case _AdminTab.manageUsers:
         return const AdminUsersPage();
       case _AdminTab.manageTypes:
@@ -323,6 +331,12 @@ class _AdminDrawer extends StatelessWidget {
             _AdminTab.notifications,
             Icons.notifications_rounded,
             'Notifications',
+            0,
+          ),
+          (
+            _AdminTab.dashboard,
+            Icons.bar_chart_rounded,
+            'Dashboard',
             0,
           ),
         ]

@@ -12,6 +12,7 @@ class NetworkClient {
     const backendUrl = String.fromEnvironment(
       'BACKEND_URL',
       defaultValue: 'http://localhost:8000/api/v1',
+      // defaultValue: 'https://cncc-portal.onrender.com/api/v1',
       // defaultValue: 'http://103.248.208.109:8000/api/v1',
     );
 
