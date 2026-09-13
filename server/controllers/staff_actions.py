@@ -114,17 +114,29 @@ def get_archive(db: Session, staff_id: str, page: int) -> dict:
         request = Request.get(db, {"id": assignment.request_id})
         if request and request.status in [RequestStatus.COMPLETED, RequestStatus.REJECTED]:
             confirmed_request_ids.add(assignment.request_id)
+    
+    total = (
+        db.query(RequestTable)
+        .filter(RequestTable.id.in_(confirmed_request_ids))
+        .count()
+    )
 
-        skip = (page - 1) * PAGE_SIZE
-        requests_page = (
-            db.query(RequestTable)
-            .filter(RequestTable.id.in_(confirmed_request_ids))
-            .order_by(RequestTable.updated_at.desc())
-            .offset(skip)
-            .limit(PAGE_SIZE)
-            .all()
-        )
-        requests_page = [Request.from_orm(r) for r in requests_page]
+    skip = (page - 1) * PAGE_SIZE
+    requests_page = (
+        db.query(RequestTable)
+        .filter(RequestTable.id.in_(confirmed_request_ids))
+        .order_by(RequestTable.updated_at.desc())
+        .offset(skip)
+        .limit(PAGE_SIZE)
+        .all()
+    )
+    requests_page = [Request.from_orm(r) for r in requests_page]
+    return {
+        "requests": [_build_request_detail(db, r) for r in requests_page],
+        "total": total,
+        "page": page,
+        "pages": -(-total // PAGE_SIZE)
+    }
 
 # --- PUT action endpoints ---
 
