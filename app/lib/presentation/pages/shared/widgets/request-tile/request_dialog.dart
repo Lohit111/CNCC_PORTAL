@@ -93,6 +93,10 @@ class RequestDialog extends ConsumerWidget {
                       const SizedBox(height: 6),
                       _DetailRow(label: 'Room', value: req.roomNo),
                       const SizedBox(height: 6),
+                      if (req.department.isNotEmpty) ...[
+                        _DetailRow(label: 'Department', value: req.department),
+                        const SizedBox(height: 6),
+                      ],
                       _DetailRow(
                         label: 'Type',
                         value: '${req.mainType} › ${req.subType}',

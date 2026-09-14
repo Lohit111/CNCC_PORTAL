@@ -35,7 +35,7 @@ class AdminRequestActionCard extends ConsumerWidget {
                   child: _ActionButton(
                     label: 'Reply',
                     icon: Icons.reply_rounded,
-                    color: const Color(0xFFFAB387),
+                    color: const Color(0xFF2563EB),
                     onTap: () => _showReplyDialog(context, ref),
                   ),
                 ),
@@ -44,7 +44,7 @@ class AdminRequestActionCard extends ConsumerWidget {
                   child: _ActionButton(
                     label: 'Assign',
                     icon: Icons.assignment_ind_rounded,
-                    color: const Color(0xFFCBA6F7),
+                    color: const Color(0xFF7C3AED),
                     onTap: () => _showAssignDialog(context, ref),
                   ),
                 ),
@@ -54,7 +54,7 @@ class AdminRequestActionCard extends ConsumerWidget {
                   child: _ActionButton(
                     label: 'Re-Assign',
                     icon: Icons.assignment_ind_rounded,
-                    color: const Color(0xFFCBA6F7),
+                    color: const Color(0xFF7C3AED),
                     onTap: () => _showAssignDialog(context, ref),
                   ),
                 ),

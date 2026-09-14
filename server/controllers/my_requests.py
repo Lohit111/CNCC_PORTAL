@@ -147,7 +147,7 @@ def reply_to_request(db: Session, user_id: str, request_id: str, comment: str, d
     return True
 
 
-def create_request(db: Session, user_id: str, main_type: str, sub_type: str, description: str, room_no: str) -> dict:
+def create_request(db: Session, user_id: str, main_type: str, sub_type: str, description: str, room_no: str, department: str) -> dict:
     """Create a new request with RAISED status and an initial track entry"""
     request = Request.create(db, {
         "raised_by": user_id,
@@ -155,6 +155,7 @@ def create_request(db: Session, user_id: str, main_type: str, sub_type: str, des
         "sub_type": sub_type,
         "description": description,
         "room_no": room_no,
+        "department": department,
         "status": RequestStatus.RAISED
     })
 

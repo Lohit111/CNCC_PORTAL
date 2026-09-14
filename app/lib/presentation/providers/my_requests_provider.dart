@@ -83,6 +83,7 @@ class MyRequestsNotifier extends FamilyAsyncNotifier<RequestPageState, String> {
     required String subType,
     required String description,
     required String roomNo,
+    required String department,
   }) async {
     try {
       await _client.post('/my-requests/', data: {
@@ -90,6 +91,7 @@ class MyRequestsNotifier extends FamilyAsyncNotifier<RequestPageState, String> {
         'sub_type': subType,
         'description': description,
         'room_no': roomNo,
+        'department': department,
       });
       await refresh();
       return true;

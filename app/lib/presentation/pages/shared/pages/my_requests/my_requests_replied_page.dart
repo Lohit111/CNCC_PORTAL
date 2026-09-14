@@ -119,10 +119,10 @@ class _RepliedCardState extends ConsumerState<_RepliedCard> {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFFAB387).withValues(alpha: 0.08),
+              color: const Color(0xFF2563EB).withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                  color: const Color(0xFFFAB387).withValues(alpha: 0.3)),
+                  color: const Color(0xFF2563EB).withValues(alpha: 0.25)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,6 +182,12 @@ class _RepliedCardState extends ConsumerState<_RepliedCard> {
             child: SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF2563EB),
+                  side: const BorderSide(
+                    color: Color(0xFF2563EB),
+                  ),
+                ),
                 onPressed: () => setState(() => _showReply = true),
                 icon: const Icon(Icons.reply_rounded, size: 16),
                 label: const Text('Reply to Admin'),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
+import 'package:cncc_portal/presentation/providers/departments_provider.dart';
 import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:cncc_portal/presentation/pages/shared/widgets/searchable_selection_sheet.dart';
@@ -25,6 +26,8 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   String? _selectedSubName;
   int? _selectedRoomId;
   String? _selectedRoomNo;
+  int? _selectedDeptId;
+  String? _selectedDeptName;
   bool _isSubmitting = false;
 
   @override
@@ -37,6 +40,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   Widget build(BuildContext context) {
     final mainTypesAsync = ref.watch(mainTypesProvider);
     final roomsAsync = ref.watch(roomsProvider);
+    final deptsAsync = ref.watch(departmentsProvider);
 
     return AlertDialog(
       title: const Text('New Request'),
@@ -165,6 +169,43 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
 
                 const SizedBox(height: 12),
 
+                // Department
+                deptsAsync.when(
+                  loading: () => const CircularProgressIndicator(),
+                  error: (e, _) => Text('Failed to load departments: $e'),
+                  data: (depts) => _SelectionField(
+                    label: 'Department',
+                    value: _selectedDeptName,
+                    hint: 'Select a department',
+                    onTap: () async {
+                      final selected = await showSearchableSelectionSheet(
+                        context: context,
+                        title: 'Select Department',
+                        searchHint: 'Search departments...',
+                        items: depts,
+                        selectedItem: _selectedDeptId == null
+                            ? null
+                            : depts.firstWhere(
+                                (d) => d.id == _selectedDeptId,
+                              ),
+                        labelBuilder: (dept) => dept.department,
+                      );
+
+                      if (selected == null || !mounted) return;
+
+                      setState(() {
+                        _selectedDeptId = selected.id;
+                        _selectedDeptName = selected.department;
+                      });
+                    },
+                    validator: () => _selectedDeptId == null
+                        ? 'Please select a department'
+                        : null,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
                 TextFormField(
                   controller: _descController,
                   decoration: const InputDecoration(labelText: 'Description'),
@@ -202,6 +243,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedMainName == null || _selectedSubName == null) return;
     if (_selectedRoomNo == null) return;
+    if (_selectedDeptName == null) return;
 
     setState(() => _isSubmitting = true);
     final success =
@@ -210,6 +252,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
               subType: _selectedSubName!,
               description: _descController.text.trim(),
               roomNo: _selectedRoomNo!,
+              department: _selectedDeptName!,
             );
     if (mounted) {
       Navigator.pop(context);

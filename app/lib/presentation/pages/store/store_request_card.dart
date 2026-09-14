@@ -131,7 +131,7 @@ class StoreRequestCard extends ConsumerWidget {
                   child: _ActionBtn(
                     label: 'Approve',
                     icon: Icons.verified_rounded,
-                    color: const Color(0xFF94E2D5),
+                    color: const Color(0xFF16A34A),
                     onTap: () => _approve(context, ref),
                   ),
                 ),
@@ -140,7 +140,7 @@ class StoreRequestCard extends ConsumerWidget {
                   child: _ActionBtn(
                     label: 'Reject',
                     icon: Icons.cancel_rounded,
-                    color: const Color(0xFFF38BA8),
+                    color: const Color(0xFFDC2626),
                     onTap: () => _reject(context, ref),
                   ),
                 ),
@@ -150,7 +150,7 @@ class StoreRequestCard extends ConsumerWidget {
                   child: _ActionBtn(
                     label: 'Fulfil',
                     icon: Icons.inventory_rounded,
-                    color: const Color(0xFFA6E3A1),
+                    color: const Color(0xFF16A34A),
                     onTap: () => _fulfil(context, ref),
                   ),
                 ),
@@ -159,7 +159,7 @@ class StoreRequestCard extends ConsumerWidget {
                   child: _ActionBtn(
                     label: 'Chat',
                     icon: Icons.chat_rounded,
-                    color: const Color(0xFF89B4FA),
+                    color: const Color(0xFF2563EB),
                     onTap: () => _openChat(context),
                   ),
                 ),
@@ -169,7 +169,7 @@ class StoreRequestCard extends ConsumerWidget {
                   child: _ActionBtn(
                     label: 'View Parent',
                     icon: Icons.visibility_rounded,
-                    color: const Color(0xFF89B4FA),
+                    color: const Color(0xFF64748B),
                     onTap: parent != null
                         ? () => showDialog(
                               context: context,
@@ -241,7 +241,7 @@ class StoreRequestCard extends ConsumerWidget {
               onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF38BA8)),
+                backgroundColor: const Color(0xFFDC2626)),
             onPressed: () async {
               if (ctrl.text.trim().isEmpty) return;
               Navigator.pop(ctx);
@@ -297,11 +297,11 @@ class StoreRequestCard extends ConsumerWidget {
       case 'PENDING':
         return const Color(0xFFF9E2AF);
       case 'APPROVED':
-        return const Color(0xFF94E2D5);
+        return const Color(0xFF16A34A);
       case 'REJECTED':
-        return const Color(0xFFF38BA8);
+        return const Color(0xFFDC2626);
       case 'FULFILLED':
-        return const Color(0xFFA6E3A1);
+        return const Color(0xFF16A34A);
       default:
         return const Color(0xFF6C7086);
     }

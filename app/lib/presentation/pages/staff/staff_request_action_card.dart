@@ -37,7 +37,7 @@ class StaffRequestActionCard extends ConsumerWidget {
                   child: _ActionBtn(
                     label: 'Start',
                     icon: Icons.play_arrow_rounded,
-                    color: const Color(0xFFA6E3A1),
+                    color: const Color(0xFF16A34A),
                     onTap: () => _confirmStart(context, ref),
                   ),
                 ),
@@ -46,7 +46,7 @@ class StaffRequestActionCard extends ConsumerWidget {
                   child: _ActionBtn(
                     label: 'Reassign',
                     icon: Icons.swap_horiz_rounded,
-                    color: const Color(0xFFF9E2AF),
+                    color: const Color(0xFFD97706),
                     onTap: () => _showReassignDialog(context, ref),
                   ),
                 ),
@@ -57,7 +57,7 @@ class StaffRequestActionCard extends ConsumerWidget {
                   child: _ActionBtn(
                     label: 'Finish',
                     icon: Icons.check_circle_rounded,
-                    color: const Color(0xFFA6E3A1),
+                    color: const Color(0xFF16A34A),
                     onTap: () => _confirmFinish(context, ref),
                   ),
                 ),
@@ -66,7 +66,7 @@ class StaffRequestActionCard extends ConsumerWidget {
                   child: _ActionBtn(
                     label: 'Store Req',
                     icon: Icons.store_rounded,
-                    color: const Color(0xFF94E2D5),
+                    color: const Color(0xFF0891B2),
                     onTap: () => _showStoreRequestDialog(context, ref),
                   ),
                 ),
@@ -155,13 +155,13 @@ class StaffRequestActionCard extends ConsumerWidget {
   Color _srStatusColor(String status) {
     switch (status) {
       case 'PENDING':
-        return const Color(0xFFF9E2AF);
+        return const Color(0xFFD97706);
       case 'APPROVED':
-        return const Color(0xFF94E2D5);
+        return const Color(0xFF0891B2);
       case 'REJECTED':
         return const Color(0xFFF38BA8);
       case 'FULFILLED':
-        return const Color(0xFFA6E3A1);
+        return const Color(0xFF16A34A);
       default:
         return const Color(0xFF6C7086);
     }
