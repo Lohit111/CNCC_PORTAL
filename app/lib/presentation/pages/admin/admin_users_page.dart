@@ -53,50 +53,187 @@ class AdminUsersPage extends ConsumerWidget {
   void _showCreateDialog(BuildContext context, WidgetRef ref) {
     final emailCtrl = TextEditingController();
     String selectedRole = 'USER';
-    final roles = ['USER', 'ADMIN', 'STAFF', 'STORE'];
+
+    final roles = [
+      (
+        value: 'USER',
+        label: 'User',
+        icon: Icons.person_outline_rounded,
+      ),
+      (
+        value: 'ADMIN',
+        label: 'Admin',
+        icon: Icons.admin_panel_settings_outlined,
+      ),
+      (
+        value: 'STAFF',
+        label: 'Staff',
+        icon: Icons.badge_outlined,
+      ),
+      (
+        value: 'STORE',
+        label: 'Store',
+        icon: Icons.storefront_outlined,
+      ),
+    ];
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: const Text('Add User'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: emailCtrl,
-                decoration: const InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
+        builder: (ctx, setState) {
+          final cs = Theme.of(context).colorScheme;
+
+          return AlertDialog(
+            title: const Text(
+              'Add User',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: selectedRole,
-                decoration: const InputDecoration(labelText: 'Role'),
-                items: roles
-                    .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                    .toList(),
-                onChanged: (v) => setState(() => selectedRole = v!),
+            ),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 500,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: emailCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Role',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...roles.map(
+                    (role) {
+                      final isSelected = selectedRole == role.value;
+                      final roleColor = _roleColor(role.value);
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            setState(() => selectedRole = role.value);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? roleColor.withValues(alpha: 0.10)
+                                  : cs.onSurface.withValues(alpha: 0.04),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected
+                                    ? roleColor.withValues(alpha: 0.5)
+                                    : cs.onSurface.withValues(alpha: 0.08),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: roleColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(9),
+                                  ),
+                                  child: Icon(
+                                    role.icon,
+                                    size: 20,
+                                    color: roleColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    role.label,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 150),
+                                  child: isSelected
+                                      ? Icon(
+                                          Icons.check_circle_rounded,
+                                          key: const ValueKey('selected'),
+                                          size: 21,
+                                          color: roleColor,
+                                        )
+                                      : Icon(
+                                          Icons.radio_button_unchecked_rounded,
+                                          key: const ValueKey('unselected'),
+                                          size: 21,
+                                          color: cs.onSurface
+                                              .withValues(alpha: 0.25),
+                                        ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  if (emailCtrl.text.trim().isEmpty) return;
+
+                  Navigator.pop(ctx);
+
+                  await ref.read(usersProvider.notifier).createUser(
+                        emailCtrl.text.trim(),
+                        selectedRole,
+                      );
+                },
+                child: const Text('Create'),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                if (emailCtrl.text.trim().isEmpty) return;
-                Navigator.pop(ctx);
-                await ref
-                    .read(usersProvider.notifier)
-                    .createUser(emailCtrl.text.trim(), selectedRole);
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
+  }
+
+  Color _roleColor(String role) {
+    switch (role) {
+      case 'ADMIN':
+        return const Color(0xFFF38BA8);
+      case 'STAFF':
+        return const Color(0xFFCBA6F7);
+      case 'STORE':
+        return const Color(0xFF94E2D5);
+      default:
+        return const Color(0xFF89B4FA);
+    }
   }
 }
 
