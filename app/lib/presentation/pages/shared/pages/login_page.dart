@@ -25,6 +25,9 @@ class _LoginPageState extends State<LoginPage> {
     try {
       if (kIsWeb) {
         final googleProvider = fb.GoogleAuthProvider();
+        googleProvider.setCustomParameters({
+          'prompt': 'select_account',
+        });
         await _firebaseAuth.signInWithPopup(googleProvider);
       } else {
         await _googleSignIn.signOut();
