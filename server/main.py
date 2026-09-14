@@ -88,11 +88,10 @@ async def root():
     }
 
 
+started_at = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 @app.get("/health")
 async def health_check():
-    return {
-        "started_at": datetime.now(timezone(timedelta(hours=5, minutes=30))).isoformat(),
-    }
+    return {"started_at": started_at.isoformat()}
 
 # Include API router
 app.include_router(api_router)
