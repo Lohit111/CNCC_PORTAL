@@ -9,7 +9,7 @@ from api.router import api_router
 import logging
 import os
 from dotenv import load_dotenv
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # Load environment variables
 load_dotenv()
@@ -91,7 +91,7 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(timezone(timedelta(hours=5, minutes=30))).isoformat(),
     }
 
 # Include API router
