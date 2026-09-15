@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:cncc_portal/domain/entities/type_entity.dart';
-import 'package:cncc_portal/presentation/providers/admin_provider.dart';
+import 'package:cncc_portal/presentation/providers/analytics_provider.dart';
 import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:cncc_portal/presentation/providers/users_provider.dart';

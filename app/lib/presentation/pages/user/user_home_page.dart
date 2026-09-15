@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
-import 'package:cncc_portal/presentation/pages/shared/pages/profile_page.dart';
-import 'package:cncc_portal/presentation/pages/shared/widgets/request-form/request_form_dialog.dart';
-import 'package:cncc_portal/presentation/pages/shared/pages/my_requests/my_requests_raised_page.dart';
-import 'package:cncc_portal/presentation/pages/shared/pages/my_requests/my_requests_replied_page.dart';
-import 'package:cncc_portal/presentation/pages/shared/pages/my_requests/my_requests_inprogress_page.dart';
-import 'package:cncc_portal/presentation/pages/shared/pages/my_requests/my_requests_archive_page.dart';
+import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
+import 'package:cncc_portal/presentation/widgets/request_form_dialog.dart';
+import 'package:cncc_portal/presentation/pages/shared/my_requests/my_requests_raised_page.dart';
+import 'package:cncc_portal/presentation/pages/shared/my_requests/my_requests_replied_page.dart';
+import 'package:cncc_portal/presentation/pages/shared/my_requests/my_requests_inprogress_page.dart';
+import 'package:cncc_portal/presentation/pages/shared/my_requests/my_requests_archive_page.dart';
 
 enum _UserTab { raised, replied, inprogress, archive, profile }
 

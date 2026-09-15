@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
-import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/request_card.dart';
+import 'package:cncc_portal/presentation/widgets/request-tile/request_card.dart';
 
 class MyRequestsRaisedPage extends ConsumerWidget {
   const MyRequestsRaisedPage({super.key});

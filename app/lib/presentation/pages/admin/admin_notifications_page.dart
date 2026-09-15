@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:cncc_portal/presentation/providers/admin_provider.dart';
+import 'package:cncc_portal/presentation/providers/notification_provider.dart';
 
 class AdminNotificationsPage extends ConsumerStatefulWidget {
   const AdminNotificationsPage({super.key});
@@ -38,7 +38,7 @@ class _AdminNotificationsPageState
 
     setState(() => _isSending = true);
 
-    final notifier = ref.read(adminProvider('raised').notifier);
+    final notifier = ref.read(notificationProvider.notifier);
 
     bool success;
 

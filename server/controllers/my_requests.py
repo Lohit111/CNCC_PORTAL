@@ -3,53 +3,14 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from models.request import Request, RequestTable
 from models.track import RequestTrack
-from models.assignment import Assignment
-from models.store_request import StoreRequest
 from models.user import User
 from models.enums import RequestStatus, TrackEventType, UserRole
 from services.notification_service import send_to_role
-
-PAGE_SIZE = 30
-
-
-def _build_request_detail(db: Session, request: Request) -> dict:
-    """Build a full request detail document with timeline, assignments, store_requests, and users map"""
-    timeline = RequestTrack.find(db, {"request_id": request.id})
-    assignments = Assignment.find(db, {"request_id": request.id})
-    store_requests = StoreRequest.find(db, {"parent_request_id": request.id})
-
-    # Collect all unique user IDs referenced in this request's data
-    uid_set = set()
-    uid_set.add(request.raised_by)
-    for track in timeline:
-        uid_set.add(track.performed_by)
-    for assignment in assignments:
-        uid_set.add(assignment.staff_id)
-    for sr in store_requests:
-        uid_set.add(sr.requested_by)
-        if sr.responded_by:
-            uid_set.add(sr.responded_by)
-
-    # Build users map: uid -> user document
-    users_map = {}
-    for uid in uid_set:
-        user = User.get(db, {"id": uid})
-        if user:
-            users_map[uid] = user.model_dump()
-
-    return {
-        "request": request.model_dump(),
-        "timeline": [t.model_dump() for t in timeline],
-        "assignments": [a.model_dump() for a in assignments],
-        "store_requests": [sr.model_dump() for sr in store_requests],
-        "users": users_map
-    }
+from controllers.common.helpers import paginate_requests, truncate
 
 
-def _paginate(db: Session, user_id: str, statuses: list, page: int) -> dict:
-    """Fetch paginated requests by user and status list"""
-    skip = (page - 1) * PAGE_SIZE
-
+def _query_requests(db: Session, user_id: str, statuses: list, page: int) -> dict:
+    """Paginated query for requests belonging to a specific user."""
     query = (
         db.query(RequestTable)
         .filter(
@@ -58,97 +19,84 @@ def _paginate(db: Session, user_id: str, statuses: list, page: int) -> dict:
         )
         .order_by(RequestTable.updated_at.desc())
     )
-
-    total = query.count()
-
-    rows = (
-        query
-        .offset(skip)
-        .limit(PAGE_SIZE)
-        .all()
-    )
-
-    requests = [Request.from_orm(row) for row in rows]
-
-    return {
-        "requests": [_build_request_detail(db, r) for r in requests],
-        "total": total,
-        "page": page,
-        "pages": -(-total // PAGE_SIZE)
-    }
-
-def _truncate(text: str, max_length: int = 80) -> str:
-    return text if len(text) <= max_length else text[:max_length - 3] + "..."
+    return paginate_requests(db, query, page)
 
 
 def get_raised(db: Session, user_id: str, page: int) -> dict:
-    """Requests in RAISED status"""
-    return _paginate(db, user_id, [RequestStatus.RAISED], page)
+    """Requests in RAISED status."""
+    return _query_requests(db, user_id, [RequestStatus.RAISED], page)
 
 
 def get_replied(db: Session, user_id: str, page: int) -> dict:
-    """Requests in REPLIED status"""
-    return _paginate(db, user_id, [RequestStatus.REPLIED], page)
+    """Requests in REPLIED status."""
+    return _query_requests(db, user_id, [RequestStatus.REPLIED], page)
 
 
 def get_inprogress(db: Session, user_id: str, page: int) -> dict:
-    """Requests in ASSIGNED, IN_PROGRESS, or REASSIGN_REQUESTED status"""
-    return _paginate(db, user_id, [
+    """Requests in ASSIGNED, IN_PROGRESS, or REASSIGN_REQUESTED status."""
+    return _query_requests(db, user_id, [
         RequestStatus.ASSIGNED,
         RequestStatus.IN_PROGRESS,
-        RequestStatus.REASSIGN_REQUESTED
+        RequestStatus.REASSIGN_REQUESTED,
     ], page)
 
 
 def get_archive(db: Session, user_id: str, page: int) -> dict:
-    """Requests in COMPLETED or REJECTED status"""
-    return _paginate(db, user_id, [
+    """Requests in COMPLETED or REJECTED status."""
+    return _query_requests(db, user_id, [
         RequestStatus.COMPLETED,
-        RequestStatus.REJECTED
+        RequestStatus.REJECTED,
     ], page)
 
 
-def reply_to_request(db: Session, user_id: str, request_id: str, comment: str, description: str) -> bool:
-    """User replies to admin — updates description, sets status back to RAISED, adds track entry"""
-    # Lock the row — prevents the user from submitting two replies simultaneously
+def reply_to_request(
+    db: Session,
+    user_id: str,
+    request_id: str,
+    comment: str,
+    description: str,
+) -> bool:
+    """User replies to admin — updates description, resets status to RAISED."""
     row = Request.get_for_update(db, {"id": request_id, "raised_by": user_id})
     if not row:
         raise HTTPException(status_code=404, detail="Request not found")
 
     if row.status != RequestStatus.REPLIED:
-        raise HTTPException(
-            status_code=400,
-            detail="This request is not in REPLIED status"
-        )
+        raise HTTPException(status_code=400, detail="This request is not in REPLIED status")
 
     user = User.get(db, {"id": user_id})
 
-    # Update description and set status back to RAISED
     Request.update(db, {"id": request_id}, {
         "description": description,
-        "status": RequestStatus.RAISED
+        "status": RequestStatus.RAISED,
     })
-
-    # Add track entry for the user's reply
     RequestTrack.create(db, {
         "request_id": request_id,
         "event_type": TrackEventType.REPLIED,
         "performed_by": user_id,
         "performed_by_role": user.role,
-        "comment": comment
+        "comment": comment,
     })
     db.commit()
     send_to_role(
         UserRole.ADMIN,
         f"{user.name}({user.email}) Replied to a Request",
-        f'"{_truncate(comment)}" for "{_truncate(row.description)}"',
-        {"admin": "raised"}
+        f'"{truncate(comment)}" for "{truncate(row.description)}"',
+        {"admin": "raised"},
     )
     return True
 
 
-def create_request(db: Session, user_id: str, main_type: str, sub_type: str, description: str, room_no: str, department: str) -> dict:
-    """Create a new request with RAISED status and an initial track entry"""
+def create_request(
+    db: Session,
+    user_id: str,
+    main_type: str,
+    sub_type: str,
+    description: str,
+    room_no: str,
+    department: str,
+) -> dict:
+    """Create a new request with RAISED status and an initial track entry."""
     request = Request.create(db, {
         "raised_by": user_id,
         "main_type": main_type,
@@ -156,7 +104,7 @@ def create_request(db: Session, user_id: str, main_type: str, sub_type: str, des
         "description": description,
         "room_no": room_no,
         "department": department,
-        "status": RequestStatus.RAISED
+        "status": RequestStatus.RAISED,
     })
 
     user = User.get(db, {"id": user_id})
@@ -165,13 +113,13 @@ def create_request(db: Session, user_id: str, main_type: str, sub_type: str, des
         "event_type": TrackEventType.RAISED,
         "performed_by": user_id,
         "performed_by_role": user.role,
-        "comment": None
+        "comment": None,
     })
     db.commit()
     send_to_role(
         UserRole.ADMIN,
         f"{user.name}({user.email}) Raised a Request",
-        f'"{_truncate(request.description)}"',
-        {"admin": "raised"}
+        f'"{truncate(request.description)}"',
+        {"admin": "raised"},
     )
     return {"message": "Request created successfully", "request_id": request.id}

@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:cncc_portal/core/utils/file_opener.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 import 'package:cncc_portal/domain/entities/request_file_entity.dart';
-import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/timeline_widget.dart';
+import 'package:cncc_portal/presentation/widgets/request-tile/timeline_widget.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 import 'package:cncc_portal/presentation/providers/request_file_provider.dart';

@@ -42,9 +42,6 @@ class RequestDetail {
     );
   }
 
-  /// Convenience: get a user by ID from the embedded users map
-  User? getUser(String userId) => users[userId];
-
   /// Get the raiser's name or email as fallback
   String get raiserDisplay {
     final u = users[request.raisedBy];

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 import 'package:cncc_portal/presentation/providers/users_provider.dart';
-import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/request_card.dart';
+import 'package:cncc_portal/presentation/widgets/request-tile/request_card.dart';
 
 /// Admin request card with context-specific action buttons.
 /// [category] determines which actions are shown.

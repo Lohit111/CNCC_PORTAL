@@ -78,17 +78,6 @@ async def list_chat(
     return [m.model_dump() for m in messages]
 
 
-@router.post("/chat/{store_request_id}")
-async def post_chat(
-    store_request_id: str,
-    body: MessageBody,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Send a chat message on a store request (staff must own the store request)"""
-    send_staff_chat_message(db, staff=user,
-                            store_request_id=store_request_id, message=body.message)
-    return {"message": "Message sent"}
 
 
 # --- PUT Action Endpoints ---
@@ -128,7 +117,7 @@ async def finish(
     return {"message": "Request completed"}
 
 
-@router.put("/create-store-request/{request_id}")
+@router.post("/create-store-request/{request_id}")
 async def create_store(
     request_id: str,
     body: StoreRequestBody,
@@ -139,3 +128,15 @@ async def create_store(
     create_store_request(db, staff=user, request_id=request_id,
                          description=body.description)
     return {"message": "Store request created"}
+
+@router.post("/chat/{store_request_id}")
+async def post_chat(
+    store_request_id: str,
+    body: MessageBody,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Send a chat message on a store request (staff must own the store request)"""
+    send_staff_chat_message(db, staff=user,
+                            store_request_id=store_request_id, message=body.message)
+    return {"message": "Message sent"}

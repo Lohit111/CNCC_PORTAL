@@ -1,6 +1,6 @@
 """Main API Router"""
 from fastapi import APIRouter
-from api.v1 import users, types, rooms, departments, notifications, request_file
+from api.v1 import users, types, rooms, departments, notifications, request_file, analytics
 from api.v1.my_requests import index as my_requests
 from api.v1.admin import index as admin
 from api.v1.staff import index as staff
@@ -19,3 +19,4 @@ api_router.include_router(staff.router)
 api_router.include_router(store.router)
 api_router.include_router(types.router)
 api_router.include_router(request_file.router)
+api_router.include_router(analytics.router)

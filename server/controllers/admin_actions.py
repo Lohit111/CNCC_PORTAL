@@ -1,9 +1,6 @@
 """Admin Requests Controller"""
-from typing import List, Optional
-from datetime import datetime, date
-from calendar import monthrange
+from typing import List
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func, cast, String, Date
 from fastapi import HTTPException
 from models.request import Request, RequestTable
 from models.track import RequestTrack
@@ -13,314 +10,20 @@ from models.store_chat import StoreChat
 from models.user import User
 from models.enums import RequestStatus, TrackEventType, StoreRequestStatus
 from services.notification_service import send_to_uid, send_to_uids
-
-
-PAGE_SIZE = 30
-
-
-def _build_request_detail(db: Session, request: Request) -> dict:
-    """Build full request detail with timeline, assignments, store_requests, and users map"""
-    timeline = RequestTrack.find(db, {"request_id": request.id})
-    assignments = Assignment.find(db, {"request_id": request.id})
-    store_requests = StoreRequest.find(db, {"parent_request_id": request.id})
-
-    uid_set = set()
-    uid_set.add(request.raised_by)
-    for track in timeline:
-        uid_set.add(track.performed_by)
-    for assignment in assignments:
-        uid_set.add(assignment.staff_id)
-    for sr in store_requests:
-        uid_set.add(sr.requested_by)
-        if sr.responded_by:
-            uid_set.add(sr.responded_by)
-
-    users_map = {}
-    for uid in uid_set:
-        user = User.get(db, {"id": uid})
-        if user:
-            users_map[uid] = user.model_dump()
-
-    return {
-        "request": request.model_dump(),
-        "timeline": [t.model_dump() for t in timeline],
-        "assignments": [a.model_dump() for a in assignments],
-        "store_requests": [sr.model_dump() for sr in store_requests],
-        "users": users_map
-    }
-
-
-def _query_requests(db: Session, statuses: list, page: int) -> dict:
-    """Filtered, paginated DB query for requests by status"""
-    query = db.query(RequestTable).filter(
-        RequestTable.status.in_(statuses)
-    ).order_by(RequestTable.updated_at.desc())
-
-    total = query.count()
-    skip = (page - 1) * PAGE_SIZE
-    rows = query.offset(skip).limit(PAGE_SIZE).all()
-    requests = [Request.from_orm(r) for r in rows]
-
-    return {
-        "requests": [_build_request_detail(db, r) for r in requests],
-        "total": total,
-        "page": page,
-        "pages": -(-total // PAGE_SIZE)
-    }
-
-
-def _truncate(text: str, max_length: int = 80) -> str:
-    return text if len(text) <= max_length else text[:max_length - 3] + "..."
+from controllers.common.helpers import paginate_requests, truncate
 
 
 # --- GET endpoints ---
 
-def search_requests(db: Session, prefix: str) -> dict:
-    """Return full request details for all requests whose ID starts with prefix.
-
-    The search is case-insensitive and matches across all statuses.
-    No pagination — the result set is expected to be small.
-    """
-    if not prefix or not prefix.strip():
-        return {"requests": []}
-
-    rows = (
+def _query_requests(db: Session, statuses: list, page: int) -> dict:
+    """Paginated query for requests by status list."""
+    query = (
         db.query(RequestTable)
-        .filter(RequestTable.id.ilike(f"{prefix.strip()}%"))
+        .filter(RequestTable.status.in_(statuses))
         .order_by(RequestTable.updated_at.desc())
-        .all()
     )
+    return paginate_requests(db, query, page)
 
-    requests = [Request.from_orm(r) for r in rows]
-
-    return {
-        "requests": [_build_request_detail(db, r) for r in requests],
-    }
-
-def get_dashboard_stats(
-    db: Session,
-    id_prefix: Optional[str] = None,
-    status: Optional[str] = None,
-    room_no: Optional[str] = None,
-    main_type: Optional[str] = None,
-    sub_type: Optional[str] = None,
-    raised_by: Optional[str] = None,
-) -> dict:
-    """Return daily/monthly/yearly request counts using DB-level aggregation.
-
-    All filters are optional and applied before aggregation.
-
-    Returns:
-        {
-            "daily": [
-                {"date": "YYYY-MM-DD", "count": n},
-                ...
-            ],
-            "monthly": [
-                {"month": "YYYY-MM", "count": n},
-                ...
-            ],
-            "yearly": [
-                {"year": "YYYY", "count": n},
-                ...
-            ],
-        }
-    """
-
-    now = datetime.utcnow()
-    current_year = now.year
-    current_month = now.month
-
-    # ---------------------------------------------------------
-    # Base query with optional filters
-    # ---------------------------------------------------------
-    def _base(db: Session):
-        q = db.query(RequestTable)
-
-        if id_prefix and id_prefix.strip():
-            # Match first 8 characters case-insensitively.
-            q = q.filter(
-                func.lower(func.substr(RequestTable.id, 1, 8))
-                == id_prefix.strip()[:8].lower()
-            )
-
-        if status:
-            q = q.filter(RequestTable.status == status)
-
-        if room_no:
-            q = q.filter(RequestTable.room_no == room_no)
-
-        if main_type:
-            q = q.filter(RequestTable.main_type == main_type)
-
-        if sub_type:
-            q = q.filter(RequestTable.sub_type == sub_type)
-
-        if raised_by:
-            q = q.filter(RequestTable.raised_by == raised_by)
-
-        return q
-
-    # ---------------------------------------------------------
-    # Calculate next month boundary
-    # ---------------------------------------------------------
-    if current_month == 12:
-        next_month = datetime(current_year + 1, 1, 1)
-    else:
-        next_month = datetime(
-            current_year,
-            current_month + 1,
-            1,
-        )
-
-    # ---------------------------------------------------------
-    # Daily: current month
-    # ---------------------------------------------------------
-    daily_q = (
-        _base(db)
-        .filter(
-            RequestTable.created_at >= datetime(
-                current_year,
-                current_month,
-                1,
-            ),
-            RequestTable.created_at < next_month,
-        )
-        .with_entities(
-            cast(
-                RequestTable.created_at,
-                Date,
-            ).label("day"),
-            func.count(RequestTable.id).label("cnt"),
-        )
-        .group_by(
-            cast(
-                RequestTable.created_at,
-                Date,
-            )
-        )
-        .all()
-    )
-
-    # Convert PostgreSQL date objects to the same string format
-    # used by the response.
-    daily_map = {
-        row.day.strftime("%Y-%m-%d"): row.cnt
-        for row in daily_q
-    }
-
-    # Fill missing days with 0.
-    days_in_month = monthrange(
-        current_year,
-        current_month,
-    )[1]
-
-    daily = [
-        {
-            "date": f"{current_year}-{current_month:02d}-{day:02d}",
-            "count": daily_map.get(
-                f"{current_year}-{current_month:02d}-{day:02d}",
-                0,
-            ),
-        }
-        for day in range(1, days_in_month + 1)
-    ]
-
-    # ---------------------------------------------------------
-    # Monthly: current year
-    # ---------------------------------------------------------
-    monthly_q = (
-        _base(db)
-        .filter(
-            RequestTable.created_at >= datetime(
-                current_year,
-                1,
-                1,
-            ),
-            RequestTable.created_at < datetime(
-                current_year + 1,
-                1,
-                1,
-            ),
-        )
-        .with_entities(
-            func.date_trunc(
-                "month",
-                RequestTable.created_at,
-            ).label("month"),
-            func.count(RequestTable.id).label("cnt"),
-        )
-        .group_by(
-            func.date_trunc(
-                "month",
-                RequestTable.created_at,
-            )
-        )
-        .all()
-    )
-
-    # Convert PostgreSQL datetime values to YYYY-MM strings.
-    monthly_map = {
-        row.month.strftime("%Y-%m"): row.cnt
-        for row in monthly_q
-    }
-
-    # Fill missing months with 0.
-    monthly = [
-        {
-            "month": f"{current_year}-{month:02d}",
-            "count": monthly_map.get(
-                f"{current_year}-{month:02d}",
-                0,
-            ),
-        }
-        for month in range(1, 13)
-    ]
-
-    # ---------------------------------------------------------
-    # Yearly: all years present in DB
-    # ---------------------------------------------------------
-    yearly_q = (
-        _base(db)
-        .with_entities(
-            func.extract(
-                "year",
-                RequestTable.created_at,
-            ).label("year"),
-            func.count(RequestTable.id).label("cnt"),
-        )
-        .group_by(
-            func.extract(
-                "year",
-                RequestTable.created_at,
-            )
-        )
-        .order_by(
-            func.extract(
-                "year",
-                RequestTable.created_at,
-            ).desc()
-        )
-        .all()
-    )
-
-    # Convert PostgreSQL numeric year to String for Flutter.
-    yearly = [
-        {
-            "year": str(int(row.year)),
-            "count": row.cnt,
-        }
-        for row in yearly_q
-    ]
-
-    # ---------------------------------------------------------
-    # Final response
-    # ---------------------------------------------------------
-    return {
-        "daily": daily,
-        "monthly": monthly,
-        "yearly": yearly,
-    }
 
 def get_raised(db: Session, page: int) -> dict:
     return _query_requests(db, [RequestStatus.RAISED], page)
@@ -349,8 +52,7 @@ def get_archive(db: Session, page: int) -> dict:
 # --- PUT action endpoints ---
 
 def reply_to_request(db: Session, admin: User, request_id: str, comment: str) -> bool:
-    """Set request status to REPLIED and create a track entry"""
-    # Lock the row so concurrent requests cannot double-reply the same request
+    """Set request status to REPLIED and create a track entry."""
     row = Request.get_for_update(db, {"id": request_id})
     if not row:
         raise HTTPException(status_code=404, detail="Request not found")
@@ -373,46 +75,35 @@ def reply_to_request(db: Session, admin: User, request_id: str, comment: str) ->
     send_to_uid(
         row.raised_by,
         f"{admin.name}({admin.email}) Replied to Your Request",
-        f'"{_truncate(comment)}" for "{_truncate(row.description)}"',
-        {"my_requests":"replied"}
+        f'"{truncate(comment)}" for "{truncate(row.description)}"',
+        {"my_requests": "replied"}
     )
     return True
 
 
 def assign_request(db: Session, admin: User, request_id: str, staff_ids: List[str]) -> bool:
-    """
-    Assign a request to one or more staff members.
-    Creates one ASSIGNED track entry, one assignment per staff_id (all linked to that track),
-    and updates request status — all in a single transaction.
-    """
-    # Lock the row first — prevents two admins from double-assigning the same request
+    """Assign a request to one or more staff members."""
     row = Request.get_for_update(db, {"id": request_id})
     if not row:
         raise HTTPException(status_code=404, detail="Request not found")
 
     if not staff_ids:
-        raise HTTPException(
-            status_code=400, detail="At least one staff_id is required")
+        raise HTTPException(status_code=400, detail="At least one staff_id is required")
 
-    # Only allow assignment from statuses where it makes sense
     if row.status not in [RequestStatus.RAISED, RequestStatus.REASSIGN_REQUESTED]:
         raise HTTPException(
             status_code=400,
             detail=f"Cannot assign a request in '{row.status.value}' status — request must be RAISED, REPLIED, or REASSIGN_REQUESTED"
         )
 
-    # Validate all staff users exist and have STAFF role
     from models.enums import UserRole
     for staff_id in staff_ids:
         staff = User.get(db, {"id": staff_id})
         if not staff:
-            raise HTTPException(
-                status_code=404, detail=f"Staff user {staff_id} not found")
+            raise HTTPException(status_code=404, detail=f"Staff user {staff_id} not found")
         if staff.role != UserRole.STAFF:
-            raise HTTPException(
-                status_code=400, detail=f"User {staff_id} is not a STAFF member")
+            raise HTTPException(status_code=400, detail=f"User {staff_id} is not a STAFF member")
 
-    # Create track entry first so we have its ID for assignments
     track = RequestTrack.create(db, {
         "request_id": request_id,
         "event_type": TrackEventType.ASSIGNED,
@@ -421,7 +112,6 @@ def assign_request(db: Session, admin: User, request_id: str, staff_ids: List[st
         "comment": None
     })
 
-    # Create one assignment per staff member linked to this track
     for staff_id in staff_ids:
         Assignment.create(db, {
             "request_id": request_id,
@@ -429,27 +119,19 @@ def assign_request(db: Session, admin: User, request_id: str, staff_ids: List[st
             "track_id": track.id
         })
 
-    # Update request status
     Request.update(db, {"id": request_id}, {"status": RequestStatus.ASSIGNED})
     db.commit()
     send_to_uids(
         staff_ids,
         "You Were Assigned a Request",
-        f'"{_truncate(row.description)}" at {row.room_no}',
-        {"staff":"assigned"}
+        f'"{truncate(row.description)}" at {row.room_no}',
+        {"staff": "assigned"}
     )
     return True
 
 
 def reject_request(db: Session, admin: User, request_id: str, comment: str) -> bool:
-    """
-    Reject a request:
-    - Appends a forced-closure note to the admin's comment
-    - Deactivates all active assignments
-    - Rejects all PENDING/APPROVED store requests and adds a track for each
-    - Sets request status to REJECTED with a track entry
-    """
-    # Lock the row so concurrent requests cannot reject the same request twice
+    """Reject a request, closing all assignments and open store requests."""
     row = Request.get_for_update(db, {"id": request_id})
     if not row:
         raise HTTPException(status_code=404, detail="Request not found")
@@ -460,21 +142,14 @@ def reject_request(db: Session, admin: User, request_id: str, comment: str) -> b
             detail=f"Cannot reject a request that is already '{row.status.value}'"
         )
 
-    # Append forced-closure note
-    full_comment = comment + ("\n\nAn admin has closed this request forcefully." if row.status != RequestStatus.RAISED else "")
-
-    # Deactivate all active assignments
-    Assignment.update(
-        db,
-        {"request_id": request_id, "is_active": True},
-        {"is_active": False}
+    full_comment = comment + (
+        "\n\nAn admin has closed this request forcefully."
+        if row.status != RequestStatus.RAISED else ""
     )
 
-    # Reject all open store requests and add a track for each
-    open_store_requests = StoreRequest.find(
-        db,
-        {"parent_request_id": request_id}
-    )
+    Assignment.update(db, {"request_id": request_id, "is_active": True}, {"is_active": False})
+
+    open_store_requests = StoreRequest.find(db, {"parent_request_id": request_id})
     for sr in open_store_requests:
         if sr.status in [StoreRequestStatus.PENDING, StoreRequestStatus.APPROVED]:
             StoreRequest.update(
@@ -491,7 +166,6 @@ def reject_request(db: Session, admin: User, request_id: str, comment: str) -> b
                 "comment": "Rejected due to parent request being forcefully closed."
             })
 
-    # Reject the request itself
     Request.update(db, {"id": request_id}, {"status": RequestStatus.REJECTED})
     RequestTrack.create(db, {
         "request_id": request_id,
@@ -504,7 +178,7 @@ def reject_request(db: Session, admin: User, request_id: str, comment: str) -> b
     send_to_uid(
         row.raised_by,
         f"Your Request Was Closed by an Admin - {admin.name}({admin.email})",
-        f'Request: "{_truncate(row.description)}"\n\nReason: "{_truncate(full_comment)}"',
+        f'Request: "{truncate(row.description)}"\n\nReason: "{truncate(full_comment)}"',
     )
     return True
 
@@ -512,57 +186,32 @@ def reject_request(db: Session, admin: User, request_id: str, comment: str) -> b
 # --- DELETE endpoints ---
 
 def delete_request(db: Session, request_id: str) -> bool:
-    """
-    Delete a request and every related row explicitly:
-      store chats → store request tracks → store requests
-      → assignments → request tracks → request
-
-    Explicit ordering avoids FK constraint violations and is not reliant
-    on ORM cascade configuration being correct.
-    """
+    """Delete a request and every related row explicitly."""
     row = Request.get_raw(db, {"id": request_id})
     if not row:
         raise HTTPException(status_code=404, detail="Request not found")
 
     store_requests = StoreRequest.find(db, {"parent_request_id": request_id})
-
     for sr in store_requests:
-        # 1. Delete chats for this store request
         StoreChat.delete_all(db, {"store_request_id": sr.id})
-        # 2. Delete tracks that reference this store request
         RequestTrack.delete_all(db, {"store_request_id": sr.id})
 
-    # 3. Delete all store requests
     StoreRequest.delete_all(db, {"parent_request_id": request_id})
-
-    # 4. Delete all assignments (tracks reference assignments, so assignments first)
     Assignment.delete_all(db, {"request_id": request_id})
-
-    # 5. Delete all remaining request tracks
     RequestTrack.delete_all(db, {"request_id": request_id})
-
-    # 6. Delete the request itself
     db.delete(row)
     db.commit()
     return True
 
 
 def delete_store_request(db: Session, store_request_id: str) -> bool:
-    """
-    Delete a store request and every related row explicitly:
-      store chats → store request tracks → store request
-    """
+    """Delete a store request and every related row explicitly."""
     row = StoreRequest.get_raw(db, {"id": store_request_id})
     if not row:
         raise HTTPException(status_code=404, detail="Store request not found")
 
-    # 1. Delete chats
     StoreChat.delete_all(db, {"store_request_id": store_request_id})
-
-    # 2. Delete tracks that reference this store request
     RequestTrack.delete_all(db, {"store_request_id": store_request_id})
-
-    # 3. Delete the store request itself
     db.delete(row)
     db.commit()
     return True

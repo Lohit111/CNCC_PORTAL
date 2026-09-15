@@ -34,24 +34,6 @@ class CreateRequestBody(BaseModel):
 
 # --- Endpoints ---
 
-@router.post("/")
-async def create(
-    body: CreateRequestBody,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Raise a new request"""
-    return create_request(
-        db,
-        user_id=user.id,
-        main_type=body.main_type,
-        sub_type=body.sub_type,
-        description=body.description,
-        room_no=body.room_no,
-        department=body.department,
-    )
-
-
 @router.get("/raised")
 async def list_raised(
     page: int = 1,
@@ -103,3 +85,21 @@ async def reply(
     reply_to_request(db, user_id=user.id, request_id=request_id,
                      comment=body.comment, description=body.description)
     return {"message": "Reply submitted successfully"}
+
+@router.post("/")
+async def create(
+    body: CreateRequestBody,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Raise a new request"""
+    return create_request(
+        db,
+        user_id=user.id,
+        main_type=body.main_type,
+        sub_type=body.sub_type,
+        description=body.description,
+        room_no=body.room_no,
+        department=body.department,
+    )
+

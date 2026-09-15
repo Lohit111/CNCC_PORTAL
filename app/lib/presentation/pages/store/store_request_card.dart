@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/domain/entities/store_request_detail_entity.dart';
 import 'package:cncc_portal/presentation/providers/store_provider.dart';
 import 'package:cncc_portal/presentation/pages/store/store_chat_page.dart';
-import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/request_dialog.dart';
+import 'package:cncc_portal/presentation/widgets/request-tile/request_dialog.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 
 /// Store request card with context actions (approve/reject/fulfil/chat).

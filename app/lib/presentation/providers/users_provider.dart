@@ -123,15 +123,6 @@ class UsersNotifier extends StateNotifier<UsersState> {
     }
   }
 
-  Future<User?> getUser(String userId) async {
-    try {
-      final res = await _client.get('/users/$userId');
-      return User.fromJson(res.data as Map<String, dynamic>);
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<bool> createUser(String email, String role) async {
     try {
       await _client.post('/users/', data: {'email': email, 'role': role});

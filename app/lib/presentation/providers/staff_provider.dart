@@ -108,7 +108,7 @@ class StaffNotifier extends FamilyAsyncNotifier<StaffRequestsState, String> {
 
   Future<bool> createStoreRequest(String requestId, String description) async {
     try {
-      await _client.put(
+      await _client.post(
         '/staff/create-store-request/$requestId',
         data: {'description': description},
       );

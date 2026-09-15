@@ -36,8 +36,6 @@ class ParentRequestDetail {
       users: usersMap,
     );
   }
-
-  User? getUser(String userId) => users[userId];
 }
 
 /// Composite entity returned by store list endpoints.

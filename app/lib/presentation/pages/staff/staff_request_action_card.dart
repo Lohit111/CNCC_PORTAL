@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/staff_provider.dart';
-import 'package:cncc_portal/presentation/pages/shared/widgets/request-tile/request_card.dart';
+import 'package:cncc_portal/presentation/widgets/request-tile/request_card.dart';
 import 'package:cncc_portal/presentation/pages/staff/staff_chat_page.dart';
 
 /// Staff request card with context-specific action buttons.

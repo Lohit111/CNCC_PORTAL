@@ -4,7 +4,7 @@ import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
 import 'package:cncc_portal/presentation/providers/departments_provider.dart';
 import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
-import 'package:cncc_portal/presentation/pages/shared/widgets/searchable_selection_sheet.dart';
+import 'package:cncc_portal/presentation/widgets/searchable_selection_sheet.dart';
 
 /// Shared "New Request" dialog used by all role home pages.
 class RequestFormDialog extends ConsumerStatefulWidget {

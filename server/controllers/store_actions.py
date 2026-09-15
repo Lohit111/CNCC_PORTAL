@@ -10,8 +10,7 @@ from models.user import User
 from models.enums import StoreRequestStatus, TrackEventType
 from models.request import Request
 from services.notification_service import send_to_uid
-
-PAGE_SIZE = 30
+from controllers.common.helpers import PAGE_SIZE, truncate
 
 # ==========================================
 #  HELPERS
@@ -76,10 +75,6 @@ def _query_store(db: Session, filters, page: int) -> dict:
         "pages": -(-total // PAGE_SIZE)
     }
 
-def _truncate(text: str, max_length: int = 80) -> str:
-    return text if len(text) <= max_length else text[:max_length - 3] + "..."
-
-
 # ==========================================
 #  ACTIONS
 # ==========================================
@@ -108,7 +103,7 @@ def approve_store_request(db: Session, store_user: User, store_request_id: str) 
     send_to_uid(
         row.requested_by,
         f"{store_user.name}({store_user.email}) Approved a Store Request",
-        f'"{_truncate(row.description)}"\n\non Store Request: "{_truncate(row.description)}"',
+        f'"{truncate(row.description)}"\n\non Store Request: "{truncate(row.description)}"',
     )
     return True
 
@@ -138,7 +133,7 @@ def reject_store_request(db: Session, store_user: User, store_request_id: str, c
     send_to_uid(
         row.requested_by,
         f"{store_user.name}({store_user.email}) Rejected a Store Request",
-        f'"{_truncate(comment)}"\n\non Store Request: "{_truncate(row.description)}"',
+        f'"{truncate(comment)}"\n\non Store Request: "{truncate(row.description)}"',
     )
     return True
 
@@ -167,7 +162,7 @@ def fulfil_store_request(db: Session, store_user: User, store_request_id: str) -
     send_to_uid(
         row.requested_by,
         f"{store_user.name}({store_user.email}) Fulfilled a Store Request",
-        f'Store  Details: "{_truncate(row.description)}"',
+        f'Store  Details: "{truncate(row.description)}"',
     )
     return True
 
@@ -193,7 +188,7 @@ def send_chat_message(db: Session, store_user: User, store_request_id: str, mess
     send_to_uid(
         sr.requested_by,
         f"{store_user.name}({store_user.email}) Sent a Message",
-        f'"{_truncate(message)}"\n\non Store Request: "{_truncate(sr.description)}"',
+        f'"{truncate(message)}"\n\non Store Request: "{truncate(sr.description)}"',
     )
     return True
 

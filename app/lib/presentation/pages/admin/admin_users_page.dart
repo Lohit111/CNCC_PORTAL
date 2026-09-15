@@ -2,6 +2,7 @@ import 'package:cncc_portal/domain/entities/request_entity.dart';
 import 'package:cncc_portal/domain/entities/store_request_entity.dart';
 import 'package:cncc_portal/domain/entities/user_entity.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
+import 'package:cncc_portal/presentation/providers/notification_provider.dart';
 import 'package:cncc_portal/presentation/providers/users_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -557,7 +558,7 @@ class _UserTile extends ConsumerWidget {
               Navigator.pop(ctx);
 
               final success =
-                  await ref.read(adminProvider('raised').notifier).sendToUser(
+                  await ref.read(notificationProvider.notifier).sendToUser(
                         user.id,
                         title,
                         body,
