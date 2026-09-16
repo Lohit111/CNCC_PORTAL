@@ -64,20 +64,35 @@ class AdminTypesPage extends ConsumerWidget {
   }
 }
 
-class _MainTypeTile extends ConsumerWidget {
+class _MainTypeTile extends ConsumerStatefulWidget {
   final int mainId;
   final String mainName;
 
   const _MainTypeTile({required this.mainId, required this.mainName});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MainTypeTile> createState() => _MainTypeTileState();
+}
+
+class _MainTypeTileState extends ConsumerState<_MainTypeTile> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final cs = Theme.of(context).colorScheme;
-    final subAsync = ref.watch(subTypesProvider(mainId));
+    
+    // Only watch subTypesProvider if expanded
+    final subAsync = _isExpanded 
+        ? ref.watch(subTypesProvider(widget.mainId))
+        : const AsyncValue.data([]);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ExpansionTile(
+        onExpansionChanged: (expanded) {
+          setState(() => _isExpanded = expanded);
+        },
         leading: Container(
           width: 36,
           height: 36,
@@ -87,7 +102,7 @@ class _MainTypeTile extends ConsumerWidget {
           ),
           child: Icon(Icons.category_rounded, size: 18, color: cs.primary),
         ),
-        title: Text(mainName,
+        title: Text(widget.mainName,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -104,56 +119,58 @@ class _MainTypeTile extends ConsumerWidget {
             const Icon(Icons.expand_more_rounded),
           ],
         ),
-        children: [
-          // Sub types
-          subAsync.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(12),
-              child: CircularProgressIndicator(),
-            ),
-            error: (e, _) => Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text('Error: $e'),
-            ),
-            data: (subTypes) => Column(
-              children: [
-                ...subTypes.map((st) => ListTile(
-                      contentPadding: const EdgeInsets.fromLTRB(32, 0, 8, 0),
-                      title:
-                          Text(st.name, style: const TextStyle(fontSize: 13)),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit_rounded, size: 16),
-                            onPressed: () =>
-                                _editSub(context, ref, st.id, st.name),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_rounded,
-                                size: 16, color: Color(0xFFF38BA8)),
-                            onPressed: () => _deleteSub(context, ref, st.id),
-                          ),
-                        ],
+        children: _isExpanded
+            ? [
+                // Sub types
+                subAsync.when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: CircularProgressIndicator(),
+                  ),
+                  error: (e, _) => Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text('Error: $e'),
+                  ),
+                  data: (subTypes) => Column(
+                    children: [
+                      ...subTypes.map((st) => ListTile(
+                            contentPadding: const EdgeInsets.fromLTRB(32, 0, 8, 0),
+                            title:
+                                Text(st.name, style: const TextStyle(fontSize: 13)),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_rounded, size: 16),
+                                  onPressed: () =>
+                                      _editSub(context, ref, st.id, st.name),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_rounded,
+                                      size: 16, color: Color(0xFFF38BA8)),
+                                  onPressed: () => _deleteSub(context, ref, st.id),
+                                ),
+                              ],
+                            ),
+                          )),
+                      // Add sub type button
+                      TextButton.icon(
+                        onPressed: () => _addSub(context, ref),
+                        icon: const Icon(Icons.add_rounded, size: 16),
+                        label: const Text('Add Sub Type'),
                       ),
-                    )),
-                // Add sub type button
-                TextButton.icon(
-                  onPressed: () => _addSub(context, ref),
-                  icon: const Icon(Icons.add_rounded, size: 16),
-                  label: const Text('Add Sub Type'),
+                      const SizedBox(height: 4),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 4),
-              ],
-            ),
-          ),
-        ],
+              ]
+            : [],
       ),
     );
   }
 
   void _editMain(BuildContext context, WidgetRef ref) {
-    final ctrl = TextEditingController(text: mainName);
+    final ctrl = TextEditingController(text: widget.mainName);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -171,7 +188,7 @@ class _MainTypeTile extends ConsumerWidget {
               Navigator.pop(ctx);
               await ref
                   .read(mainTypesProvider.notifier)
-                  .updateType(mainId, ctrl.text.trim());
+                  .updateType(widget.mainId, ctrl.text.trim());
             },
             child: const Text('Save'),
           ),
@@ -186,7 +203,7 @@ class _MainTypeTile extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Main Type'),
         content: Text(
-            'Delete "$mainName"? This will also delete all sub types under it.'),
+            'Delete "${widget.mainName}"? This will also delete all sub types under it.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -195,7 +212,7 @@ class _MainTypeTile extends ConsumerWidget {
                 backgroundColor: const Color(0xFFF38BA8)),
             onPressed: () async {
               Navigator.pop(ctx);
-              await ref.read(mainTypesProvider.notifier).delete(mainId);
+              await ref.read(mainTypesProvider.notifier).delete(widget.mainId);
             },
             child: const Text('Delete'),
           ),
@@ -209,7 +226,7 @@ class _MainTypeTile extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Add Sub Type to $mainName'),
+        title: Text('Add Sub Type to ${widget.mainName}'),
         content: TextField(
             controller: ctrl,
             decoration: const InputDecoration(labelText: 'Name'),
@@ -222,7 +239,7 @@ class _MainTypeTile extends ConsumerWidget {
               if (ctrl.text.trim().isEmpty) return;
               Navigator.pop(ctx);
               await ref
-                  .read(subTypesProvider(mainId).notifier)
+                  .read(subTypesProvider(widget.mainId).notifier)
                   .create(ctrl.text.trim());
             },
             child: const Text('Add'),
@@ -251,7 +268,7 @@ class _MainTypeTile extends ConsumerWidget {
               if (ctrl.text.trim().isEmpty) return;
               Navigator.pop(ctx);
               await ref
-                  .read(subTypesProvider(mainId).notifier)
+                  .read(subTypesProvider(widget.mainId).notifier)
                   .updateSubType(subId, ctrl.text.trim());
             },
             child: const Text('Save'),
@@ -275,7 +292,7 @@ class _MainTypeTile extends ConsumerWidget {
                 backgroundColor: const Color(0xFFF38BA8)),
             onPressed: () async {
               Navigator.pop(ctx);
-              await ref.read(subTypesProvider(mainId).notifier).delete(subId);
+              await ref.read(subTypesProvider(widget.mainId).notifier).delete(subId);
             },
             child: const Text('Delete'),
           ),

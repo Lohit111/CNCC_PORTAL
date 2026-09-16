@@ -21,6 +21,7 @@ dependencies:
 
   # Networking
   dio: ^5.4.0
+  flutter_dotenv: ^5.1.0
 
   # URL handling
   url_launcher: ^6.3.0
@@ -47,6 +48,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - .env
 
 flutter_launcher_icons:
   android: true

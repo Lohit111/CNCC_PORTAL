@@ -1,3 +1,4 @@
+import 'package:cncc_portal/presentation/providers/users_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
@@ -31,8 +32,10 @@ class AdminRaisedPage extends ConsumerWidget {
           );
         }
         return RefreshIndicator(
-          onRefresh: () async =>
-              ref.read(adminProvider('raised').notifier).refresh(),
+          onRefresh: () async {
+            await ref.read(adminProvider('raised').notifier).refresh();
+            ref.invalidate(usersProvider);
+          },
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
             itemCount: data.requests.length,

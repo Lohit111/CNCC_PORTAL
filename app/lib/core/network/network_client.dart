@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class NetworkClient {
   static final NetworkClient _instance = NetworkClient._internal();
@@ -9,11 +10,9 @@ class NetworkClient {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   NetworkClient._internal() {
-    const backendUrl = String.fromEnvironment(
+    final backendUrl = dotenv.get(
       'BACKEND_URL',
-      defaultValue: 'http://localhost:8000/api/v1',
-      // defaultValue: 'https://cncc-portal.onrender.com/api/v1',
-      // defaultValue: 'http://103.248.208.109:8000/api/v1',
+      fallback: 'http://localhost:8000/api/v1',
     );
 
     _dio = Dio(BaseOptions(
