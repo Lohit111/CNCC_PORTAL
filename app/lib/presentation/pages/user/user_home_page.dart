@@ -1,4 +1,3 @@
-import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,7 +57,6 @@ class _UserHomePageState extends ConsumerState<UserHomePage>
     }
     // Refresh data used by the New Request dialog.
     ref.invalidate(mainTypesProvider);
-    ref.invalidate(roomsProvider);
   }
 
   void _navigateTo(_UserTab tab) {

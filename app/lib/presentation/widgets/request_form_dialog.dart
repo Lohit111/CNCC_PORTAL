@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
 import 'package:cncc_portal/presentation/providers/departments_provider.dart';
-import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:cncc_portal/presentation/widgets/searchable_selection_sheet.dart';
 
@@ -19,13 +18,12 @@ class RequestFormDialog extends ConsumerStatefulWidget {
 class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _descController = TextEditingController();
+  final _roomController = TextEditingController();
 
   int? _selectedMainId;
   int? _selectedSubId;
   String? _selectedMainName;
   String? _selectedSubName;
-  int? _selectedRoomId;
-  String? _selectedRoomNo;
   int? _selectedDeptId;
   String? _selectedDeptName;
   bool _isSubmitting = false;
@@ -33,13 +31,13 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   @override
   void dispose() {
     _descController.dispose();
+    _roomController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final mainTypesAsync = ref.watch(mainTypesProvider);
-    final roomsAsync = ref.watch(roomsProvider);
     final deptsAsync = ref.watch(departmentsProvider);
 
     return AlertDialog(
@@ -133,38 +131,26 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
 
                 const SizedBox(height: 12),
 
-                // Room
-                roomsAsync.when(
-                  loading: () => const CircularProgressIndicator(),
-                  error: (e, _) => Text('Failed to load rooms: $e'),
-                  data: (rooms) => _SelectionField(
-                    label: 'Room',
-                    value: _selectedRoomNo,
-                    hint: 'Select a room',
-                    onTap: () async {
-                      final selected = await showSearchableSelectionSheet(
-                        context: context,
-                        title: 'Select Room',
-                        searchHint: 'Search rooms...',
-                        items: rooms,
-                        selectedItem: _selectedRoomId == null
-                            ? null
-                            : rooms.firstWhere(
-                                (r) => r.id == _selectedRoomId,
-                              ),
-                        labelBuilder: (room) => room.roomNo,
-                      );
-
-                      if (selected == null || !mounted) return;
-
-                      setState(() {
-                        _selectedRoomId = selected.id;
-                        _selectedRoomNo = selected.roomNo;
-                      });
-                    },
-                    validator: () =>
-                        _selectedRoomId == null ? 'Please select a room' : null,
+                // Room — manual text input
+                TextFormField(
+                  controller: _roomController,
+                  decoration: const InputDecoration(
+                    labelText: 'Room',
+                    hintText: 'e.g., A-103',
+                    helperText: 'Format: Letter-3 digits (e.g., A-103)',
                   ),
+                  textCapitalization: TextCapitalization.characters,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Room is required';
+                    }
+                    final trimmed = v.trim().toUpperCase();
+                    // Match pattern: single letter, hyphen, 3 digits
+                    if (!RegExp(r'^[A-Z]-\d{3}$').hasMatch(trimmed)) {
+                      return 'Format must be: Letter-3 digits (e.g., A-103)';
+                    }
+                    return null;
+                  },
                 ),
 
                 const SizedBox(height: 12),
@@ -242,16 +228,16 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedMainName == null || _selectedSubName == null) return;
-    if (_selectedRoomNo == null) return;
     if (_selectedDeptName == null) return;
 
     setState(() => _isSubmitting = true);
+    final roomNo = _roomController.text.trim().toUpperCase();
     final success =
         await ref.read(myRequestsProvider('raised').notifier).createRequest(
               mainType: _selectedMainName!,
               subType: _selectedSubName!,
               description: _descController.text.trim(),
-              roomNo: _selectedRoomNo!,
+              roomNo: roomNo,
               department: _selectedDeptName!,
             );
     if (mounted) {

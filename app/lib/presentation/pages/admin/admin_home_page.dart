@@ -1,14 +1,13 @@
 import 'package:cncc_portal/presentation/pages/admin/admin_archive_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_assigned_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_dashboard_page.dart';
-import 'package:cncc_portal/presentation/pages/admin/admin_departments_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_inprogress_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_raised_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_reassign_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_replied_page.dart';
-import 'package:cncc_portal/presentation/pages/admin/admin_rooms_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_search_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_types_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_departments_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_users_page.dart';
 import 'package:cncc_portal/presentation/pages/shared/my_requests/my_requests_archive_page.dart';
 import 'package:cncc_portal/presentation/pages/shared/my_requests/my_requests_inprogress_page.dart';
@@ -19,11 +18,8 @@ import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
 import 'package:cncc_portal/presentation/widgets/request_form_dialog.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
-import 'package:cncc_portal/presentation/providers/departments_provider.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
-import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
-import 'package:cncc_portal/presentation/providers/users_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,7 +34,6 @@ enum _AdminTab {
   dashboard,
   manageUsers,
   manageTypes,
-  manageRooms,
   manageDepartments,
   notifications,
   myRaised,
@@ -82,7 +77,6 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
     switch (_tab) {
       case _AdminTab.raised:
         ref.invalidate(adminProvider('raised'));
-        ref.invalidate(usersProvider);
       case _AdminTab.replied:
         ref.invalidate(adminProvider('replied'));
       case _AdminTab.assigned:
@@ -94,34 +88,27 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
       case _AdminTab.archive:
         ref.invalidate(adminProvider('archive'));
       case _AdminTab.search:
-        break; // search is user-driven, nothing to pre-fetch
+        break;
       case _AdminTab.dashboard:
-        break; // dashboard fetches on filter apply, nothing to pre-invalidate
+        break;
       case _AdminTab.myRaised:
         ref.invalidate(myRequestsProvider('raised'));
         ref.invalidate(mainTypesProvider);
-        ref.invalidate(roomsProvider);
       case _AdminTab.myReplied:
         ref.invalidate(myRequestsProvider('replied'));
         ref.invalidate(mainTypesProvider);
-        ref.invalidate(roomsProvider);
       case _AdminTab.myInProgress:
         ref.invalidate(myRequestsProvider('inprogress'));
         ref.invalidate(mainTypesProvider);
-        ref.invalidate(roomsProvider);
       case _AdminTab.myArchive:
         ref.invalidate(myRequestsProvider('archive'));
         ref.invalidate(mainTypesProvider);
-        ref.invalidate(roomsProvider);
       case _AdminTab.manageUsers:
-        ref.invalidate(usersProvider);
+        break;
       case _AdminTab.manageTypes:
         ref.invalidate(mainTypesProvider);
-        ref.invalidate(subTypesProvider);
-      case _AdminTab.manageRooms:
-        ref.invalidate(roomsProvider);
       case _AdminTab.manageDepartments:
-        ref.invalidate(departmentsProvider);
+        break;
       case _AdminTab.notifications:
         break;
       case _AdminTab.profile:
@@ -158,8 +145,6 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return 'Manage Users';
       case _AdminTab.manageTypes:
         return 'Manage Types';
-      case _AdminTab.manageRooms:
-        return 'Manage Rooms';
       case _AdminTab.manageDepartments:
         return 'Manage Departments';
       case _AdminTab.notifications:
@@ -262,8 +247,6 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return const AdminUsersPage();
       case _AdminTab.manageTypes:
         return const AdminTypesPage();
-      case _AdminTab.manageRooms:
-        return const AdminRoomsPage();
       case _AdminTab.manageDepartments:
         return const AdminDepartmentsPage();
       case _AdminTab.notifications:
@@ -335,7 +318,6 @@ class _AdminDrawer extends StatelessWidget {
         items: [
           (_AdminTab.manageUsers, Icons.manage_accounts_rounded, 'Users', 0),
           (_AdminTab.manageTypes, Icons.category_rounded, 'Types', 0),
-          (_AdminTab.manageRooms, Icons.door_front_door_rounded, 'Rooms', 0),
           (_AdminTab.manageDepartments, Icons.business_rounded, 'Departments', 0),
           (
             _AdminTab.notifications,

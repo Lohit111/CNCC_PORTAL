@@ -1,4 +1,3 @@
-import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -67,19 +66,15 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage>
       case _StaffTab.myRaised:
         ref.invalidate(myRequestsProvider('raised'));
         ref.invalidate(mainTypesProvider);
-        ref.invalidate(roomsProvider);
       case _StaffTab.myReplied:
         ref.invalidate(myRequestsProvider('replied'));
         ref.invalidate(mainTypesProvider);
-        ref.invalidate(roomsProvider);
       case _StaffTab.myInProgress:
         ref.invalidate(myRequestsProvider('inprogress'));
         ref.invalidate(mainTypesProvider);
-        ref.invalidate(roomsProvider);
       case _StaffTab.myArchive:
         ref.invalidate(myRequestsProvider('archive'));
         ref.invalidate(mainTypesProvider);
-        ref.invalidate(roomsProvider);
       case _StaffTab.profile:
         break;
     }

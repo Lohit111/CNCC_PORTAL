@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:cncc_portal/domain/entities/type_entity.dart';
 import 'package:cncc_portal/presentation/providers/analytics_provider.dart';
-import 'package:cncc_portal/presentation/providers/rooms_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:cncc_portal/presentation/providers/users_provider.dart';
 
@@ -54,8 +53,8 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
 
   // Draft filter state held by the filter panel before the user taps "Apply".
   final _idCtrl = TextEditingController();
+  final _roomCtrl = TextEditingController();
   String? _draftStatus;
-  String? _draftRoomNo;
   String? _draftMainType;
   String? _draftSubType;
   String? _draftRaisedBy;
@@ -74,7 +73,7 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
       _filters = DashboardFilters(
         idPrefix: _idCtrl.text.trim().isEmpty ? null : _idCtrl.text.trim(),
         status: _draftStatus,
-        roomNo: _draftRoomNo,
+        roomNo: _roomCtrl.text.trim().isEmpty ? null : _roomCtrl.text.trim().toUpperCase(),
         mainType: _draftMainType,
         subType: _draftSubType,
         raisedBy: _draftRaisedBy,
@@ -85,8 +84,8 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
   void _clearFilters() {
     setState(() {
       _idCtrl.clear();
+      _roomCtrl.clear();
       _draftStatus = null;
-      _draftRoomNo = null;
       _draftMainType = null;
       _draftSubType = null;
       _draftRaisedBy = null;
@@ -101,7 +100,6 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
     final statsAsync = ref.watch(adminDashboardProvider(_filters));
 
     // Side-load dropdown data.
-    final roomsAsync = ref.watch(roomsProvider);
     final mainTypesAsync = ref.watch(mainTypesProvider);
     final subTypesAsync = _selectedMainTypeId != null
         ? ref.watch(subTypesProvider(_selectedMainTypeId!))
@@ -188,27 +186,41 @@ class _AdminDashboardPageState extends ConsumerState<AdminDashboardPage> {
 
                       const SizedBox(height: 10),
 
-                      // Row 2: Room + Main type
+                      // Row 2: Room + Status (or Room alone if we want)
                       _FilterRow(children: [
                         _FilterField(
                           label: 'Room',
-                          child: roomsAsync.when(
-                            loading: () => _loadingDropdown(cs),
-                            error: (_, __) => _errorDropdown(cs),
-                            data: (rooms) => _DropdownFilter<String>(
-                              value: _draftRoomNo,
-                              hint: 'Any room',
-                              items: rooms
-                                  .map((r) => DropdownMenuItem(
-                                        value: r.roomNo,
-                                        child: Text(r.roomNo),
-                                      ))
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _draftRoomNo = v),
-                            ),
+                          child: TextField(
+                            controller: _roomCtrl,
+                            textCapitalization: TextCapitalization.characters,
+                            decoration: _inputDec(
+                                'e.g. A-103', cs,
+                                counter: false),
+                            onChanged: (_) => setState(() {}),
                           ),
                         ),
+                        _FilterField(
+                          label: 'Status',
+                          child: _DropdownFilter<String>(
+                            value: _draftStatus,
+                            hint: 'Any status',
+                            items: _kStatuses
+                                .map((s) => DropdownMenuItem(
+                                      value: s,
+                                      child:
+                                          Text(_kStatusLabels[s] ?? s),
+                                    ))
+                                .toList(),
+                            onChanged: (v) =>
+                                setState(() => _draftStatus = v),
+                          ),
+                        ),
+                      ]),
+
+                      const SizedBox(height: 10),
+
+                      // Main type
+                      _FilterRow(children: [
                         _FilterField(
                           label: 'Main Type',
                           child: mainTypesAsync.when(
