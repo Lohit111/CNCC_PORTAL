@@ -19,7 +19,6 @@ import 'package:cncc_portal/presentation/widgets/request_form_dialog.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
-import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -76,37 +75,33 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
   void _invalidateCurrentTab() {
     switch (_tab) {
       case _AdminTab.raised:
-        ref.invalidate(adminProvider('raised'));
+        break;
       case _AdminTab.replied:
-        ref.invalidate(adminProvider('replied'));
+        break;
       case _AdminTab.assigned:
-        ref.invalidate(adminProvider('assigned'));
+        break;
       case _AdminTab.reassignRequested:
-        ref.invalidate(adminProvider('reassign-requested'));
+        break;
       case _AdminTab.inprogress:
-        ref.invalidate(adminProvider('inprogress'));
+        break;
       case _AdminTab.archive:
-        ref.invalidate(adminProvider('archive'));
+        break;
       case _AdminTab.search:
         break;
       case _AdminTab.dashboard:
         break;
       case _AdminTab.myRaised:
-        ref.invalidate(myRequestsProvider('raised'));
-        ref.invalidate(mainTypesProvider);
+        break;
       case _AdminTab.myReplied:
-        ref.invalidate(myRequestsProvider('replied'));
-        ref.invalidate(mainTypesProvider);
+        break;
       case _AdminTab.myInProgress:
-        ref.invalidate(myRequestsProvider('inprogress'));
-        ref.invalidate(mainTypesProvider);
+        break;
       case _AdminTab.myArchive:
-        ref.invalidate(myRequestsProvider('archive'));
-        ref.invalidate(mainTypesProvider);
+        break;
       case _AdminTab.manageUsers:
         break;
       case _AdminTab.manageTypes:
-        ref.invalidate(mainTypesProvider);
+        break;
       case _AdminTab.manageDepartments:
         break;
       case _AdminTab.notifications:

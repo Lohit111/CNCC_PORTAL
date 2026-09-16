@@ -58,23 +58,19 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage>
   void _invalidateCurrentTab() {
     switch (_tab) {
       case _StaffTab.assigned:
-        ref.invalidate(staffProvider('assigned'));
+        break;
       case _StaffTab.inprogress:
-        ref.invalidate(staffProvider('inprogress'));
+        break;
       case _StaffTab.archive:
-        ref.invalidate(staffProvider('archive'));
+        break;
       case _StaffTab.myRaised:
-        ref.invalidate(myRequestsProvider('raised'));
-        ref.invalidate(mainTypesProvider);
+        break;
       case _StaffTab.myReplied:
-        ref.invalidate(myRequestsProvider('replied'));
-        ref.invalidate(mainTypesProvider);
+        break;
       case _StaffTab.myInProgress:
-        ref.invalidate(myRequestsProvider('inprogress'));
-        ref.invalidate(mainTypesProvider);
+        break;
       case _StaffTab.myArchive:
-        ref.invalidate(myRequestsProvider('archive'));
-        ref.invalidate(mainTypesProvider);
+        break;
       case _StaffTab.profile:
         break;
     }

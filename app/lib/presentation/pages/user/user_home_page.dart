@@ -45,13 +45,13 @@ class _UserHomePageState extends ConsumerState<UserHomePage>
   void _invalidateCurrentTab() {
     switch (_tab) {
       case _UserTab.raised:
-        ref.invalidate(myRequestsProvider('raised'));
+        break;
       case _UserTab.replied:
-        ref.invalidate(myRequestsProvider('replied'));
+        break;
       case _UserTab.inprogress:
-        ref.invalidate(myRequestsProvider('inprogress'));
+        break;
       case _UserTab.archive:
-        ref.invalidate(myRequestsProvider('archive'));
+        break;
       case _UserTab.profile:
         break;
     }

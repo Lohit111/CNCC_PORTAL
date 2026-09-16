@@ -42,11 +42,11 @@ class _StoreHomePageState extends ConsumerState<StoreHomePage>
   void _invalidateCurrentTab() {
     switch (_tab) {
       case _StoreTab.pending:
-        ref.invalidate(storeProvider('pending'));
+        break;
       case _StoreTab.approved:
-        ref.invalidate(storeProvider('approved'));
+        break;
       case _StoreTab.archive:
-        ref.invalidate(storeProvider('archive'));
+        break;
       case _StoreTab.profile:
         break;
     }
