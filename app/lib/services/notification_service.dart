@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/firebase_options.dart';
@@ -68,10 +69,12 @@ class MobileNotificationService {
 
   final NetworkClient _networkClient = NetworkClient();
 
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+
   ProviderContainer? _container;
 
   bool _initialized = false;
-  bool _tokenRefreshListenerRegistered = false;
 
   Future<void> init(
     ProviderContainer container,
@@ -83,6 +86,15 @@ class MobileNotificationService {
     FirebaseMessaging.onBackgroundMessage(
       firebaseMessagingBackgroundHandler,
     );
+
+    // Initialize local notifications plugin
+    const initializationSettings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    );
+    await _localNotifications.initialize(initializationSettings);
+
+    // Create Android notification channel
+    await _createAndroidNotificationChannel();
 
     final settings = await _messaging.requestPermission(
       alert: true,
@@ -103,15 +115,57 @@ class MobileNotificationService {
     _initialized = true;
   }
 
-  void _handleForegroundMessage(
+  Future<void> _createAndroidNotificationChannel() async {
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'cncc_high_importance',
+      'High Importance Notifications',
+      description: 'This channel is used for high importance notifications.',
+      importance: Importance.max,
+      showBadge: true,
+      enableVibration: true,
+      playSound: true,
+    );
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+  }
+
+  Future<void> _handleForegroundMessage(
     RemoteMessage message,
-  ) {
+  ) async {
     final notification = message.notification;
     if (notification == null) return;
 
     final title = notification.title ?? 'Notification';
     final body = notification.body ?? '';
 
+    // Show notification directly on Android
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      const AndroidNotificationDetails androidDetails =
+          AndroidNotificationDetails(
+        'cncc_high_importance',
+        'High Importance Notifications',
+        channelDescription:
+            'This channel is used for high importance notifications.',
+        importance: Importance.max,
+        priority: Priority.high,
+        showWhen: true,
+      );
+
+      const NotificationDetails notificationDetails =
+          NotificationDetails(android: androidDetails);
+
+      await _localNotifications.show(
+        DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
+        title,
+        body,
+        notificationDetails,
+      );
+    }
+
+    // Also show overlay notification
     FunctionalHelpers.showNotification(
       title: title,
       body: body,
@@ -126,18 +180,6 @@ class MobileNotificationService {
     if (token == null) return;
 
     await _upsertToken(token);
-
-    if (_tokenRefreshListenerRegistered) {
-      return;
-    }
-
-    _messaging.onTokenRefresh.listen(
-      (newToken) async {
-        await _upsertToken(newToken);
-      },
-    );
-
-    _tokenRefreshListenerRegistered = true;
   }
 
   Future<void> _upsertToken(
@@ -175,7 +217,6 @@ class WebNotificationService {
   ProviderContainer? _container;
 
   bool _initialized = false;
-  bool _tokenRefreshListenerRegistered = false;
 
   static const String _vapidKey =
       'BDWi7zZw9gBK8IUpGqys3M6X-X0jrU6H4mxLdi7hhlfCmsNWN6Dy3FSZmbqQHLt2-Rpl91yw6whGsnm2hUy0IV0';
@@ -242,18 +283,6 @@ class WebNotificationService {
       debugPrint('FCM Web token obtained');
 
       await _upsertToken(token);
-
-      if (_tokenRefreshListenerRegistered) {
-        return;
-      }
-
-      _messaging.onTokenRefresh.listen(
-        (newToken) async {
-          await _upsertToken(newToken);
-        },
-      );
-
-      _tokenRefreshListenerRegistered = true;
     } catch (e) {
       debugPrint(
         'Failed to register Web FCM token: $e',

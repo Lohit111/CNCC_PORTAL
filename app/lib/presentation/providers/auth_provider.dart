@@ -71,6 +71,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    await NotificationService.dispose();
     await _firebaseAuth.signOut();
     state = AuthState(user: null, isLoading: false);
   }

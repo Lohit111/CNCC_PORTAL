@@ -10,9 +10,13 @@ Each function resolves devices via a single JOIN query, then calls
 _build_notifications → _send_notifications.
 
 Set PREVENT_NOTIFICATIONS=true in .env to skip FCM sends (logs instead).
+
+All public API functions run asynchronously in background threads to avoid
+blocking the main application.
 """
 import os
 import logging
+import threading
 from typing import List, Tuple
 
 from firebase_admin import messaging
@@ -220,86 +224,102 @@ def _send_notifications(
 # Public API — each does its own JOIN to resolve devices
 # ---------------------------------------------------------------------------
 def send_to_uid(user_id: str, title: str, body: str, data: dict[str, str] | None = None) -> None:
-    """Send to all devices of a single user."""
-    try:
-        db = SessionLocal()
-        devices: List[Tuple[str, DevicePlatform]] = (
-            db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
-            .filter(UserFcmTable.user_id == user_id)
-            .all()
-        ) # pyright: ignore[reportAssignmentType]
-        if _PREVENT_NOTIFICATIONS:
-            logger.info("PREVENT_NOTIFICATIONS Enabled — skipping send_to_uid(%s): '%s'", user_id, title)
-            return
-        _send_notifications(db, _build_notifications(devices, title, body, data))
-    except Exception:
-        logger.exception(
-            "Notification failed for user %s",
-            user_id,
-        )
+    """Send to all devices of a single user (runs in background thread)."""
+    def _send():
+        try:
+            db = SessionLocal()
+            devices: List[Tuple[str, DevicePlatform]] = (
+                db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
+                .filter(UserFcmTable.user_id == user_id)
+                .all()
+            ) # pyright: ignore[reportAssignmentType]
+            if _PREVENT_NOTIFICATIONS:
+                logger.info("PREVENT_NOTIFICATIONS Enabled — skipping send_to_uid(%s): '%s'", user_id, title)
+                return
+            _send_notifications(db, _build_notifications(devices, title, body, data))
+        except Exception:
+            logger.exception(
+                "Notification failed for user %s",
+                user_id,
+            )
+    
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()
 
 
 def send_to_uids(user_ids: List[str], title: str, body: str, data: dict[str, str] | None = None) -> None:
-    """Send to all devices of a set of users."""
-    try:
-        db = SessionLocal()
-        if not user_ids:
-            return
-        devices: List[Tuple[str, DevicePlatform]] = (
-            db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
-            .filter(UserFcmTable.user_id.in_(user_ids))
-            .all()
-        ) # pyright: ignore[reportAssignmentType]
-        if _PREVENT_NOTIFICATIONS:
-            logger.info("PREVENT_NOTIFICATIONS Enabled — skipping send_to_uids(%d users): '%s'", len(user_ids), title)
-            return
-        _send_notifications(db, _build_notifications(devices, title, body, data))
-    except Exception:
-        logger.exception(
-            "Notification failed for users %s",
-            user_ids,
-        )
+    """Send to all devices of a set of users (runs in background thread)."""
+    def _send():
+        try:
+            db = SessionLocal()
+            if not user_ids:
+                return
+            devices: List[Tuple[str, DevicePlatform]] = (
+                db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
+                .filter(UserFcmTable.user_id.in_(user_ids))
+                .all()
+            ) # pyright: ignore[reportAssignmentType]
+            if _PREVENT_NOTIFICATIONS:
+                logger.info("PREVENT_NOTIFICATIONS Enabled — skipping send_to_uids(%d users): '%s'", len(user_ids), title)
+                return
+            _send_notifications(db, _build_notifications(devices, title, body, data))
+        except Exception:
+            logger.exception(
+                "Notification failed for users %s",
+                user_ids,
+            )
+    
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()
 
 
 def send_to_role(role: UserRole, title: str, body: str, data: dict[str, str] | None = None) -> None:
-    """Send to all devices of every active user with the given role."""
-    try:
-        db = SessionLocal()
-        devices = (
-            db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
-            .join(UserTable, UserTable.id == UserFcmTable.user_id)
-            .filter(
-                UserTable.role == role,
-                UserTable.is_active == True,
+    """Send to all devices of every active user with the given role (runs in background thread)."""
+    def _send():
+        try:
+            db = SessionLocal()
+            devices = (
+                db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
+                .join(UserTable, UserTable.id == UserFcmTable.user_id)
+                .filter(
+                    UserTable.role == role,
+                    UserTable.is_active == True,
+                )
+                .all()
+            ) # pyright: ignore[reportAssignmentType]
+            if _PREVENT_NOTIFICATIONS:
+                logger.info("PREVENT_NOTIFICATIONS Enabled — skipping send_to_role(%s): '%s'", role.value, title)
+                return
+            print("sending to role", devices)
+            _send_notifications(db, _build_notifications(devices, title, body, data))
+        except Exception:
+            logger.exception(
+                "Notification failed for users with role %s",
+                role.value,
             )
-            .all()
-        ) # pyright: ignore[reportAssignmentType]
-        if _PREVENT_NOTIFICATIONS:
-            logger.info("PREVENT_NOTIFICATIONS Enabled — skipping send_to_role(%s): '%s'", role.value, title)
-            return
-        print("sending to role", devices)
-        _send_notifications(db, _build_notifications(devices, title, body, data))
-    except Exception:
-        logger.exception(
-            "Notification failed for users with role %s",
-            role.value,
-        )
+    
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()
 
 def broadcast(title: str, body: str, data: dict[str, str] | None = None) -> None:
-    """Send to all devices of every active user."""
-    try:
-        db = SessionLocal()
-        devices: List[Tuple[str, DevicePlatform]] = (
-            db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
-            .join(UserTable, UserTable.id == UserFcmTable.user_id)
-            .filter(UserTable.is_active == True)  # noqa: E712
-            .all()
-        ) # pyright: ignore[reportAssignmentType]
-        if _PREVENT_NOTIFICATIONS:
-            logger.info("PREVENT_NOTIFICATIONS Enabled — skipping broadcast: '%s'", title)
-            return
-        _send_notifications(db, _build_notifications(devices, title, body, data))
-    except Exception:
-        logger.exception(
-            "Notification failed to broadcast to all users",
-        )
+    """Send to all devices of every active user (runs in background thread)."""
+    def _send():
+        try:
+            db = SessionLocal()
+            devices: List[Tuple[str, DevicePlatform]] = (
+                db.query(UserFcmTable.fcm_token, UserFcmTable.platform)
+                .join(UserTable, UserTable.id == UserFcmTable.user_id)
+                .filter(UserTable.is_active == True)  # noqa: E712
+                .all()
+            ) # pyright: ignore[reportAssignmentType]
+            if _PREVENT_NOTIFICATIONS:
+                logger.info("PREVENT_NOTIFICATIONS Enabled — skipping broadcast: '%s'", title)
+                return
+            _send_notifications(db, _build_notifications(devices, title, body, data))
+        except Exception:
+            logger.exception(
+                "Notification failed to broadcast to all users",
+            )
+    
+    thread = threading.Thread(target=_send, daemon=True)
+    thread.start()

@@ -29,6 +29,9 @@ dependencies:
   # Storage
   shared_preferences: ^2.2.2
 
+  # Notification
+  flutter_local_notifications: ^19.4.2
+
   # File Storage
   file_picker: 10.3.3
   path_provider: ^2.1.4
