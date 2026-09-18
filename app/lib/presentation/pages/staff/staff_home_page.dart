@@ -1,4 +1,3 @@
-import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
@@ -8,6 +7,7 @@ import 'package:cncc_portal/presentation/pages/shared/profile_page.dart';
 import 'package:cncc_portal/presentation/widgets/request_form_dialog.dart';
 import 'package:cncc_portal/presentation/pages/staff/staff_assigned_page.dart';
 import 'package:cncc_portal/presentation/pages/staff/staff_inprogress_page.dart';
+import 'package:cncc_portal/presentation/pages/staff/staff_in_hold_page.dart';
 import 'package:cncc_portal/presentation/pages/staff/staff_archive_page.dart';
 import 'package:cncc_portal/presentation/pages/shared/my_requests/my_requests_raised_page.dart';
 import 'package:cncc_portal/presentation/pages/shared/my_requests/my_requests_replied_page.dart';
@@ -17,6 +17,7 @@ import 'package:cncc_portal/presentation/pages/shared/my_requests/my_requests_ar
 enum _StaffTab {
   assigned,
   inprogress,
+  inHold,
   archive,
   myRaised,
   myReplied,
@@ -61,6 +62,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage>
         break;
       case _StaffTab.inprogress:
         break;
+      case _StaffTab.inHold:
+        break;
       case _StaffTab.archive:
         break;
       case _StaffTab.myRaised:
@@ -90,6 +93,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage>
         return 'Assigned to Me';
       case _StaffTab.inprogress:
         return 'In Progress';
+      case _StaffTab.inHold:
+        return 'On Hold';
       case _StaffTab.archive:
         return 'My Archive';
       case _StaffTab.myRaised:
@@ -174,6 +179,8 @@ class _StaffHomePageState extends ConsumerState<StaffHomePage>
         return const StaffAssignedPage();
       case _StaffTab.inprogress:
         return const StaffInProgressPage();
+      case _StaffTab.inHold:
+        return const StaffInHoldPage();
       case _StaffTab.archive:
         return const StaffArchivePage();
       case _StaffTab.myRaised:
@@ -229,6 +236,7 @@ class _StaffDrawer extends StatelessWidget {
             assignedCount
           ),
           (_StaffTab.inprogress, Icons.pending_rounded, 'In Progress', 0),
+          (_StaffTab.inHold, Icons.pause_circle_rounded, 'On Hold', 0),
           (_StaffTab.archive, Icons.task_alt_rounded, 'Archive', 0),
         ]
       ),

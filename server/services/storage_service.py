@@ -25,13 +25,11 @@ from typing import List
 import boto3
 from botocore.config import Config
 from dotenv import load_dotenv
+from pathlib import Path
 from fastapi import UploadFile
 
 from config.database import SessionLocal
 from models.request_file import RequestFile
-
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 

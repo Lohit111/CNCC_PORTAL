@@ -35,6 +35,8 @@ class RequestTable(Base):
         "AssignmentTable", back_populates="request", cascade="all, delete-orphan")
     store_requests = relationship(
         "StoreRequestTable", back_populates="parent_request", cascade="all, delete-orphan")
+    holding = relationship(
+        "HoldingRequestTable", back_populates="request", uselist=False, cascade="all, delete-orphan")
 
 
 class Request(BaseModel):

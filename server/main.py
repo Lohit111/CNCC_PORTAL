@@ -1,18 +1,21 @@
 """Main FastAPI Application"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 from firebase_admin import credentials, initialize_app, get_app
+
+from dotenv import load_dotenv
+from pathlib import Path
+# Load environment variables from root .env
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+from contextlib import asynccontextmanager
 from config.database import engine
 from models.base import Base
 from api.router import api_router
 import logging
 import os
-from dotenv import load_dotenv
 from datetime import datetime, timezone, timedelta
 
-# Load environment variables
-load_dotenv()
 
 
 # Configure logging

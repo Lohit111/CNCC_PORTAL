@@ -12,7 +12,6 @@ class NetworkClient {
   NetworkClient._internal() {
     final backendUrl = dotenv.get(
       'BACKEND_URL',
-      fallback: 'http://localhost:8000/api/v1',
     );
 
     _dio = Dio(BaseOptions(

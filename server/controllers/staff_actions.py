@@ -1,9 +1,11 @@
 """Staff Requests Controller"""
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+from datetime import datetime, timedelta
 from models.request import Request, RequestTable
 from models.track import RequestTrack, RequestTrackTable
 from models.assignment import Assignment, AssignmentTable
+from models.holding_request import HoldingRequest
 from models.store_request import StoreRequest, StoreRequestTable
 from models.store_chat import StoreChat
 from models.user import User
@@ -40,6 +42,11 @@ def get_assigned(db: Session, staff_id: str, page: int) -> dict:
 def get_inprogress(db: Session, staff_id: str, page: int) -> dict:
     """In-progress requests taken by this staff member."""
     return _query_requests(db, staff_id, [RequestStatus.IN_PROGRESS], page)
+
+
+def get_in_hold(db: Session, staff_id: str, page: int) -> dict:
+    """In-hold requests (currently on hold) assigned to this staff member."""
+    return _query_requests(db, staff_id, [RequestStatus.HOLD], page)
 
 
 def get_archive(db: Session, staff_id: str, page: int) -> dict:
@@ -254,6 +261,51 @@ def create_store_request(
     return True
 
 
+def hold_request(db: Session, staff: User, request_id: str, duration_minutes: int) -> bool:
+    """Place a request on HOLD from IN_PROGRESS status.
+    
+    Staff must have an active assignment. Duration is in minutes from now.
+    """
+    if duration_minutes <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Duration must be greater than 0",
+        )
+
+    row = Request.get_for_update(db, {"id": request_id})
+    if not row:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if row.status != RequestStatus.IN_PROGRESS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot hold request from '{row.status.value}' status — request must be IN_PROGRESS",
+        )
+
+    _verify_staff_assigned(db, staff.id, request_id)
+
+    # Calculate hold_until
+    hold_until = datetime.utcnow() + timedelta(minutes=duration_minutes)
+
+    # Atomically update request status and create holding record
+    Request.update(db, {"id": request_id}, {"status": RequestStatus.HOLD})
+    HoldingRequest.create(db, {
+        "request_id": request_id,
+        "hold_until": hold_until,
+    })
+    RequestTrack.create(db, {
+        "request_id": request_id,
+        "event_type": TrackEventType.HOLD,
+        "performed_by": staff.id,
+        "performed_by_role": staff.role,
+        "comment": f"Held for {duration_minutes} minutes\nUntil: {hold_until.isoformat()}",
+    })
+    db.commit()
+    send_to_uid(
+        row.raised_by,
+        f"{staff.name}({staff.email}) Placed Request on Hold",
+        f'Duration: {duration_minutes} minutes\n\nRequest: "{truncate(row.description)}"',
+    )
+    return True
 
 
 def send_staff_chat_message(

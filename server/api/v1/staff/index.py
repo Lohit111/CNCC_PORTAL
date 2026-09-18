@@ -6,9 +6,10 @@ from models.user import User
 from models.enums import UserRole
 from middleware.auth import require_role, get_current_user
 from controllers.staff_actions import (
-    get_assigned, get_inprogress, get_archive,
+    get_assigned, get_inprogress, get_archive, get_in_hold,
     start_request, request_reassignment, finish_request,
-    create_store_request, get_store_chat, send_staff_chat_message
+    create_store_request, get_store_chat, send_staff_chat_message,
+    hold_request
 )
 from config.database import get_db
 
@@ -34,6 +35,10 @@ class MessageBody(BaseModel):
     message: str
 
 
+class HoldRequestBody(BaseModel):
+    duration_minutes: int
+
+
 # --- GET Endpoints ---
 
 @router.get("/assigned")
@@ -54,6 +59,16 @@ async def list_inprogress(
 ):
     """All in-progress requests taken by this staff member (paginated, 30 per page)"""
     return get_inprogress(db, staff_id=user.id, page=page)
+
+
+@router.get("/in-hold")
+async def list_in_hold(
+    page: int = 1,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """All in-hold requests currently assigned to this staff member (paginated, 30 per page)"""
+    return get_in_hold(db, staff_id=user.id, page=page)
 
 
 @router.get("/archive")
@@ -115,6 +130,18 @@ async def finish(
     """Complete a request — sets status to COMPLETED and deactivates all assignments"""
     finish_request(db, staff=user, request_id=request_id)
     return {"message": "Request completed"}
+
+
+@router.put("/hold-request/{request_id}")
+async def hold(
+    request_id: str,
+    body: HoldRequestBody,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Place a request on HOLD — sets status to HOLD and creates a holding record with expiration time"""
+    hold_request(db, staff=user, request_id=request_id, duration_minutes=body.duration_minutes)
+    return {"message": "Request placed on hold"}
 
 
 @router.post("/create-store-request/{request_id}")

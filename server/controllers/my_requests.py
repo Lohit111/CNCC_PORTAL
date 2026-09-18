@@ -38,6 +38,7 @@ def get_inprogress(db: Session, user_id: str, page: int) -> dict:
         RequestStatus.ASSIGNED,
         RequestStatus.IN_PROGRESS,
         RequestStatus.REASSIGN_REQUESTED,
+        RequestStatus.HOLD,
     ], page)
 
 

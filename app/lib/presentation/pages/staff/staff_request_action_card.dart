@@ -64,6 +64,15 @@ class StaffRequestActionCard extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _ActionBtn(
+                    label: 'Hold',
+                    icon: Icons.pause_rounded,
+                    color: const Color(0xFFF59E0B),
+                    onTap: () => _showHoldDialog(context, ref),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ActionBtn(
                     label: 'Store Req',
                     icon: Icons.store_rounded,
                     color: const Color(0xFF0891B2),
@@ -241,6 +250,75 @@ class StaffRequestActionCard extends ConsumerWidget {
             child: const Text('Submit'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showHoldDialog(BuildContext context, WidgetRef ref) {
+    int selectedMinutes = 30;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Hold Request'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'How long do you want to hold this request?',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [15, 30, 60, 120, 240].map((minutes) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(
+                          minutes < 60
+                              ? '${minutes}m'
+                              : '${(minutes / 60).toStringAsFixed(1)}h',
+                        ),
+                        selected: selectedMinutes == minutes,
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() => selectedMinutes = minutes);
+                          }
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Selected: $selectedMinutes minutes',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await ref
+                    .read(staffProvider(category).notifier)
+                    .holdRequest(detail.request.id, selectedMinutes);
+              },
+              child: const Text('Hold'),
+            ),
+          ],
+        ),
       ),
     );
   }

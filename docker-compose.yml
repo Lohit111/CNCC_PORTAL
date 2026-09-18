@@ -13,10 +13,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - ./server/.env
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      STORAGE_ENDPOINT: http://minio:9000
+      - ./.env
     volumes:
       - ./server/config/firebase-credentials.json:/app/config/firebase-credentials.json:ro
     depends_on:
@@ -25,9 +22,22 @@ services:
       minio:
         condition: service_started
 
+  hold-expiration-worker:
+    build:
+      context: ./server
+    restart: unless-stopped
+    command: uv run python -m services.hold_expiration_worker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
