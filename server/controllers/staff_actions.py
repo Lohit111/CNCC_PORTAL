@@ -1,7 +1,8 @@
 """Staff Requests Controller"""
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from fastapi import HTTPException
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from models.request import Request, RequestTable
 from models.track import RequestTrack, RequestTrackTable
 from models.assignment import Assignment, AssignmentTable
@@ -284,7 +285,7 @@ def hold_request(db: Session, staff: User, request_id: str, duration_minutes: in
     _verify_staff_assigned(db, staff.id, request_id)
 
     # Calculate hold_until
-    hold_until = datetime.utcnow() + timedelta(minutes=duration_minutes)
+    hold_until = datetime.now(timezone.utc) + timedelta(minutes=duration_minutes)
 
     # Atomically update request status and create holding record
     Request.update(db, {"id": request_id}, {"status": RequestStatus.HOLD})
@@ -299,6 +300,10 @@ def hold_request(db: Session, staff: User, request_id: str, duration_minutes: in
         "performed_by_role": staff.role,
         "comment": f"Held for {duration_minutes} minutes\nUntil: {hold_until.isoformat()}",
     })
+    db.execute(
+        text("SELECT pg_notify('hold_created', :request_id)"),
+        {"request_id": request_id},
+    )
     db.commit()
     send_to_uid(
         row.raised_by,
