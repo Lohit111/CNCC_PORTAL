@@ -8,7 +8,8 @@ mobile:
 	cd app && flutter run
 
 backend:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db minio worker
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db minio
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build worker
 	cd server && uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 db-login:
