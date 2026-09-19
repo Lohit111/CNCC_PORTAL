@@ -1,13 +1,5 @@
 include .env
 
-upsert-admin:
-	docker compose exec api \
-		uv run python upsert_admin.py
-
-db-login:
-	docker compose -f docker-compose.yml exec db \
-		psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
-
 web:
 	cd app && flutter run -d web-server --web-port 3000 --web-hostname 0.0.0.0
 
@@ -16,8 +8,16 @@ mobile:
 	cd app && flutter run
 
 backend:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db minio
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db minio worker
 	cd server && uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+db-login:
+	docker compose -f docker-compose.yml exec db \
+		psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
+
+upsert-admin:
+	docker compose exec api \
+		uv run python upsert_admin.py
 
 dev-upsert-admin:
 	cd server && uv run python upsert_admin.py

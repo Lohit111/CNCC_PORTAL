@@ -6,11 +6,18 @@ to IN_PROGRESS status.
 Run this as a separate container/process.
 """
 import logging
+
+# Configure logging first, before any imports that might use it
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from models.holding_request import HoldingRequest, HoldingRequestTable
 from models.request import Request
-from models.track import RequestTrack
+from models.track import RequestTrack, RequestTrackTable
 from models.enums import RequestStatus, TrackEventType
 from dotenv import load_dotenv
 from pathlib import Path
@@ -18,12 +25,31 @@ from pathlib import Path
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 from config.database import SessionLocal
 from sqlalchemy import desc
+from services.notification_service import send_to_uid
+
+# Initialize Firebase Admin
+import os
+from firebase_admin import credentials, initialize_app, get_app
+
+cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+if not cred_path:
+    raise ValueError("FIREBASE_CREDENTIALS_PATH environment variable is not set")
+
+cred = credentials.Certificate(cred_path)
+try:
+    get_app()
+    logging.info("Firebase already initialized")
+except ValueError:
+    initialize_app(cred)
+    logging.info("Firebase initialized successfully")
+except Exception as e:
+    logging.error(f"Failed to initialize Firebase: {str(e)}")
+    raise
 
 logger = logging.getLogger(__name__)
 
 # Worker configuration
 POLL_INTERVAL_SECONDS = 30
-
 
 def process_expired_holds() -> int:
     """
@@ -40,7 +66,7 @@ def process_expired_holds() -> int:
         expired_holds = (
             db.query(HoldingRequestTable)
             .with_for_update()
-            .filter(HoldingRequestTable.hold_until <= datetime.utcnow())
+            .filter(HoldingRequestTable.hold_until <= datetime.now(timezone.utc))
             .all()
         )
         
@@ -80,9 +106,9 @@ def process_expired_holds() -> int:
 
                 # Get the latest track for this request.
                 last_track = (
-                    db.query(RequestTrack)
-                    .filter(RequestTrack.request_id == holding.request_id)
-                    .order_by(desc(RequestTrack.created_at))
+                    db.query(RequestTrackTable)
+                    .filter(RequestTrackTable.request_id == holding.request_id)
+                    .order_by(desc(RequestTrackTable.created_at))
                     .first()
                 )
 
@@ -123,6 +149,14 @@ def process_expired_holds() -> int:
 
                 db.commit()
 
+                # Send notification to the staff member whose hold expired
+                if last_track.performed_by:
+                    send_to_uid(
+                        last_track.performed_by,
+                        "Hold Expired",
+                        f"Your hold on request {holding.request_id[:8]} has expired and been restored to IN_PROGRESS",
+                    )
+
                 logger.info(
                     "Hold expired: request %s restored to IN_PROGRESS",
                     holding.request_id,
@@ -162,8 +196,5 @@ def run_worker() -> None:
         time.sleep(POLL_INTERVAL_SECONDS)
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-run_worker()
+if __name__ == "__main__":
+    run_worker()
