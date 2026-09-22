@@ -12,7 +12,9 @@ Future<void> openFileBytes({
   required String contentType,
 }) async {
   final dir = await getTemporaryDirectory();
-  final filePath = '${dir.path}/$fileName';
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  final uniqueFileName = '${timestamp}_$fileName';
+  final filePath = '${dir.path}/$uniqueFileName';
   await File(filePath).writeAsBytes(bytes, flush: true);
 
   final result = await OpenFilex.open(filePath);

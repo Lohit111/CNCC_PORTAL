@@ -124,3 +124,55 @@ def download_file(
             "Content-Length": str(len(data)),
         },
     )
+
+
+def download_form_pdf(
+    db: Session,
+    request_id: str,
+    user: User,
+) -> Response:
+    """Generate and download request form as filled PDF."""
+    
+    from services.request_form_pdf import generate_request_form_pdf
+    from models.user import UserTable
+    
+    request = Request.get(db, {"id": request_id})
+
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    # Fetch the user who raised the request
+    raised_by_user = db.query(UserTable).filter(
+        UserTable.id == request.raised_by
+    ).first()
+
+    if not raised_by_user:
+        raise HTTPException(
+            status_code=404,
+            detail="User who raised the request not found",
+        )
+
+    try:
+        pdf_bytes = generate_request_form_pdf(
+            request=request,
+            user_name=raised_by_user.name or "",
+            phone=raised_by_user.phone or "",
+        )
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="request_{request_id[:8].upper()}.pdf"',
+                "Content-Length": str(len(pdf_bytes)),
+            },
+        )
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=500,
+            detail="PDF template not found on server",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate PDF: {str(e)}",
+        )

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/core/utils/file_opener.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 import 'package:cncc_portal/domain/entities/request_file_entity.dart';
@@ -177,6 +179,8 @@ class RequestDialog extends ConsumerWidget {
                       ),
                       const SizedBox(height: 14),
                       _CallCreatorRow(detail: detail),
+                      const SizedBox(height: 14),
+                      _DownloadRequestFormButton(requestId: req.id),
                     ],
                   ),
                 ),
@@ -939,6 +943,116 @@ class _CallCreatorRow extends StatelessWidget {
                 }
               },
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DownloadRequestFormButton extends ConsumerStatefulWidget {
+  final String requestId;
+
+  const _DownloadRequestFormButton({required this.requestId});
+
+  @override
+  ConsumerState<_DownloadRequestFormButton> createState() =>
+      _DownloadRequestFormButtonState();
+}
+
+class _DownloadRequestFormButtonState
+    extends ConsumerState<_DownloadRequestFormButton> {
+  bool _isDownloading = false;
+
+  Future<void> _downloadForm() async {
+    if (_isDownloading) return;
+
+    setState(() => _isDownloading = true);
+
+    try {
+      final networkClient = NetworkClient();
+      final response = await networkClient.get(
+        '/request-files/${widget.requestId}/form-download',
+        options: Options(
+          responseType: ResponseType.bytes,
+        ),
+      );
+
+      if (!mounted) return;
+
+      final bytes = response.data is Uint8List
+          ? response.data as Uint8List
+          : Uint8List.fromList(response.data as List<int>);
+
+      await openFileBytes(
+        bytes: bytes,
+        fileName: 'request_${widget.requestId.substring(0, 8).toUpperCase()}.pdf',
+        contentType: 'application/pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to download form: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDownloading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: cs.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.file_download_rounded, size: 18, color: cs.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Download Request Form',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Download filled PDF form',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: cs.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: _isDownloading
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(cs.primary),
+                    ),
+                  )
+                : Icon(Icons.download_rounded, color: cs.primary),
+            tooltip: 'Download form',
+            onPressed: _isDownloading ? null : _downloadForm,
+          ),
         ],
       ),
     );

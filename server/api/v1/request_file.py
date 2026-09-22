@@ -79,3 +79,23 @@ async def download(
         file_id=file_id,
         user=user,
     )
+
+
+@router.get("/{request_id}/form-download", response_class=Response)
+async def download_form(
+    request_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Download request form as filled PDF.
+    
+    Generates a PDF from template.pdf with request data filled in.
+    """
+
+    from controllers.request_file import download_form_pdf
+    
+    return download_form_pdf(
+        db=db,
+        request_id=request_id,
+        user=user,
+    )
