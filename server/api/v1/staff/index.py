@@ -9,7 +9,7 @@ from controllers.staff_actions import (
     get_assigned, get_inprogress, get_archive, get_in_hold,
     start_request, request_reassignment, finish_request,
     create_store_request, get_store_chat, send_staff_chat_message,
-    hold_request
+    hold_request, unhold_request
 )
 from config.database import get_db
 
@@ -36,7 +36,7 @@ class MessageBody(BaseModel):
 
 
 class HoldRequestBody(BaseModel):
-    duration_minutes: int
+    comment: str
 
 
 # --- GET Endpoints ---
@@ -139,9 +139,20 @@ async def hold(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Place a request on HOLD — sets status to HOLD and creates a holding record with expiration time"""
-    hold_request(db, staff=user, request_id=request_id, duration_minutes=body.duration_minutes)
+    """Place a request on HOLD with a comment explaining the reason"""
+    hold_request(db, staff=user, request_id=request_id, comment=body.comment)
     return {"message": "Request placed on hold"}
+
+
+@router.put("/unhold-request/{request_id}")
+async def unhold(
+    request_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Restore a HOLD request back to IN_PROGRESS"""
+    unhold_request(db, staff=user, request_id=request_id)
+    return {"message": "Request restored to in-progress"}
 
 
 @router.post("/create-store-request/{request_id}")

@@ -9,7 +9,6 @@ from models.track import RequestTrack, RequestTrackTable
 from models.assignment import Assignment, AssignmentTable
 from models.store_request import StoreRequest, StoreRequestTable
 from models.store_chat import StoreChat, StoreChatTable
-from models.holding_request import HoldingRequest, HoldingRequestTable
 
 __all__ = [
     "Base",
@@ -25,8 +24,6 @@ __all__ = [
     "SubTypeTable",
     "RequestFile",
     "RequestFileTable",
-    "HoldingRequest",
-    "HoldingRequestTable",
     "RequestTrack",
     "RequestTrackTable",
     "Assignment",

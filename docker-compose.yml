@@ -22,21 +22,6 @@ services:
       minio:
         condition: service_started
 
-  worker:
-    build:
-      context: ./server
-    restart: unless-stopped
-    command: uv run python -m hold_expiration_worker
-    env_file:
-      - ./.env
-    volumes:
-      - ./server/config/firebase-credentials.json:/app/config/firebase-credentials.json:ro
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-    depends_on:
-      db:
-        condition: service_healthy
-
   db:
     image: postgres:16-alpine
     restart: unless-stopped

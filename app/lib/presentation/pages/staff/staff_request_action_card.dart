@@ -80,6 +80,17 @@ class StaffRequestActionCard extends ConsumerWidget {
                   ),
                 ),
               ],
+              // On Hold — can only unhold
+              if (category == 'in-hold') ...[
+                Expanded(
+                  child: _ActionBtn(
+                    label: 'Unhold',
+                    icon: Icons.play_arrow_rounded,
+                    color: const Color(0xFF16A34A),
+                    onTap: () => _confirmUnhold(context, ref),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -222,6 +233,29 @@ class StaffRequestActionCard extends ConsumerWidget {
     );
   }
 
+  void _confirmUnhold(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unhold Request'),
+        content: const Text('Restore this request to In Progress?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref
+                  .read(staffProvider(category).notifier)
+                  .unholdRequest(detail.request.id);
+            },
+            child: const Text('Unhold'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showReassignDialog(BuildContext context, WidgetRef ref) {
     final ctrl = TextEditingController();
     showDialog(
@@ -339,7 +373,7 @@ class _ActionBtn extends StatelessWidget {
   }
 }
 
-/// Dialog for holding a request with time picker or manual input.
+/// Dialog for holding a request with a comment.
 class _HoldDialogContent extends ConsumerStatefulWidget {
   final String requestId;
   final String category;
@@ -356,38 +390,12 @@ class _HoldDialogContent extends ConsumerStatefulWidget {
 }
 
 class _HoldDialogContentState extends ConsumerState<_HoldDialogContent> {
-  late TimeOfDay _selectedTime;
-  late DateTime _selectedDate;
-  bool _useTimePicker = true;
-  final TextEditingController _minutesController = TextEditingController(text: '30');
-
-  @override
-  void initState() {
-    super.initState();
-    final now = TimeOfDay.now();
-    int hour = now.hour;
-    int minute = ((now.minute + 30) ~/ 15) * 15;
-    
-    if (minute >= 60) {
-      minute = 0;
-      hour = (hour + 1) % 24;
-    }
-    
-    _selectedTime = TimeOfDay(hour: hour, minute: minute);
-    _selectedDate = DateTime.now();
-  }
+  final TextEditingController _commentController = TextEditingController();
 
   @override
   void dispose() {
-    _minutesController.dispose();
+    _commentController.dispose();
     super.dispose();
-  }
-
-  int _calculateDurationMinutes() {
-    final now = DateTime.now();
-    final selected = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _selectedTime.hour, _selectedTime.minute);
-    final difference = selected.difference(now);
-    return difference.inMinutes.clamp(1, 999999);
   }
 
   @override
@@ -399,158 +407,26 @@ class _HoldDialogContentState extends ConsumerState<_HoldDialogContent> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Toggle between Time Picker and Manual Input
-            Row(
-              children: [
-                Expanded(
-                  child: SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(
-                        value: true,
-                        label: Text('Time Picker'),
-                      ),
-                      ButtonSegment(
-                        value: false,
-                        label: Text('Manual Input'),
-                      ),
-                    ],
-                    selected: {_useTimePicker},
-                    onSelectionChanged: (selected) {
-                      setState(() => _useTimePicker = selected.first);
-                    },
-                  ),
-                ),
-              ],
+            Text(
+              'Reason for hold:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
-            const SizedBox(height: 20),
-            if (_useTimePicker) ...[
-              // Time Picker Mode
-              Text(
-                'Select when the hold should expire:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Date Picker
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _selectedDate,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                  );
-                  if (picked != null) {
-                    setState(() => _selectedDate = picked);
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Theme.of(context).colorScheme.outline),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      Icon(Icons.calendar_today, size: 18, color: Theme.of(context).colorScheme.primary),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Time Picker
-              InkWell(
-                onTap: () async {
-                  final picked = await showTimePicker(
-                    context: context,
-                    initialTime: _selectedTime,
-                  );
-                  if (picked != null) {
-                    setState(() => _selectedTime = picked);
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Theme.of(context).colorScheme.outline),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _selectedTime.format(context),
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      Icon(Icons.access_time, size: 18, color: Theme.of(context).colorScheme.primary),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _commentController,
+              maxLines: 4,
+              decoration: InputDecoration(
+                labelText: 'Comment',
+                hintText: 'Explain why you\'re holding this request...',
+                border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  'Hold expires in ${_calculateDurationMinutes()} minutes',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
               ),
-            ] else ...[
-              // Manual Input Mode
-              Text(
-                'Enter hold duration (in minutes):',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _minutesController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Minutes',
-                  hintText: '30',
-                  prefixIcon: const Icon(Icons.timer_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Hold expires in ${_minutesController.text.isNotEmpty ? _minutesController.text : '30'} minutes',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ],
         ),
       ),
@@ -561,13 +437,10 @@ class _HoldDialogContentState extends ConsumerState<_HoldDialogContent> {
         ),
         ElevatedButton(
           onPressed: () async {
-            final durationMinutes = _useTimePicker
-                ? _calculateDurationMinutes()
-                : int.tryParse(_minutesController.text) ?? 30;
-
-            if (durationMinutes <= 0) {
+            final comment = _commentController.text.trim();
+            if (comment.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Duration must be greater than 0')),
+                const SnackBar(content: Text('Please enter a comment')),
               );
               return;
             }
@@ -575,7 +448,7 @@ class _HoldDialogContentState extends ConsumerState<_HoldDialogContent> {
             Navigator.pop(context);
             await widget.ref
                 .read(staffProvider(widget.category).notifier)
-                .holdRequest(widget.requestId, durationMinutes);
+                .holdRequest(widget.requestId, comment);
           },
           child: const Text('Hold'),
         ),

@@ -35,6 +35,68 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
     super.dispose();
   }
 
+  /// Validates and formats room number.
+  /// Format: {1-3 capital letters}{1-3 digits} or {1-3 capital letters}{1-3 digits}/{digit}
+  /// Examples: A1 → A001, ABC123 → ABC123, AB12/5 → AB012/5, A/2 → A000/2
+  /// Returns formatted room or null if invalid
+  String? _validateRoomNumber(String input) {
+    if (input.trim().isEmpty) return null;
+
+    final cleaned = input.replaceAll(RegExp(r'[^a-zA-Z0-9/]'), '').toUpperCase();
+    if (cleaned.isEmpty) return null;
+
+    // Split by /
+    final parts = cleaned.split('/');
+    if (parts.length > 2) return null;
+
+    final mainPart = parts[0];
+    final suffixPart = parts.length > 1 ? parts[1] : null;
+
+    // Validate suffix if present - must be single digit
+    if (suffixPart != null) {
+      if (suffixPart.length != 1 || !RegExp(r'\d').hasMatch(suffixPart)) {
+        return null;
+      }
+    }
+
+    // Main part must start with letter
+    if (mainPart.isEmpty || !RegExp(r'^[A-Z]').hasMatch(mainPart)) {
+      return null;
+    }
+
+    // Extract letters and digits from main part
+    int letterCount = 0;
+    int digitCount = 0;
+    bool seenDigit = false;
+    String letters = '';
+    String digits = '';
+
+    for (final char in mainPart.characters) {
+      if (RegExp(r'[A-Z]').hasMatch(char)) {
+        if (seenDigit) return null; // Letter after digit
+        if (letterCount >= 3) return null; // More than 3 letters
+        letters += char;
+        letterCount++;
+      } else if (RegExp(r'\d').hasMatch(char)) {
+        if (digitCount >= 3) return null; // More than 3 digits
+        digits += char;
+        digitCount++;
+        seenDigit = true;
+      } else {
+        return null;
+      }
+    }
+
+    // Must have at least 1 digit
+    if (digitCount == 0) return null;
+
+    // Pad digits to 3 digits with leading zeros
+    final paddedDigits = digits.padLeft(3, '0');
+
+    final formattedMain = '$letters$paddedDigits';
+    return suffixPart != null ? '$formattedMain/$suffixPart' : formattedMain;
+  }
+
   @override
   Widget build(BuildContext context) {
     final mainTypesAsync = ref.watch(mainTypesProvider);
@@ -136,18 +198,14 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                   controller: _roomController,
                   decoration: const InputDecoration(
                     labelText: 'Room',
-                    hintText: 'e.g., A-103',
-                    helperText: 'Format: Letter-3 digits (e.g., A-103)',
                   ),
                   textCapitalization: TextCapitalization.characters,
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
                       return 'Room is required';
                     }
-                    final trimmed = v.trim().toUpperCase();
-                    // Match pattern: single letter, hyphen, 3 digits
-                    if (!RegExp(r'^[A-Z]-\d{3}$').hasMatch(trimmed)) {
-                      return 'Format must be: Letter-3 digits (e.g., A-103)';
+                    if (_validateRoomNumber(v) == null) {
+                      return 'Format: 1-3 letters + 1-3 digits (e.g., A1, ABC123) or + /digit (e.g., AB12/5)';
                     }
                     return null;
                   },
@@ -231,13 +289,27 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
     if (_selectedDeptName == null) return;
 
     setState(() => _isSubmitting = true);
-    final roomNo = _roomController.text.trim().toUpperCase();
+    
+    // Validate and format room number
+    final rawRoom = _roomController.text.trim();
+    final formattedRoom = _validateRoomNumber(rawRoom);
+    
+    if (formattedRoom == null) {
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid room format')),
+        );
+      }
+      return;
+    }
+    
     final success =
         await ref.read(myRequestsProvider('raised').notifier).createRequest(
               mainType: _selectedMainName!,
               subType: _selectedSubName!,
               description: _descController.text.trim(),
-              roomNo: roomNo,
+              roomNo: formattedRoom,
               department: _selectedDeptName!,
             );
     if (mounted) {

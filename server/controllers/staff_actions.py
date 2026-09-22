@@ -1,12 +1,10 @@
 """Staff Requests Controller"""
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from fastapi import HTTPException
 from datetime import datetime, timedelta, timezone
 from models.request import Request, RequestTable
 from models.track import RequestTrack, RequestTrackTable
 from models.assignment import Assignment, AssignmentTable
-from models.holding_request import HoldingRequest
 from models.store_request import StoreRequest, StoreRequestTable
 from models.store_chat import StoreChat
 from models.user import User
@@ -262,15 +260,15 @@ def create_store_request(
     return True
 
 
-def hold_request(db: Session, staff: User, request_id: str, duration_minutes: int) -> bool:
+def hold_request(db: Session, staff: User, request_id: str, comment: str) -> bool:
     """Place a request on HOLD from IN_PROGRESS status.
     
-    Staff must have an active assignment. Duration is in minutes from now.
+    Staff must have an active assignment. Requires a comment explaining the hold reason.
     """
-    if duration_minutes <= 0:
+    if not comment or not comment.strip():
         raise HTTPException(
             status_code=400,
-            detail="Duration must be greater than 0",
+            detail="Comment is required for hold",
         )
 
     row = Request.get_for_update(db, {"id": request_id})
@@ -284,31 +282,24 @@ def hold_request(db: Session, staff: User, request_id: str, duration_minutes: in
 
     _verify_staff_assigned(db, staff.id, request_id)
 
-    # Calculate hold_until
-    hold_until = datetime.now(timezone.utc) + timedelta(minutes=duration_minutes)
-
-    # Atomically update request status and create holding record
+    # Update request status to HOLD
     Request.update(db, {"id": request_id}, {"status": RequestStatus.HOLD})
-    HoldingRequest.create(db, {
-        "request_id": request_id,
-        "hold_until": hold_until,
-    })
+    
+    # Create track entry with the comment
     RequestTrack.create(db, {
         "request_id": request_id,
         "event_type": TrackEventType.HOLD,
         "performed_by": staff.id,
         "performed_by_role": staff.role,
-        "comment": f"Held for {duration_minutes} minutes\nUntil: {hold_until.isoformat()}",
+        "comment": comment.strip(),
     })
-    db.execute(
-        text("SELECT pg_notify('hold_created', :request_id)"),
-        {"request_id": request_id},
-    )
+    
     db.commit()
+    
     send_to_uid(
         row.raised_by,
         f"{staff.name}({staff.email}) Placed Request on Hold",
-        f'Duration: {duration_minutes} minutes\n\nRequest: "{truncate(row.description)}"',
+        f'Reason: {comment.strip()}\n\nRequest: "{truncate(row.description)}"',
     )
     return True
 
@@ -343,5 +334,43 @@ def send_staff_chat_message(
         sr.responded_by,
         f"{staff.name}({staff.email}) Sent a Message",
         f'"{truncate(message)}"\n\non Store Request: "{truncate(sr.description)}"',
+    )
+    return True
+
+
+def unhold_request(db: Session, staff: User, request_id: str) -> bool:
+    """Restore a HOLD request back to IN_PROGRESS status.
+    
+    Staff must have an active assignment and the request must be in HOLD status.
+    """
+    row = Request.get_for_update(db, {"id": request_id})
+    if not row:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if row.status != RequestStatus.HOLD:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot unhold request from '{row.status.value}' status — request must be HOLD",
+        )
+
+    _verify_staff_assigned(db, staff.id, request_id)
+
+    # Restore request to IN_PROGRESS
+    Request.update(db, {"id": request_id}, {"status": RequestStatus.IN_PROGRESS})
+    
+    # Create track entry for unhold
+    RequestTrack.create(db, {
+        "request_id": request_id,
+        "event_type": TrackEventType.HOLD_EXPIRED,
+        "performed_by": staff.id,
+        "performed_by_role": staff.role,
+        "comment": "Hold manually released by staff",
+    })
+    
+    db.commit()
+    
+    send_to_uid(
+        row.raised_by,
+        f"{staff.name}({staff.email}) Released Request from Hold",
+        f'Request: "{truncate(row.description)}"',
     )
     return True

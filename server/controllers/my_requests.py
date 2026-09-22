@@ -7,6 +7,66 @@ from models.user import User
 from models.enums import RequestStatus, TrackEventType, UserRole
 from services.notification_service import send_to_role
 from controllers.common.helpers import paginate_requests, truncate
+import re
+
+
+def _validate_and_format_room(room_no: str) -> str:
+    """Validate room number format and return formatted version.
+    
+    Format: {1-3 letters}{1-3 digits} or {1-3 letters}{1-3 digits}/{digit}
+    Examples: A1, ABC123, AB12/5
+    
+    Raises HTTPException if invalid.
+    """
+    if not room_no or not room_no.strip():
+        raise HTTPException(status_code=400, detail="Room is required")
+    
+    cleaned = re.sub(r'[^a-zA-Z0-9/]', '', room_no).upper()
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="Room must contain letters and numbers")
+    
+    # Split by /
+    parts = cleaned.split('/')
+    if len(parts) > 2:
+        raise HTTPException(status_code=400, detail="Room can contain at most one '/'")
+    
+    main_part = parts[0]
+    suffix_part = parts[1] if len(parts) > 1 else None
+    
+    # Validate suffix if present - must be single digit
+    if suffix_part:
+        if len(suffix_part) != 1 or not suffix_part.isdigit():
+            raise HTTPException(status_code=400, detail="After '/' must be a single digit")
+    
+    # Main part must start with letter
+    if not main_part or not main_part[0].isalpha():
+        raise HTTPException(status_code=400, detail="Room must start with a letter")
+    
+    # Extract and validate letters and digits
+    letter_count = 0
+    digit_count = 0
+    seen_digit = False
+    
+    for char in main_part:
+        if char.isalpha():
+            if seen_digit:
+                raise HTTPException(status_code=400, detail="Letters must come before digits")
+            if letter_count >= 3:
+                raise HTTPException(status_code=400, detail="Maximum 3 letters allowed")
+            letter_count += 1
+        elif char.isdigit():
+            if digit_count >= 3:
+                raise HTTPException(status_code=400, detail="Maximum 3 digits allowed")
+            digit_count += 1
+            seen_digit = True
+        else:
+            raise HTTPException(status_code=400, detail="Invalid character in room number")
+    
+    # Must have at least 1 digit
+    if digit_count == 0:
+        raise HTTPException(status_code=400, detail="Room must contain at least 1 digit")
+    
+    return f"{main_part}/{suffix_part}" if suffix_part else main_part
 
 
 def _query_requests(db: Session, user_id: str, statuses: list, page: int) -> dict:
@@ -98,12 +158,13 @@ def create_request(
     department: str,
 ) -> dict:
     """Create a new request with RAISED status and an initial track entry."""
+    formatted_room = _validate_and_format_room(room_no)
     request = Request.create(db, {
         "raised_by": user_id,
         "main_type": main_type,
         "sub_type": sub_type,
         "description": description,
-        "room_no": room_no,
+        "room_no": formatted_room,
         "department": department,
         "status": RequestStatus.RAISED,
     })

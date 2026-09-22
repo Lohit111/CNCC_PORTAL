@@ -106,12 +106,22 @@ class StaffNotifier extends FamilyAsyncNotifier<StaffRequestsState, String> {
     }
   }
 
-  Future<bool> holdRequest(String requestId, int durationMinutes) async {
+  Future<bool> holdRequest(String requestId, String comment) async {
     try {
       await _client.put(
         '/staff/hold-request/$requestId',
-        data: {'duration_minutes': durationMinutes},
+        data: {'comment': comment},
       );
+      await refresh();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> unholdRequest(String requestId) async {
+    try {
+      await _client.put('/staff/unhold-request/$requestId');
       await refresh();
       return true;
     } catch (_) {
