@@ -187,7 +187,14 @@ def scan() -> tuple[list[HoldingRequestTable], datetime | None]:
             .first()
         )
 
-        next_wake = next_hold[0] if next_hold else None
+        next_wake = None
+        if next_hold:
+            # Ensure the datetime is timezone-aware (UTC)
+            dt = next_hold[0]
+            if dt.tzinfo is None:
+                next_wake = dt.replace(tzinfo=timezone.utc)
+            else:
+                next_wake = dt
 
         logger.info(
             "Scan complete: %d expired hold(s), next wake: %s",
