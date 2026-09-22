@@ -19,6 +19,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _descController = TextEditingController();
   final _roomController = TextEditingController();
+  final _modelNumberController = TextEditingController();
 
   int? _selectedMainId;
   int? _selectedSubId;
@@ -32,6 +33,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   void dispose() {
     _descController.dispose();
     _roomController.dispose();
+    _modelNumberController.dispose();
     super.dispose();
   }
 
@@ -42,7 +44,8 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   String? _validateRoomNumber(String input) {
     if (input.trim().isEmpty) return null;
 
-    final cleaned = input.replaceAll(RegExp(r'[^a-zA-Z0-9/]'), '').toUpperCase();
+    final cleaned =
+        input.replaceAll(RegExp(r'[^a-zA-Z0-9/]'), '').toUpperCase();
     if (cleaned.isEmpty) return null;
 
     // Split by /
@@ -149,9 +152,8 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                   ),
                 ),
 
-                const SizedBox(height: 12),
-
                 // Sub type — only shown once a main type is selected
+                if (_selectedMainId != null) const SizedBox(height: 12),
                 if (_selectedMainId != null)
                   Consumer(builder: (_, ref, __) {
                     final subAsync =
@@ -209,6 +211,17 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                     }
                     return null;
                   },
+                ),
+
+                const SizedBox(height: 12),
+
+                // Model Number — optional
+                TextFormField(
+                  controller: _modelNumberController,
+                  decoration: const InputDecoration(
+                    labelText: 'Model Number',
+                    hintText: 'e.g., MODEL-123, A1B2C3',
+                  ),
                 ),
 
                 const SizedBox(height: 12),
@@ -289,11 +302,11 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
     if (_selectedDeptName == null) return;
 
     setState(() => _isSubmitting = true);
-    
+
     // Validate and format room number
     final rawRoom = _roomController.text.trim();
     final formattedRoom = _validateRoomNumber(rawRoom);
-    
+
     if (formattedRoom == null) {
       setState(() => _isSubmitting = false);
       if (mounted) {
@@ -303,13 +316,14 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
       }
       return;
     }
-    
+
     final success =
         await ref.read(myRequestsProvider('raised').notifier).createRequest(
               mainType: _selectedMainName!,
               subType: _selectedSubName!,
               description: _descController.text.trim(),
               roomNo: formattedRoom,
+              modelNumber: _modelNumberController.text.trim(),
               department: _selectedDeptName!,
             );
     if (mounted) {

@@ -29,6 +29,7 @@ class CreateRequestBody(BaseModel):
     sub_type: str
     description: str
     room_no: str
+    model_number: str
     department: str
 
 
@@ -100,6 +101,7 @@ async def create(
         sub_type=body.sub_type,
         description=body.description,
         room_no=body.room_no,
+        model_number=body.model_number,
         department=body.department,
     )
 

@@ -116,6 +116,14 @@ class RequestCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
 
+                if (req.modelNumber.isNotEmpty) ...[
+                  _InfoRow(
+                    label: 'Model',
+                    value: req.modelNumber,
+                  ),
+                  const SizedBox(height: 3),
+                ],
+
                 if (req.department.isNotEmpty) ...[
                   _InfoRow(
                     label: 'Department',
