@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:cncc_portal/presentation/providers/my_requests_provider.dart';
 import 'package:cncc_portal/presentation/providers/departments_provider.dart';
 import 'package:cncc_portal/presentation/providers/types_provider.dart';
+import 'package:cncc_portal/presentation/providers/request_file_provider.dart';
 import 'package:cncc_portal/presentation/widgets/searchable_selection_sheet.dart';
+import 'package:cncc_portal/services/file_service.dart';
 
 /// Shared "New Request" dialog used by all role home pages.
 class RequestFormDialog extends ConsumerStatefulWidget {
@@ -28,6 +31,9 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   int? _selectedDeptId;
   String? _selectedDeptName;
   bool _isSubmitting = false;
+  
+  // Files to be uploaded after request creation
+  final List<PlatformFile> _selectedFiles = [];
 
   @override
   void dispose() {
@@ -98,6 +104,23 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
 
     final formattedMain = '$letters$paddedDigits';
     return suffixPart != null ? '$formattedMain/$suffixPart' : formattedMain;
+  }
+
+  Future<void> _pickAndAddFiles() async {
+    final files = await FileService.showFilePickerModal(context);
+    if (files.isEmpty) return;
+
+    if (!mounted) return;
+
+    setState(() {
+      _selectedFiles.addAll(files);
+    });
+  }
+
+  void _removeFile(int index) {
+    setState(() {
+      _selectedFiles.removeAt(index);
+    });
   }
 
   @override
@@ -271,6 +294,92 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                       ? 'Description is required'
                       : null,
                 ),
+
+                const SizedBox(height: 16),
+
+                // Files section
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Files (${_selectedFiles.length})',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _pickAndAddFiles,
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Add'),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 8),
+
+                // Selected files list
+                if (_selectedFiles.isNotEmpty)
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _selectedFiles.length,
+                      separatorBuilder: (_, __) => const Divider(
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
+                      ),
+                      itemBuilder: (_, index) {
+                        final file = _selectedFiles[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _getFileIcon(file.name),
+                                size: 20,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      file.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${(file.size / 1024).toStringAsFixed(1)} KB',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded, size: 18),
+                                onPressed: () => _removeFile(index),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
               ],
             ),
           ),
@@ -296,6 +405,17 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
     );
   }
 
+  IconData _getFileIcon(String filename) {
+    final ext = filename.toLowerCase().split('.').last;
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(ext)) {
+      return Icons.image_rounded;
+    }
+    if (['pdf'].contains(ext)) return Icons.picture_as_pdf_rounded;
+    if (['doc', 'docx', 'txt'].contains(ext)) return Icons.description_rounded;
+    if (['xls', 'xlsx'].contains(ext)) return Icons.table_chart_rounded;
+    return Icons.insert_drive_file_rounded;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedMainName == null || _selectedSubName == null) return;
@@ -317,7 +437,8 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
       return;
     }
 
-    final success =
+    // Phase 1: Create the request
+    final requestId =
         await ref.read(myRequestsProvider('raised').notifier).createRequest(
               mainType: _selectedMainName!,
               subType: _selectedSubName!,
@@ -326,9 +447,35 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
               modelNumber: _modelNumberController.text.trim(),
               department: _selectedDeptName!,
             );
-    if (mounted) {
-      Navigator.pop(context);
-      if (success) widget.onSuccess();
+    
+    if (requestId == null || !mounted) {
+      setState(() => _isSubmitting = false);
+      return;
+    }
+
+    // If there are files to upload, show Phase 2 (upload dialog)
+    if (_selectedFiles.isNotEmpty) {
+      if (mounted) {
+        Navigator.pop(context);
+        // Show upload progress dialog
+        if (mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => _UploadProgressDialog(
+              requestId: requestId,
+              files: _selectedFiles,
+            ),
+          );
+        }
+        if (mounted) widget.onSuccess();
+      }
+    } else {
+      // No files, just close and callback
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onSuccess();
+      }
     }
   }
 }
@@ -374,6 +521,118 @@ class _SelectionField extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Two-phase upload dialog shown after request creation.
+/// Displays progress as files are uploaded sequentially.
+class _UploadProgressDialog extends ConsumerStatefulWidget {
+  final String requestId;
+  final List<PlatformFile> files;
+
+  const _UploadProgressDialog({
+    required this.requestId,
+    required this.files,
+  });
+
+  @override
+  ConsumerState<_UploadProgressDialog> createState() =>
+      _UploadProgressDialogState();
+}
+
+class _UploadProgressDialogState extends ConsumerState<_UploadProgressDialog> {
+  int _uploadedCount = 0;
+  String? _currentFileName;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _uploadFilesSequentially();
+  }
+
+  Future<void> _uploadFilesSequentially() async {
+    try {
+      for (int i = 0; i < widget.files.length; i++) {
+        final file = widget.files[i];
+        
+        if (!mounted) return;
+        
+        setState(() {
+          _currentFileName = file.name;
+        });
+
+        // Upload file
+        await ref
+            .read(requestFileProvider(widget.requestId).notifier)
+            .upload([file]);
+
+        if (!mounted) return;
+
+        setState(() {
+          _uploadedCount = i + 1;
+        });
+      }
+
+      // All files uploaded successfully
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    if (_errorMessage != null) {
+      return AlertDialog(
+        title: const Text('Upload Error'),
+        content: Text(_errorMessage!),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      );
+    }
+
+    final progress = _uploadedCount / widget.files.length;
+
+    return AlertDialog(
+      title: const Text('Uploading Files'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LinearProgressIndicator(value: progress),
+            const SizedBox(height: 16),
+            Text(
+              'Uploading: $_currentFileName',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$_uploadedCount / ${widget.files.length} files',
+              style: TextStyle(
+                fontSize: 14,
+                color: cs.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

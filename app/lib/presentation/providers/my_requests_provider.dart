@@ -78,7 +78,8 @@ class MyRequestsNotifier extends FamilyAsyncNotifier<RequestPageState, String> {
   }
 
   /// Create a new request (only used from 'raised' category context)
-  Future<bool> createRequest({
+  /// Returns the request ID on success, null on failure
+  Future<String?> createRequest({
     required String mainType,
     required String subType,
     required String description,
@@ -87,7 +88,7 @@ class MyRequestsNotifier extends FamilyAsyncNotifier<RequestPageState, String> {
     required String department,
   }) async {
     try {
-      await _client.post('/my-requests/', data: {
+      final response = await _client.post('/my-requests/', data: {
         'main_type': mainType,
         'sub_type': subType,
         'description': description,
@@ -96,9 +97,9 @@ class MyRequestsNotifier extends FamilyAsyncNotifier<RequestPageState, String> {
         'department': department,
       });
       await refresh();
-      return true;
+      return response.data['request_id'] as String?;
     } catch (_) {
-      return false;
+      return null;
     }
   }
 
