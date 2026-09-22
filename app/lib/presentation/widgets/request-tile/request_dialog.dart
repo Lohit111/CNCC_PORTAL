@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cncc_portal/core/utils/file_opener.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
@@ -9,6 +8,7 @@ import 'package:cncc_portal/presentation/widgets/request-tile/timeline_widget.da
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 import 'package:cncc_portal/presentation/providers/request_file_provider.dart';
+import 'package:cncc_portal/services/file_service.dart';
 
 /// Full-detail dialog for a request.
 /// Shows request info, timeline, assignments, and store requests.
@@ -905,17 +905,16 @@ class _AttachmentsSectionState extends ConsumerState<_AttachmentsSection> {
   String? _downloadingFileId;
 
   Future<void> _pickAndUpload() async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
+    final files = await FileService.showFilePickerModal(context);
+    if (files.isEmpty) return;
+
+    if (!mounted) return; // Exit early if widget was disposed during modal
 
     setState(() => _isUploading = true);
     try {
       await ref
           .read(requestFileProvider(widget.requestId).notifier)
-          .upload(result.files);
+          .upload(files);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1082,8 +1081,15 @@ class _AttachmentsSectionState extends ConsumerState<_AttachmentsSection> {
                       height: 14,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.attach_file_rounded, size: 16),
-              label: Text(_isUploading ? 'Uploading...' : 'Add Files'),
+                  : const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.attach_file_rounded, size: 16),
+                        SizedBox(width: 6),
+                        Icon(Icons.camera_alt_rounded, size: 16),
+                      ],
+                    ),
+              label: Text(_isUploading ? 'Uploading...' : 'Add Files or Capture'),
             ),
           ),
       ],
