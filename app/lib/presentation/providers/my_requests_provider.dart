@@ -84,7 +84,6 @@ class MyRequestsNotifier extends FamilyAsyncNotifier<RequestPageState, String> {
     required String subType,
     required String description,
     required String roomNo,
-    required String modelNumber,
     required String department,
   }) async {
     try {
@@ -93,7 +92,6 @@ class MyRequestsNotifier extends FamilyAsyncNotifier<RequestPageState, String> {
         'sub_type': subType,
         'description': description,
         'room_no': roomNo,
-        'model_number': modelNumber,
         'department': department,
       });
       await refresh();

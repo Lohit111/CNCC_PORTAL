@@ -22,7 +22,6 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _descController = TextEditingController();
   final _roomController = TextEditingController();
-  final _modelNumberController = TextEditingController();
 
   int? _selectedMainId;
   int? _selectedSubId;
@@ -31,7 +30,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   int? _selectedDeptId;
   String? _selectedDeptName;
   bool _isSubmitting = false;
-  
+
   // Files to be uploaded after request creation
   final List<PlatformFile> _selectedFiles = [];
 
@@ -39,7 +38,6 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   void dispose() {
     _descController.dispose();
     _roomController.dispose();
-    _modelNumberController.dispose();
     super.dispose();
   }
 
@@ -215,38 +213,6 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                       ),
                     );
                   }),
-
-                const SizedBox(height: 12),
-
-                // Room — manual text input
-                TextFormField(
-                  controller: _roomController,
-                  decoration: const InputDecoration(
-                    labelText: 'Room',
-                  ),
-                  textCapitalization: TextCapitalization.characters,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Room is required';
-                    }
-                    if (_validateRoomNumber(v) == null) {
-                      return 'Format: 1-3 letters + 1-3 digits (e.g., A1, ABC123) or + /digit (e.g., AB12/5)';
-                    }
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                // Model Number — optional
-                TextFormField(
-                  controller: _modelNumberController,
-                  decoration: const InputDecoration(
-                    labelText: 'Model Number',
-                    hintText: 'e.g., MODEL-123, A1B2C3',
-                  ),
-                ),
-
                 const SizedBox(height: 12),
 
                 // Department
@@ -286,6 +252,26 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
 
                 const SizedBox(height: 12),
 
+                // Room — manual text input
+                TextFormField(
+                  controller: _roomController,
+                  decoration: const InputDecoration(
+                    labelText: 'Room',
+                  ),
+                  textCapitalization: TextCapitalization.characters,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Room is required';
+                    }
+                    if (_validateRoomNumber(v) == null) {
+                      return 'Format: 1-3 letters + 1-3 digits (e.g., A1, ABC123) or + /digit (e.g., AB12/5)';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
                 TextFormField(
                   controller: _descController,
                   decoration: const InputDecoration(labelText: 'Description'),
@@ -320,7 +306,10 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                   Container(
                     decoration: BoxDecoration(
                       border: Border.all(
-                        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withValues(alpha: 0.5),
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -336,7 +325,8 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                       itemBuilder: (_, index) {
                         final file = _selectedFiles[index];
                         return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                           child: Row(
                             children: [
                               Icon(
@@ -362,7 +352,10 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                                       '${(file.size / 1024).toStringAsFixed(1)} KB',
                                       style: TextStyle(
                                         fontSize: 10,
-                                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.5),
                                       ),
                                     ),
                                   ],
@@ -444,10 +437,9 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
               subType: _selectedSubName!,
               description: _descController.text.trim(),
               roomNo: formattedRoom,
-              modelNumber: _modelNumberController.text.trim(),
               department: _selectedDeptName!,
             );
-    
+
     if (requestId == null || !mounted) {
       setState(() => _isSubmitting = false);
       return;
@@ -556,9 +548,9 @@ class _UploadProgressDialogState extends ConsumerState<_UploadProgressDialog> {
     try {
       for (int i = 0; i < widget.files.length; i++) {
         final file = widget.files[i];
-        
+
         if (!mounted) return;
-        
+
         setState(() {
           _currentFileName = file.name;
         });

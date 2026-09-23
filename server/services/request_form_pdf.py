@@ -59,7 +59,6 @@ def generate_request_form_pdf(
             "department": department_field,
             "phone_number": phone_field,
             "description": request.description,
-            "model_number": request.model_number,
             "type": type_field,
         }
         

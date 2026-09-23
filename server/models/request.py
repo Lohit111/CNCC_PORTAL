@@ -21,7 +21,6 @@ class RequestTable(Base):
     sub_type = Column(String, nullable=False)
     description = Column(Text, nullable=False)
     room_no = Column(String, nullable=False)
-    model_number = Column(String, nullable=False)
     department = Column(String, nullable=False)
     status = Column(SAEnum(RequestStatus), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -45,7 +44,6 @@ class Request(BaseModel):
     sub_type: str = Field()
     description: str = Field()
     room_no: str = Field()
-    model_number: str = Field()
     department: str = Field()
     status: RequestStatus = Field()
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -64,7 +62,6 @@ class Request(BaseModel):
             sub_type=str(request_table.sub_type),
             description=str(request_table.description),
             room_no=str(request_table.room_no),
-            model_number=str(request_table.model_number),
             department=str(request_table.department),
             status=request_table.status,
             created_at=request_table.created_at,

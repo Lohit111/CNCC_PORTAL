@@ -155,7 +155,6 @@ def create_request(
     sub_type: str,
     description: str,
     room_no: str,
-    model_number: str,
     department: str,
 ) -> dict:
     """Create a new request with RAISED status and an initial track entry."""
@@ -166,7 +165,6 @@ def create_request(
         "sub_type": sub_type,
         "description": description,
         "room_no": formatted_room,
-        "model_number": model_number,
         "department": department,
         "status": RequestStatus.RAISED,
     })

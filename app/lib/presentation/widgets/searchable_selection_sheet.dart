@@ -75,13 +75,18 @@ class _SearchableSelectionSheetState<T>
     final query = _searchController.text.trim().toLowerCase();
 
     setState(() {
-      if (query.isEmpty) {
-        _filteredItems = widget.items;
-      } else {
-        _filteredItems = widget.items.where((item) {
-          return widget.labelBuilder(item).toLowerCase().contains(query);
-        }).toList();
-      }
+      final items = query.isEmpty
+          ? widget.items
+          : widget.items.where((item) {
+              return widget.labelBuilder(item).toLowerCase().contains(query);
+            }).toList();
+
+      _filteredItems = [...items]..sort(
+          (a, b) => widget
+              .labelBuilder(a)
+              .toLowerCase()
+              .compareTo(widget.labelBuilder(b).toLowerCase()),
+        );
     });
   }
 

@@ -5,7 +5,6 @@ class Request {
   final String subType;
   final String description;
   final String roomNo;
-  final String modelNumber;
   final String department;
   final String status;
   final DateTime createdAt;
@@ -18,7 +17,6 @@ class Request {
     required this.subType,
     required this.description,
     required this.roomNo,
-    required this.modelNumber,
     required this.department,
     required this.status,
     required this.createdAt,
@@ -33,7 +31,6 @@ class Request {
       subType: json['sub_type'] as String,
       description: json['description'] as String,
       roomNo: json['room_no'] as String,
-      modelNumber: json['model_number'] as String,
       department: json['department'] as String,
       status: json['status'] as String,
       createdAt: DateTime.parse('${json['created_at']}Z').toLocal(),
@@ -49,7 +46,6 @@ class Request {
       'sub_type': subType,
       'description': description,
       'room_no': roomNo,
-      'model_number': modelNumber,
       'department': department,
       'status': status,
       'created_at': createdAt.toIso8601String(),
