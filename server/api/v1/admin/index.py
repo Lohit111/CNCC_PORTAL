@@ -11,7 +11,7 @@ from controllers.admin_actions import (
     get_raised, get_replied, get_assigned,
     get_reassign_requested, get_inprogress, get_hold, get_archive,
     reply_to_request, assign_request, reject_request,
-    delete_request, delete_store_request
+    delete_request, delete_store_request, edit_request
 )
 from config.database import get_db
 
@@ -31,6 +31,11 @@ class CommentBody(BaseModel):
 
 class AssignBody(BaseModel):
     staff_ids: List[str]
+
+
+class EditRequestBody(BaseModel):
+    room_no: str
+    department: str
 
 
 # --- GET Endpoints ---
@@ -115,6 +120,17 @@ async def reject(
     """Set request status to REJECTED and create a track entry with a comment"""
     reject_request(db, admin=user, request_id=request_id, comment=body.comment)
     return {"message": "Request rejected"}
+
+
+@router.put("/edit/{request_id}")
+async def edit(
+    request_id: str,
+    body: EditRequestBody,
+    db: Session = Depends(get_db)
+):
+    """Edit request room and department"""
+    result = edit_request(db, request_id=request_id, room_no=body.room_no, department=body.department)
+    return result
 
 
 # --- DELETE Endpoints ---

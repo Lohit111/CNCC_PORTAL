@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:cncc_portal/core/network/network_client.dart';
 import 'package:cncc_portal/core/utils/file_opener.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 import 'package:cncc_portal/domain/entities/request_file_entity.dart';
@@ -146,6 +144,17 @@ class RequestDialog extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      // Edit request button (admin only)
+                      if (isAdmin)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showEditDialog(context, ref, detail),
+                            icon: const Icon(Icons.edit_rounded, size: 18),
+                            label: const Text('Edit Request'),
+                          ),
+                        ),
+                      if (isAdmin) const SizedBox(height: 12),
                       _DetailRow(
                         label: 'Raised by',
                         value: _raiserDisplay(detail),
@@ -695,6 +704,88 @@ class RequestDialog extends ConsumerWidget {
     }
   }
 
+  /// Show edit dialog for room and department
+  void _showEditDialog(BuildContext context, WidgetRef ref, RequestDetail detail) {
+    final req = detail.request;
+    final roomController = TextEditingController(text: req.roomNo);
+    final deptController = TextEditingController(text: req.department);
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Request'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Room field
+              TextField(
+                controller: roomController,
+                decoration: const InputDecoration(
+                  labelText: 'Room',
+                  hintText: 'e.g., A001',
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Department field
+              TextField(
+                controller: deptController,
+                decoration: const InputDecoration(
+                  labelText: 'Department',
+                  hintText: 'e.g., Admin',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              // Call edit endpoint
+              final room = roomController.text.trim();
+              final dept = deptController.text.trim();
+              if (room.isEmpty || dept.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please fill all fields')),
+                );
+                return;
+              }
+              
+              try {
+                // Call the admin provider's editRequest function
+                final ok = await ref
+                    .read(adminProvider(_categoryForStatus(req.status)).notifier)
+                    .editRequest(req.id, room, dept);
+                
+                if (context.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(ok ? 'Request updated successfully' : 'Failed to update request'),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
@@ -965,24 +1056,17 @@ class _DownloadRequestFormButtonState
     setState(() => _isDownloading = true);
 
     try {
-      final networkClient = NetworkClient();
-      final response = await networkClient.get(
-        '/request-files/${widget.requestId}/form-download',
-        options: Options(
-          responseType: ResponseType.bytes,
-        ),
-      );
+      // Call the requestFileProvider's downloadFormPdf function
+      final result = await ref
+          .read(requestFileProvider(widget.requestId).notifier)
+          .downloadFormPdf(widget.requestId);
 
       if (!mounted) return;
 
-      final bytes = response.data is Uint8List
-          ? response.data as Uint8List
-          : Uint8List.fromList(response.data as List<int>);
-
       await openFileBytes(
-        bytes: bytes,
-        fileName: 'request_${widget.requestId.substring(0, 8).toUpperCase()}.pdf',
-        contentType: 'application/pdf',
+        bytes: result.bytes,
+        fileName: result.fileName,
+        contentType: result.contentType,
       );
     } catch (e) {
       if (mounted) {

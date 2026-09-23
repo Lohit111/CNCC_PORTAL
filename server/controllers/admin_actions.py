@@ -49,6 +49,40 @@ def get_hold(db: Session, page: int) -> dict:
     return _query_requests(db, [RequestStatus.HOLD], page)
 
 
+# --- EDIT endpoint ---
+
+def edit_request(
+    db: Session,
+    request_id: str,
+    room_no: str,
+    department: str,
+) -> dict:
+    """Edit request room and department.
+    
+    Args:
+        db: Database session
+        request_id: Request ID to edit
+        room_no: New room number
+        department: New department
+    
+    Returns:
+        Updated request dict with message
+        
+    Raises:
+        HTTPException 404 if request not found
+    """
+    req = Request.get_raw(db, {"id": request_id})
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    
+    # Update fields
+    req.room_no = room_no.strip()
+    req.department = department.strip()
+    db.commit()
+    
+    return {"message": "Request updated successfully", "request_id": request_id}
+
+
 def get_archive(db: Session, page: int) -> dict:
     return _query_requests(db, [RequestStatus.COMPLETED, RequestStatus.REJECTED], page)
 

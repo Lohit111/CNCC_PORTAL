@@ -75,6 +75,36 @@ class RequestFileNotifier
     );
   }
 
+  /// Downloads the request form PDF and returns bytes with filename and content-type.
+  Future<({Uint8List bytes, String fileName, String contentType})>
+      downloadFormPdf(String requestId) async {
+    final response = await _client.get(
+      '/request-files/$requestId/form-download',
+      options: Options(
+        responseType: ResponseType.bytes,
+        receiveTimeout: const Duration(minutes: 2),
+      ),
+    );
+
+    final dynamic raw = response.data;
+    final Uint8List bytes;
+    if (raw is Uint8List) {
+      bytes = raw;
+    } else if (raw is List<int>) {
+      bytes = Uint8List.fromList(raw);
+    } else {
+      throw StateError(
+        'Unexpected response data type for binary download: ${raw.runtimeType}',
+      );
+    }
+
+    return (
+      bytes: bytes,
+      fileName: 'request_${requestId.substring(0, 8).toUpperCase()}.pdf',
+      contentType: 'application/pdf',
+    );
+  }
+
   Future<void> upload(List<PlatformFile> files) async {
     debugPrint('RequestFileNotifier.upload() called');
     debugPrint('Number of files: ${files.length}');

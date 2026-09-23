@@ -130,6 +130,22 @@ class AdminNotifier extends FamilyAsyncNotifier<AdminRequestsState, String> {
       return null;
     }
   }
+
+  Future<bool> editRequest(String requestId, String roomNo, String department) async {
+    try {
+      await _client.put(
+        '/admin/edit/$requestId',
+        data: {
+          'room_no': roomNo,
+          'department': department,
+        },
+      );
+      await refresh();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
 final adminProvider =
