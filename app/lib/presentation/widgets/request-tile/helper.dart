@@ -5,9 +5,19 @@ import 'package:cncc_portal/core/utils/file_opener.dart';
 import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 import 'package:cncc_portal/domain/entities/request_file_entity.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
-import 'package:cncc_portal/presentation/providers/admin_provider.dart';
 import 'package:cncc_portal/presentation/providers/request_file_provider.dart';
 import 'package:cncc_portal/services/file_service.dart';
+
+// Extension to find first item or null
+extension FirstWhereOrNullExtension<E> on List<E> {
+  E? firstWhereOrNull(bool Function(E) test) {
+    try {
+      return firstWhere(test);
+    } catch (e) {
+      return null;
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Helper Methods
@@ -94,89 +104,6 @@ String formatFileSize(int bytes) {
   }
   return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
 }
-
-/// Show edit dialog for room and department
-void showEditDialog(BuildContext context, WidgetRef ref, RequestDetail detail) {
-  final req = detail.request;
-  final roomController = TextEditingController(text: req.roomNo);
-  final deptController = TextEditingController(text: req.department);
-  
-  showDialog(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Edit Request'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Room field
-            TextField(
-              controller: roomController,
-              decoration: const InputDecoration(
-                labelText: 'Room',
-                hintText: 'e.g., A001',
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Department field
-            TextField(
-              controller: deptController,
-              decoration: const InputDecoration(
-                labelText: 'Department',
-                hintText: 'e.g., Admin',
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () async {
-            // Call edit endpoint
-            final room = roomController.text.trim();
-            final dept = deptController.text.trim();
-            if (room.isEmpty || dept.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Please fill all fields')),
-              );
-              return;
-            }
-            
-            try {
-              // Call the admin provider's editRequest function
-              final ok = await ref
-                  .read(adminProvider(categoryForStatus(req.status)).notifier)
-                  .editRequest(req.id, room, dept);
-              
-              if (context.mounted) {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(ok ? 'Request updated successfully' : 'Failed to update request'),
-                  ),
-                );
-              }
-            } catch (e) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
-              }
-            }
-          },
-          child: const Text('Save'),
-        ),
-      ],
-    ),
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Delete Tile Widget
 // ---------------------------------------------------------------------------

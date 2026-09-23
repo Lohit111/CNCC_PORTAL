@@ -36,6 +36,7 @@ class AssignBody(BaseModel):
 class EditRequestBody(BaseModel):
     room_no: str
     department: str
+    sub_type: str
 
 
 # --- GET Endpoints ---
@@ -128,8 +129,8 @@ async def edit(
     body: EditRequestBody,
     db: Session = Depends(get_db)
 ):
-    """Edit request room and department"""
-    result = edit_request(db, request_id=request_id, room_no=body.room_no, department=body.department)
+    """Edit request room, department, and sub_type"""
+    result = edit_request(db, request_id=request_id, room_no=body.room_no, department=body.department, sub_type=body.sub_type)
     return result
 
 

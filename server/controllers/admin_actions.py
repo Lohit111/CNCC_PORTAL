@@ -56,21 +56,36 @@ def edit_request(
     request_id: str,
     room_no: str,
     department: str,
+    sub_type: str,
 ) -> dict:
-    """Edit request room and department.
+    """Edit request room, department, and sub_type.
     
     Args:
         db: Database session
         request_id: Request ID to edit
         room_no: New room number
         department: New department
+        sub_type: New sub_type (format: 'type1-num1,type2-num2,...')
     
     Returns:
         Updated request dict with message
         
     Raises:
+        HTTPException 400 if validation fails
         HTTPException 404 if request not found
     """
+    from models.request_type import SubTypeTable
+    from models.department import DepartmentTable
+
+    department_exists = db.query(DepartmentTable).filter(
+        DepartmentTable.department == department
+    ).first()
+    if not department_exists:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Department '{department}' does not exist"
+        )
+    
     req = Request.get_raw(db, {"id": request_id})
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
@@ -78,6 +93,7 @@ def edit_request(
     # Update fields
     req.room_no = room_no.strip()
     req.department = department.strip()
+    req.sub_type = sub_type.strip()
     db.commit()
     
     return {"message": "Request updated successfully", "request_id": request_id}

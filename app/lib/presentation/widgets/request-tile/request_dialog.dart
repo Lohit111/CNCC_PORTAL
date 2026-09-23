@@ -6,7 +6,10 @@ import 'package:cncc_portal/domain/entities/request_detail_entity.dart';
 import 'package:cncc_portal/presentation/widgets/request-tile/timeline_widget.dart';
 import 'package:cncc_portal/presentation/providers/auth_provider.dart';
 import 'package:cncc_portal/presentation/providers/admin_provider.dart';
+import 'package:cncc_portal/presentation/providers/departments_provider.dart';
 import 'package:cncc_portal/presentation/widgets/request-tile/helper.dart';
+import 'package:cncc_portal/presentation/widgets/searchable_selection_sheet.dart';
+import 'package:cncc_portal/presentation/widgets/multi_select_subtypes.dart';
 
 /// Full-detail dialog for a request.
 /// Shows request info, timeline, assignments, and store requests.
@@ -146,7 +149,7 @@ class RequestDialog extends ConsumerWidget {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: () => showEditDialog(context, ref, detail),
+                            onPressed: () => _showEditDialog(context, ref),
                             icon: const Icon(Icons.edit_rounded, size: 18),
                             label: const Text('Edit Request'),
                           ),
@@ -680,5 +683,310 @@ class RequestDialog extends ConsumerWidget {
       ),
     );
     return result ?? false;
+  }
+
+  void _showEditDialog(BuildContext context, WidgetRef ref) {
+    final roomController = TextEditingController(text: detail.request.roomNo);
+    String? selectedDeptName = detail.request.department;
+    List<SubTypeSelection> selectedSubTypes = [];
+    final Map<int, TextEditingController> subTypeControllers = {};
+    
+    // Parse existing sub_type string
+    if (detail.request.subType.isNotEmpty) {
+      final parts = detail.request.subType.split(',');
+      for (final part in parts) {
+        final lastDash = part.lastIndexOf('-');
+        if (lastDash > 0) {
+          final name = part.substring(0, lastDash).trim();
+          final quantity = part.substring(lastDash + 1).trim();
+          selectedSubTypes.add(SubTypeSelection(id: 0, name: name, quantity: quantity));
+        }
+      }
+    }
+    
+    // Create controllers for each sub_type quantity
+    for (int i = 0; i < selectedSubTypes.length; i++) {
+      subTypeControllers[i] = TextEditingController(text: selectedSubTypes[i].quantity);
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Edit Request'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Room field with validation
+                TextField(
+                  controller: roomController,
+                  decoration: InputDecoration(
+                    labelText: 'Room',
+                    hintText: 'e.g., A001',
+                    helperText: 'Format: 1-3 letters + 1-3 digits',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Department selector
+                Consumer(
+                  builder: (_, depRef, __) {
+                    final deptsAsync = depRef.watch(departmentsProvider);
+                    return deptsAsync.when(
+                      loading: () => const CircularProgressIndicator(),
+                      error: (e, _) => Text('Failed to load departments: $e'),
+                      data: (depts) => GestureDetector(
+                        onTap: () async {
+                          final selected = await showSearchableSelectionSheet(
+                            context: context,
+                            title: 'Select Department',
+                            searchHint: 'Search departments...',
+                            items: depts,
+                            selectedItem: depts.firstWhereOrNull(
+                              (d) => d.department == selectedDeptName,
+                            ),
+                            labelBuilder: (dept) => dept.department,
+                          );
+                          if (selected != null) {
+                            setState(() => selectedDeptName = selected.department);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                selectedDeptName ?? 'Select Department',
+                                style: TextStyle(
+                                  color: selectedDeptName != null
+                                      ? Colors.black
+                                      : Colors.grey,
+                                ),
+                              ),
+                              const Icon(Icons.arrow_drop_down),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Sub Types display with editable quantities
+                if (selectedSubTypes.isNotEmpty) ...[
+                  Text(
+                    'Sub Types',
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: List.generate(
+                        selectedSubTypes.length,
+                        (index) {
+                          final item = selectedSubTypes[index];
+                          return Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item.name,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 80,
+                                      child: TextField(
+                                        controller: subTypeControllers[index],
+                                        decoration: InputDecoration(
+                                          hintText: 'Qty',
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 6,
+                                          ),
+                                        ),
+                                        keyboardType: TextInputType.number,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            selectedSubTypes[index].quantity = value;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (index < selectedSubTypes.length - 1)
+                                Divider(
+                                  height: 1,
+                                  indent: 12,
+                                  endIndent: 12,
+                                  color: Colors.grey.shade300,
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final req = detail.request;
+                final room = roomController.text.trim();
+                
+                if (room.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a room')),
+                  );
+                  return;
+                }
+                
+                if (_validateRoomNumber(room) == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Invalid room format. E.g., A001 or A12/5'),
+                    ),
+                  );
+                  return;
+                }
+                
+                if (selectedDeptName == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please select a department')),
+                  );
+                  return;
+                }
+                
+                try {
+                  // Update quantities from controllers
+                  for (int i = 0; i < selectedSubTypes.length; i++) {
+                    selectedSubTypes[i].quantity = subTypeControllers[i]?.text ?? '';
+                  }
+                  
+                  // Filter out empty or 0 quantities
+                  final filteredSubTypes = selectedSubTypes
+                      .where((item) {
+                        final qty = item.quantity?.trim() ?? '';
+                        return qty.isNotEmpty && qty != '0';
+                      })
+                      .toList();
+                  
+                  final subTypeString = filteredSubTypes
+                      .map((item) => '${item.name}-${item.quantity ?? ''}')
+                      .join(',');
+                  
+                  final ok = await ref
+                      .read(adminProvider(categoryForStatus(req.status)).notifier)
+                      .editRequest(req.id, room, selectedDeptName!, subTypeString);
+                  
+                  if (context.mounted) {
+                    Navigator.pop(ctx); // Close edit dialog
+                    Navigator.pop(context); // Close request dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok ? 'Request updated successfully' : 'Failed to update request'),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String? _validateRoomNumber(String input) {
+    if (input.trim().isEmpty) return null;
+
+    final cleaned =
+        input.replaceAll(RegExp(r'[^a-zA-Z0-9/]'), '').toUpperCase();
+    if (cleaned.isEmpty) return null;
+
+    final parts = cleaned.split('/');
+    if (parts.length > 2) return null;
+
+    final mainPart = parts[0];
+    final suffixPart = parts.length > 1 ? parts[1] : null;
+
+    if (suffixPart != null) {
+      if (suffixPart.length != 1 || !RegExp(r'\d').hasMatch(suffixPart)) {
+        return null;
+      }
+    }
+
+    if (mainPart.isEmpty || !RegExp(r'^[A-Z]').hasMatch(mainPart)) {
+      return null;
+    }
+
+    int letterCount = 0;
+    int digitCount = 0;
+    bool seenDigit = false;
+    String letters = '';
+    String digits = '';
+
+    for (final char in mainPart.characters) {
+      if (RegExp(r'[A-Z]').hasMatch(char)) {
+        if (seenDigit) return null;
+        if (letterCount >= 3) return null;
+        letters += char;
+        letterCount++;
+      } else if (RegExp(r'\d').hasMatch(char)) {
+        if (digitCount >= 3) return null;
+        digits += char;
+        digitCount++;
+        seenDigit = true;
+      } else {
+        return null;
+      }
+    }
+
+    if (digitCount == 0) return null;
+
+    final paddedDigits = digits.padLeft(3, '0');
+    final formattedMain = '$letters$paddedDigits';
+    return suffixPart != null ? '$formattedMain/$suffixPart' : formattedMain;
   }
 }
