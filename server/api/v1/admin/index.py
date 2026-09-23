@@ -9,7 +9,7 @@ from models.enums import UserRole
 from middleware.auth import require_role, get_current_user
 from controllers.admin_actions import (
     get_raised, get_replied, get_assigned,
-    get_reassign_requested, get_inprogress, get_archive,
+    get_reassign_requested, get_inprogress, get_hold, get_archive,
     reply_to_request, assign_request, reject_request,
     delete_request, delete_store_request
 )
@@ -63,6 +63,12 @@ async def list_reassign_requested(page: int = 1, db: Session = Depends(get_db)):
 async def list_inprogress(page: int = 1, db: Session = Depends(get_db)):
     """All requests in IN_PROGRESS status (paginated, 30 per page)"""
     return get_inprogress(db, page=page)
+
+
+@router.get("/hold")
+async def list_hold(page: int = 1, db: Session = Depends(get_db)):
+    """All requests in HOLD status (paginated, 30 per page)"""
+    return get_hold(db, page=page)
 
 
 @router.get("/archive")

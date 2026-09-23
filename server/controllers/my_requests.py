@@ -10,6 +10,43 @@ from controllers.common.helpers import paginate_requests, truncate
 import re
 
 
+def _validate_combined_sub_types(db: Session, sub_type: str) -> bool:
+    """Validate combined sub_type format: 'type1-num1,type2-num2,...'
+    
+    Each part must be: {sub_type_name}-{quantity}
+    Verifies that each sub_type_name is a valid SubType in the database.
+    Returns True if valid, False otherwise.
+    """
+    from models.request_type import SubTypeTable
+    
+    if not sub_type or not sub_type.strip():
+        return False
+    
+    parts = sub_type.split(',')
+    for part in parts:
+        if '-' not in part:
+            return False
+        components = part.rsplit('-', 1)  # Split from right to handle names with hyphens
+        if len(components) != 2:
+            return False
+        name, quantity = components
+        name = name.strip()
+        quantity = quantity.strip()
+        
+        # Validate name and quantity format
+        if not name or not quantity or not quantity.isdigit():
+            return False
+        
+        # Verify that the subtype name exists in database
+        subtype_exists = db.query(SubTypeTable).filter(
+            SubTypeTable.name == name
+        ).first()
+        if not subtype_exists:
+            return False
+    
+    return True
+
+
 def _validate_and_format_room(room_no: str) -> str:
     """Validate room number format and return formatted version.
     
@@ -158,6 +195,13 @@ def create_request(
     department: str,
 ) -> dict:
     """Create a new request with RAISED status and an initial track entry."""
+    # Validate combined sub_type format and verify subtypes exist
+    if not _validate_combined_sub_types(db, sub_type):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid sub_type format or one or more sub_types don't exist. Expected: 'type1-num1,type2-num2,...'"
+        )
+    
     formatted_room = _validate_and_format_room(room_no)
     request = Request.create(db, {
         "raised_by": user_id,

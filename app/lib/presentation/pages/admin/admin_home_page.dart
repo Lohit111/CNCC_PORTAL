@@ -2,6 +2,7 @@ import 'package:cncc_portal/presentation/pages/admin/admin_archive_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_assigned_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_dashboard_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_inprogress_page.dart';
+import 'package:cncc_portal/presentation/pages/admin/admin_hold_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_raised_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_reassign_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_replied_page.dart';
@@ -28,6 +29,7 @@ enum _AdminTab {
   assigned,
   reassignRequested,
   inprogress,
+  hold,
   archive,
   search,
   dashboard,
@@ -84,6 +86,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         break;
       case _AdminTab.inprogress:
         break;
+      case _AdminTab.hold:
+        break;
       case _AdminTab.archive:
         break;
       case _AdminTab.search:
@@ -130,6 +134,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return 'Reassign Requested';
       case _AdminTab.inprogress:
         return 'In Progress';
+      case _AdminTab.hold:
+        return 'Hold Requests';
       case _AdminTab.archive:
         return 'Archive';
       case _AdminTab.search:
@@ -232,6 +238,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage>
         return const AdminReassignPage();
       case _AdminTab.inprogress:
         return const AdminInProgressPage();
+      case _AdminTab.hold:
+        return const AdminHoldPage();
       case _AdminTab.archive:
         return const AdminArchivePage();
       case _AdminTab.search:

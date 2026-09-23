@@ -7,6 +7,7 @@ import 'package:cncc_portal/presentation/providers/types_provider.dart';
 import 'package:cncc_portal/presentation/providers/request_file_provider.dart';
 import 'package:cncc_portal/presentation/widgets/searchable_selection_sheet.dart';
 import 'package:cncc_portal/services/file_service.dart';
+import 'package:cncc_portal/presentation/widgets/multi_select_subtypes.dart';
 
 /// Shared "New Request" dialog used by all role home pages.
 class RequestFormDialog extends ConsumerStatefulWidget {
@@ -24,9 +25,8 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
   final _roomController = TextEditingController();
 
   int? _selectedMainId;
-  int? _selectedSubId;
   String? _selectedMainName;
-  String? _selectedSubName;
+  List<SubTypeSelection> _selectedSubTypes = [];
   int? _selectedDeptId;
   String? _selectedDeptName;
   bool _isSubmitting = false;
@@ -163,8 +163,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                       setState(() {
                         _selectedMainId = selected.id;
                         _selectedMainName = selected.name;
-                        _selectedSubId = null;
-                        _selectedSubName = null;
+                        _selectedSubTypes = [];
                       });
                     },
                     validator: () => _selectedMainId == null
@@ -173,7 +172,7 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                   ),
                 ),
 
-                // Sub type — only shown once a main type is selected
+                // Sub type — multi-select only shown once a main type is selected
                 if (_selectedMainId != null) const SizedBox(height: 12),
                 if (_selectedMainId != null)
                   Consumer(builder: (_, ref, __) {
@@ -182,34 +181,18 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
                     return subAsync.when(
                       loading: () => const CircularProgressIndicator(),
                       error: (e, _) => Text('Failed to load sub types: $e'),
-                      data: (subs) => _SelectionField(
-                        label: 'Sub Type',
-                        value: _selectedSubName,
-                        hint: 'Select a sub type',
-                        onTap: () async {
-                          final selected = await showSearchableSelectionSheet(
-                            context: context,
-                            title: 'Select Sub Type',
-                            searchHint: 'Search sub types...',
-                            items: subs,
-                            selectedItem: _selectedSubId == null
-                                ? null
-                                : subs.firstWhere(
-                                    (t) => t.id == _selectedSubId,
-                                  ),
-                            labelBuilder: (type) => type.name,
-                          );
-
-                          if (selected == null || !mounted) return;
-
+                      data: (subs) => MultiSelectSubTypesWidget(
+                        availableSubTypes: subs
+                            .map((s) => SubTypeSelection(
+                                  id: s.id,
+                                  name: s.name,
+                                ))
+                            .toList(),
+                        onSelectionChanged: (selected) {
                           setState(() {
-                            _selectedSubId = selected.id;
-                            _selectedSubName = selected.name;
+                            _selectedSubTypes = selected;
                           });
                         },
-                        validator: () => _selectedSubId == null
-                            ? 'Please select a sub type'
-                            : null,
                       ),
                     );
                   }),
@@ -411,7 +394,13 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedMainName == null || _selectedSubName == null) return;
+    if (_selectedMainName == null) return;
+    if (_selectedSubTypes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one sub type')),
+      );
+      return;
+    }
     if (_selectedDeptName == null) return;
 
     setState(() => _isSubmitting = true);
@@ -430,11 +419,16 @@ class _RequestFormDialogState extends ConsumerState<RequestFormDialog> {
       return;
     }
 
+    // Construct combined sub_type: "type1-num1,type2-num2,..."
+    final subTypeString = _selectedSubTypes
+        .map((item) => '${item.name}-${item.quantity}')
+        .join(',');
+
     // Phase 1: Create the request
     final requestId =
         await ref.read(myRequestsProvider('raised').notifier).createRequest(
               mainType: _selectedMainName!,
-              subType: _selectedSubName!,
+              subType: subTypeString,
               description: _descController.text.trim(),
               roomNo: formattedRoom,
               department: _selectedDeptName!,

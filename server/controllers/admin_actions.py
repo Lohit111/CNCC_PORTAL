@@ -42,7 +42,11 @@ def get_reassign_requested(db: Session, page: int) -> dict:
 
 
 def get_inprogress(db: Session, page: int) -> dict:
-    return _query_requests(db, [RequestStatus.IN_PROGRESS, RequestStatus.HOLD], page)
+    return _query_requests(db, [RequestStatus.IN_PROGRESS], page)
+
+
+def get_hold(db: Session, page: int) -> dict:
+    return _query_requests(db, [RequestStatus.HOLD], page)
 
 
 def get_archive(db: Session, page: int) -> dict:
