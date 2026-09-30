@@ -4,7 +4,10 @@ services:
       context: ./app
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl:ro
 
   api:
     build:

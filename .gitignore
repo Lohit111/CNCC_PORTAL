@@ -2,3 +2,4 @@ __pycache__/
 server/.env
 server/config/firebase-credentials.json
 .env
+nginx/ssl/
