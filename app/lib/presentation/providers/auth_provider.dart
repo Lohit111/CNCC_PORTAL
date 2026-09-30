@@ -34,30 +34,59 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final fb.FirebaseAuth _firebaseAuth = fb.FirebaseAuth.instance;
 
   AuthNotifier() : super(AuthState(isLoading: true)) {
+    print('AUTH: AuthNotifier CREATED');
     _init();
   }
 
   void _init() {
+    print('AUTH: _init START');
+
     _firebaseAuth.authStateChanges().listen((fbUser) {
+      print('AUTH: authStateChanges emitted: ${fbUser?.uid}');
+
       if (fbUser == null) {
-        state = AuthState(user: null, isLoading: false);
+        state = AuthState(
+          user: null,
+          isLoading: false,
+        );
       } else {
         _fetchUserProfile();
       }
     });
+
+    print('AUTH: listener attached');
   }
 
   Future<void> _fetchUserProfile() async {
     try {
-      state = state.copyWith(isLoading: true, error: null);
+      print('AUTH: fetching /users/me');
 
       final response = await _networkClient.get('/users/me');
+
+      print('AUTH: /users/me = ${response.statusCode}');
+
       final user = User.fromJson(response.data);
 
-      state = AuthState(user: user, isLoading: false);
-      await NotificationService.registerToken();
-    } catch (error) {
-      final appError = ErrorHandler.handle(error);
+      state = AuthState(
+        user: user,
+        isLoading: false,
+      );
+
+      print('AUTH: profile loaded');
+
+      try {
+        await NotificationService.registerToken();
+        print('AUTH: notification token registered');
+      } catch (e, st) {
+        print('AUTH: notification registration FAILED: $e');
+        print(st);
+      }
+    } catch (e, st) {
+      print('AUTH: /users/me FAILED: $e');
+      print(st);
+
+      final appError = ErrorHandler.handle(e);
+
       state = AuthState(
         user: null,
         isLoading: false,

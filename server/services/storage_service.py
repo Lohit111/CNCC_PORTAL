@@ -70,6 +70,30 @@ def _object_key(request_id: str, filename: str) -> str:
     return f"requests/{request_id}/{uuid.uuid4()}_{filename}"
 
 
+def ensure_bucket_exists() -> None:
+    """Ensure the configured S3 bucket exists, creating it if necessary."""
+    try:
+        _client.head_bucket(Bucket=_BUCKET)
+    except Exception:
+        logger.info("Bucket '%s' not found or head_bucket failed. Attempting to create...", _BUCKET)
+        try:
+            if _REGION and _REGION != "us-east-1":
+                _client.create_bucket(
+                    Bucket=_BUCKET,
+                    CreateBucketConfiguration={"LocationConstraint": _REGION},
+                )
+            else:
+                _client.create_bucket(Bucket=_BUCKET)
+            logger.info("Bucket '%s' created successfully.", _BUCKET)
+        except Exception as create_err:
+            try:
+                _client.create_bucket(Bucket=_BUCKET)
+                logger.info("Bucket '%s' created successfully on fallback.", _BUCKET)
+            except Exception as e:
+                logger.exception("Failed to create bucket '%s': %s", _BUCKET, e)
+                raise create_err
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -88,6 +112,9 @@ def post_files(
 
     try:
         records: List[RequestFile] = []
+
+        # Ensure bucket exists before processing uploads
+        ensure_bucket_exists()
 
         for file in files:
             filename = file.filename or "file"

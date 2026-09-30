@@ -11,11 +11,18 @@ import 'package:cncc_portal/presentation/pages/user/user_home_page.dart';
 import 'package:cncc_portal/presentation/pages/admin/admin_home_page.dart';
 import 'package:cncc_portal/presentation/pages/staff/staff_home_page.dart';
 import 'package:cncc_portal/presentation/pages/store/store_home_page.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
+  print('FIREBASE: initializeApp START');
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  print('FIREBASE: initializeApp COMPLETE');
+  print(
+    'FIREBASE: currentUser = ${fb.FirebaseAuth.instance.currentUser?.uid}',
+  );
   final container = ProviderContainer();
   await NotificationService.init(container);
   runApp(UncontrolledProviderScope(

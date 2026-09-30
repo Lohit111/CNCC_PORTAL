@@ -56,6 +56,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to create database tables: {e}")
 
+    # Ensure S3 storage bucket exists
+    try:
+        from services.storage_service import ensure_bucket_exists
+        ensure_bucket_exists()
+    except Exception as e:
+        logger.error(f"Failed to verify/create storage bucket: {e}")
+
     logger.info("Application started successfully")
 
     yield
