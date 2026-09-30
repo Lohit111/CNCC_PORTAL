@@ -18,5 +18,6 @@ RUN --mount=type=cache,target=/root/.pub-cache \
 FROM nginx:alpine AS runner
 
 COPY --from=builder /app/build/web /usr/share/nginx/html
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 80 443

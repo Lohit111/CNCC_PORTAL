@@ -325,3 +325,36 @@ flutter test integration_test/
 - [ ] Configure push notifications (optional)
 - [ ] Test all role-based flows
 - [ ] Verify token refresh mechanism
+
+## Running on Docker (with HTTPS)
+
+The web frontend can be served via Docker using Nginx, configured for both HTTP (port 80) and HTTPS (port 443).
+
+### 1. Generate a Self-Signed Certificate
+
+Nginx requires a valid certificate to serve HTTPS. For local testing or internal setups, you can generate a self-signed certificate. You must include the Server IP in the Subject Alternative Name (SAN).
+
+Replace `127.0.0.1` below with your actual Server IP.
+
+```bash
+mkdir -p ../nginx/ssl
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout ../nginx/ssl/nginx.key -out ../nginx/ssl/nginx.crt \
+  -subj "/CN=127.0.0.1" \
+  -addext "subjectAltName=IP:127.0.0.1"
+```
+
+### 2. Start the Docker Service
+
+To build and start the Docker containers (from the repository root):
+
+```bash
+docker compose up -d --build
+```
+
+### 3. Access the Application
+
+- **HTTP**: `http://YOUR_SERVER_IP`
+- **HTTPS**: `https://YOUR_SERVER_IP`
+
+*(Note: Because the certificate is self-signed, browsers will show a security warning. You can safely bypass it for testing purposes.)*
