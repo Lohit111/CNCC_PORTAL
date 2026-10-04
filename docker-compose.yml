@@ -4,8 +4,7 @@ services:
       context: ./app
     restart: unless-stopped
     ports:
-      - "3000:80"
-      - "3001:443"
+      - "80:80"
 
   api:
     build:
