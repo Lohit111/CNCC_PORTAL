@@ -16,6 +16,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
+  print('New Version');
   print('FIREBASE: initializeApp START');
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);

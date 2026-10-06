@@ -1,7 +1,5 @@
 FROM ghcr.io/cirruslabs/flutter:3.41.7 AS builder
 
-ENV FLUTTER_WEB_USE_SKIA=true
-
 WORKDIR /app
 
 COPY pubspec.yaml pubspec.lock ./
