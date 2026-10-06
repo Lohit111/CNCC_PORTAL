@@ -22,13 +22,11 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 class NotificationService {
   static final MobileNotificationService mobile = MobileNotificationService();
 
-  static final WebNotificationService web = WebNotificationService();
-
   static Future<void> init(
     ProviderContainer container,
   ) {
     if (kIsWeb) {
-      return web.init(container);
+      return Future.value(); // Skip web
     }
 
     return mobile.init(container);
@@ -36,7 +34,7 @@ class NotificationService {
 
   static Future<void> registerToken() {
     if (kIsWeb) {
-      return web.registerToken();
+      return Future.value(); // Skip web
     }
 
     return mobile.registerToken();
@@ -206,108 +204,8 @@ class MobileNotificationService {
 }
 
 // ============================================================
-// Web
+// Web - DISABLED (notifications not supported on web)
 // ============================================================
-
-class WebNotificationService {
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-
-  final NetworkClient _networkClient = NetworkClient();
-
-  ProviderContainer? _container;
-
-  bool _initialized = false;
-
-  static const String _vapidKey =
-      'BDWi7zZw9gBK8IUpGqys3M6X-X0jrU6H4mxLdi7hhlfCmsNWN6Dy3FSZmbqQHLt2-Rpl91yw6whGsnm2hUy0IV0';
-
-  Future<void> init(
-    ProviderContainer container,
-  ) async {
-    if (_initialized) return;
-
-    _container = container;
-
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-
-    debugPrint(
-      'Web notification permission: '
-      '${settings.authorizationStatus}',
-    );
-
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      _initialized = true;
-      return;
-    }
-
-    // Foreground notifications only.
-    FirebaseMessaging.onMessage.listen(
-      _handleForegroundMessage,
-    );
-
-    _initialized = true;
-  }
-
-  void _handleForegroundMessage(
-    RemoteMessage message,
-  ) {
-    final notification = message.notification;
-    if (notification == null) return;
-
-    final title = notification.title ?? 'Notification';
-    final body = notification.body ?? '';
-
-    FunctionalHelpers.showNotification(
-      title: title,
-      body: body,
-    );
-
-    FunctionalHelpers.invalidateProviders(_container, message.data);
-  }
-
-  Future<void> registerToken() async {
-    try {
-      final token = await _messaging.getToken(
-        vapidKey: _vapidKey,
-      );
-
-      if (token == null) {
-        debugPrint('FCM Web token was null');
-        return;
-      }
-
-      debugPrint('FCM Web token obtained');
-
-      await _upsertToken(token);
-    } catch (e) {
-      debugPrint(
-        'Failed to register Web FCM token: $e',
-      );
-    }
-  }
-
-  Future<void> _upsertToken(
-    String token,
-  ) async {
-    try {
-      await _networkClient.post(
-        '/users/upsert_fcm_token',
-        data: {
-          'fcm_token': token,
-          'platform': 'web',
-        },
-      );
-    } catch (e) {
-      debugPrint(
-        'Failed to register Web FCM token: $e',
-      );
-    }
-  }
-}
 
 class FunctionalHelpers {
   static OverlayEntry? _notificationEntry;
